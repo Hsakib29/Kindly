@@ -1,5 +1,5 @@
-import { listModels } from './gemini';
-import { getSettings, setSettings } from '../shared/storage';
+import { generateVariants, listModels } from './gemini';
+import { getKey, getSettings, setSettings } from '../shared/storage';
 import type { ApiError, ExtensionRequest, ExtensionResponse } from '../shared/messages';
 
 declare const __GEMINI_API_KEY__: string;
@@ -63,7 +63,32 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
     case 'SET_SETTINGS':
       return { type: 'SETTINGS', settings: await setSettings(request.patch) };
 
-    case 'REWRITE':
+    case 'REWRITE': {
+      // Prompt builder lands in P1.7; this is a minimal stand-in so the
+      // structured-output client is exercised end to end.
+      const key = await getKey();
+      if (!key) {
+        return {
+          type: 'ERROR',
+          requestId: request.requestId,
+          error: { code: 'NO_KEY', message: 'No API key configured.' },
+        };
+      }
+      try {
+        const variants = await generateVariants({
+          key,
+          userPrompt: `Rewrite the following message in a ${request.tone} tone. Return JSON variants.\n\n${request.text}`,
+        });
+        return { type: 'REWRITE_RESULT', requestId: request.requestId, variants };
+      } catch (err) {
+        return {
+          type: 'ERROR',
+          requestId: request.requestId,
+          error: toApiError(err),
+        };
+      }
+    }
+
     case 'WRITE':
       // Implemented in P1.5/P3.x and P6.x.
       return {

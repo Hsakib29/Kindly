@@ -1,4 +1,4 @@
-import type { ErrorCode } from '../shared/messages';
+import type { ErrorCode, Variant } from '../shared/messages';
 
 const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
@@ -31,7 +31,9 @@ export function mapHttpError(status: number, body: GoogleErrorBody): GeminiError
     return new GeminiError('RATE_LIMIT', detail, retryAfterMs);
   }
   if (status === 404) {
-    return new GeminiError('INVALID_KEY', `Model or endpoint not found: ${detail}`);
+    // Model or endpoint missing — the router should fall back to another model,
+    // so this must not surface as INVALID_KEY.
+    return new GeminiError('NETWORK', `Model or endpoint not found: ${detail}`, retryAfterMs);
   }
   if (status >= 500) {
     return new GeminiError('NETWORK', `Gemini server error: ${detail}`, retryAfterMs);
@@ -72,4 +74,122 @@ export async function listModels(key: string): Promise<number> {
   const res = await geminiFetch('/models?pageSize=1000', key);
   const data = (await res.json()) as { models?: unknown[] };
   return data.models?.length ?? 0;
+}
+
+// ---------- Structured generation (P1.5) ----------
+
+const DEFAULT_MODEL = 'gemini-2.0-flash';
+
+const VARIANTS_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    variants: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          label: { type: 'STRING' },
+          text: { type: 'STRING' },
+        },
+        required: ['label', 'text'],
+      },
+    },
+  },
+  required: ['variants'],
+} as const;
+
+interface GenerateContentResponse {
+  candidates?: {
+    content?: { parts?: { text?: string }[] };
+    finishReason?: string;
+  }[];
+  promptFeedback?: { blockReason?: string };
+}
+
+export interface GenerateVariantsOptions {
+  key: string;
+  model?: string;
+  systemInstruction?: string;
+  userPrompt: string;
+  /** Maximum variants to return (default 3). */
+  count?: number;
+}
+
+/**
+ * Ask Gemini for rewrite variants as structured JSON, then parse,
+ * validate, and deduplicate the result.
+ */
+export async function generateVariants(
+  options: GenerateVariantsOptions,
+): Promise<Variant[]> {
+  const model = options.model ?? DEFAULT_MODEL;
+  const body = {
+    ...(options.systemInstruction
+      ? { systemInstruction: { parts: [{ text: options.systemInstruction }] } }
+      : {}),
+    contents: [{ parts: [{ text: options.userPrompt }] }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseJsonSchema: VARIANTS_SCHEMA,
+      temperature: 0.7,
+    },
+  };
+
+  const res = await geminiFetch(`/models/${model}:generateContent`, options.key, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json()) as GenerateContentResponse;
+
+  if (data.promptFeedback?.blockReason) {
+    throw new GeminiError(
+      'SAFETY_BLOCK',
+      `Request blocked by safety filters (${data.promptFeedback.blockReason}).`,
+    );
+  }
+  const candidate = data.candidates?.[0];
+  if (candidate?.finishReason === 'SAFETY') {
+    throw new GeminiError('SAFETY_BLOCK', 'Response blocked by safety filters.');
+  }
+
+  const raw = candidate?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new GeminiError('BAD_OUTPUT', 'Gemini returned malformed JSON.', undefined);
+  }
+
+  return validateVariants(parsed, options.count ?? 3);
+}
+
+function validateVariants(parsed: unknown, count: number): Variant[] {
+  const list =
+    typeof parsed === 'object' && parsed !== null && 'variants' in parsed
+      ? (parsed as { variants: unknown }).variants
+      : parsed;
+  if (!Array.isArray(list)) {
+    throw new GeminiError('BAD_OUTPUT', 'Gemini output did not contain a variants array.');
+  }
+
+  const seen = new Set<string>();
+  const variants: Variant[] = [];
+  for (const item of list) {
+    if (typeof item !== 'object' || item === null) continue;
+    const { label, text } = item as { label?: unknown; text?: unknown };
+    if (typeof text !== 'string' || !text.trim()) continue;
+    const key = text.trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    variants.push({
+      label: typeof label === 'string' && label.trim() ? label.trim() : `Option ${variants.length + 1}`,
+      text: text.trim(),
+    });
+    if (variants.length >= count) break;
+  }
+  if (variants.length === 0) {
+    throw new GeminiError('BAD_OUTPUT', 'Gemini returned no usable variants.');
+  }
+  return variants;
 }
