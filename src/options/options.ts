@@ -1,4 +1,9 @@
 import { PRODUCT_NAME, TAGLINE } from '../shared/brand';
+import { sendRequest } from '../shared/client';
+import { clearKey, getKey, setKey } from '../shared/storage';
+import type { ExtensionResponse } from '../shared/messages';
+
+type VerifyResult = Extract<ExtensionResponse, { type: 'VERIFY_KEY_RESULT' }>;
 
 const title = document.getElementById('app-title');
 if (title) title.textContent = PRODUCT_NAME;
@@ -20,3 +25,66 @@ for (const button of buttons) {
     }
   });
 }
+
+// ---------- API key section (P1.4) ----------
+
+const keyInput = document.getElementById('api-key-input') as HTMLInputElement;
+const toggleKey = document.getElementById('toggle-key') as HTMLButtonElement;
+const verifyKey = document.getElementById('verify-key') as HTMLButtonElement;
+const clearKeyButton = document.getElementById('clear-key') as HTMLButtonElement;
+const keyStatus = document.getElementById('key-status') as HTMLParagraphElement;
+
+function setStatus(message: string, kind?: 'ok' | 'err') {
+  keyStatus.textContent = message;
+  keyStatus.className = `status${kind ? ` ${kind}` : ''}`;
+}
+
+toggleKey.addEventListener('click', () => {
+  const show = keyInput.type === 'password';
+  keyInput.type = show ? 'text' : 'password';
+  toggleKey.textContent = show ? 'Hide' : 'Show';
+});
+
+async function initKeyField() {
+  const saved = await getKey();
+  if (saved) {
+    keyInput.placeholder = `Saved key: ${saved.slice(0, 6)}…${saved.slice(-4)}`;
+    setStatus('A key is saved. Paste a new one to replace it.', 'ok');
+  }
+}
+
+verifyKey.addEventListener('click', async () => {
+  const key = keyInput.value.trim();
+  if (!key) {
+    setStatus('Paste an API key first.', 'err');
+    return;
+  }
+  verifyKey.disabled = true;
+  setStatus('Verifying…');
+  try {
+    const res = await sendRequest<VerifyResult>({ type: 'VERIFY_KEY', key });
+    if (res.type === 'VERIFY_KEY_RESULT' && res.ok) {
+      await setKey(key);
+      keyInput.value = '';
+      setStatus(`Key works — ${res.modelCount ?? '?'} models available.`, 'ok');
+      initKeyField();
+    } else if (res.type === 'VERIFY_KEY_RESULT') {
+      setStatus(res.error?.message ?? 'Key verification failed.', 'err');
+    } else {
+      setStatus('Unexpected response from service worker.', 'err');
+    }
+  } catch (err) {
+    setStatus(err instanceof Error ? err.message : String(err), 'err');
+  } finally {
+    verifyKey.disabled = false;
+  }
+});
+
+clearKeyButton.addEventListener('click', async () => {
+  await clearKey();
+  keyInput.value = '';
+  setStatus('Saved key cleared.', 'ok');
+  initKeyField();
+});
+
+void initKeyField();

@@ -43,6 +43,48 @@
         color: #888;
         margin-top: -0.75rem;
       }
+      .key-row {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+      }
+      .key-row input {
+        flex: 1;
+        padding: 0.45rem 0.6rem;
+        border: 1px solid #8886;
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+      }
+      .key-actions {
+        display: flex;
+        gap: 0.5rem;
+      }
+      button {
+        padding: 0.4rem 0.9rem;
+        border: 1px solid #8886;
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+      }
+      #verify-key {
+        background: #4f7cff;
+        border-color: #4f7cff;
+        color: #fff;
+      }
+      .status {
+        min-height: 1.2em;
+        margin: 0.5rem 0 0;
+      }
+      .status.ok {
+        color: #1a7f37;
+      }
+      .status.err {
+        color: #cf222e;
+      }
     </style>
   </head>
   <body>
@@ -57,7 +99,22 @@
     </nav>
     <section id="api-key">
       <h2>API key</h2>
-      <p>Gemini API key entry will live here (P1.4).</p>
+      <p>Your Google Gemini API key. Stored locally in this browser only.</p>
+      <div class="key-row">
+        <input
+          id="api-key-input"
+          type="password"
+          placeholder="Paste your Gemini API key"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button id="toggle-key" type="button">Show</button>
+      </div>
+      <div class="key-actions">
+        <button id="verify-key" type="button">Verify</button>
+        <button id="clear-key" type="button">Clear</button>
+      </div>
+      <p id="key-status" class="status" role="status"></p>
     </section>
     <section id="models" hidden>
       <h2>Models</h2>
