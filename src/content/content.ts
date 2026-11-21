@@ -4,6 +4,7 @@ import { KindlyIcon } from './icon';
 import { TypingTrigger } from './typing-trigger';
 import { setSettings } from '../shared/storage';
 import { sendRequest } from '../shared/client';
+import { RewritePanel } from './panel';
 import type { ExtensionResponse } from '../shared/messages';
 
 type SettingsResponse = Extract<ExtensionResponse, { type: 'SETTINGS' }>;
@@ -46,10 +47,16 @@ const BLUR_GRACE_MS = 250;
 let blurTimer: number | undefined;
 let currentField: HTMLElement | null = null;
 
+const panel = new RewritePanel();
+
 const icon = new KindlyIcon(
   () => {
-    // Stage 3 opens the rewrite panel here.
-    console.log('[Kindly] icon clicked on', currentField);
+    if (!currentField) return;
+    const field = currentField;
+    panel.open({
+      getRect: () => field.getBoundingClientRect(),
+      onClose: () => field.focus(),
+    });
   },
   () => {
     if (!confirm(`Hide Kindly on ${hostname}? You can re-enable it in settings.`)) return;
