@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "{{TAGLINE}}",
   "permissions": ["storage"],
+  "host_permissions": ["https://generativelanguage.googleapis.com/*"],
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"

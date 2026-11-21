@@ -1,0 +1,105 @@
+// Shared message contract between content script, options page, and service worker.
+// Every message and response is typed here so malformed payloads fail at compile time.
+
+export type ToneId =
+  | 'professional'
+  | 'warm'
+  | 'short'
+  | 'direct'
+  | 'empathetic'
+  | 'friendly'
+  | 'grammar';
+
+export const TONE_IDS: readonly ToneId[] = [
+  'professional',
+  'warm',
+  'short',
+  'direct',
+  'empathetic',
+  'friendly',
+  'grammar',
+];
+
+export interface Variant {
+  label: string;
+  text: string;
+}
+
+export type ErrorCode =
+  | 'INVALID_KEY'
+  | 'RATE_LIMIT'
+  | 'NETWORK'
+  | 'SAFETY_BLOCK'
+  | 'BAD_OUTPUT'
+  | 'NO_KEY'
+  | 'TEXT_TOO_SHORT'
+  | 'TEXT_TOO_LONG';
+
+export interface ApiError {
+  code: ErrorCode;
+  message: string;
+  retryAfterMs?: number;
+}
+
+// ---- Requests (sent to the service worker) ----
+
+export type ExtensionRequest =
+  | { type: 'PING' }
+  | { type: 'VERIFY_KEY'; key: string }
+  | {
+      type: 'REWRITE';
+      requestId: string;
+      text: string;
+      tone: ToneId;
+      instruction?: string;
+      avoid?: string[];
+    }
+  | {
+      type: 'WRITE';
+      requestId: string;
+      prompt: string;
+      tone?: ToneId;
+      length?: 'short' | 'medium' | 'long';
+      instruction?: string;
+    }
+  | { type: 'GET_SETTINGS' }
+  | { type: 'SET_SETTINGS'; patch: Partial<Settings> };
+
+// ---- Responses (sent back to the requester) ----
+
+export type ExtensionResponse =
+  | { type: 'PONG' }
+  | { type: 'VERIFY_KEY_RESULT'; ok: boolean; modelCount?: number; error?: ApiError }
+  | { type: 'REWRITE_RESULT'; requestId: string; variants: Variant[] }
+  | { type: 'WRITE_RESULT'; requestId: string; variants: Variant[] }
+  | { type: 'ERROR'; requestId?: string; error: ApiError }
+  | { type: 'SETTINGS'; settings: Settings };
+
+// ---- Settings (P1.2 storage schema; extended in later stages) ----
+
+export interface BrandVoice {
+  companyName?: string;
+  greeting?: string;
+  closing?: string;
+  wordsToUse?: string[];
+  wordsToAvoid?: string[];
+  formality?: 'casual' | 'neutral' | 'formal';
+}
+
+export interface Settings {
+  schemaVersion: number;
+  hiddenSites: string[];
+  neverRunSites: string[];
+  brandVoice: BrandVoice;
+  routerPreference: 'auto' | 'speed' | 'quality';
+  usePageContextBySite: Record<string, boolean>;
+}
+
+export const SETTINGS_DEFAULTS: Settings = {
+  schemaVersion: 1,
+  hiddenSites: [],
+  neverRunSites: [],
+  brandVoice: {},
+  routerPreference: 'auto',
+  usePageContextBySite: {},
+};
