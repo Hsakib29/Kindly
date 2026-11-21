@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Kindly",
+  "name": "{{STORE_TITLE}}",
   "version": "0.1.0",
-  "description": "AI replies that sound right, in any text box.",
+  "description": "{{TAGLINE}}",
   "permissions": ["storage"],
   "background": {
     "service_worker": "background/service-worker.js",
@@ -17,6 +17,6 @@
   ],
   "options_page": "options.html",
   "action": {
-    "default_title": "Kindly"
+    "default_title": "{{PRODUCT_NAME}}"
   }
 }

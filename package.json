@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "npm run build:watch",
-    "build": "npm run build:content && vite build",
+    "build": "node scripts/sync-manifest.mjs && npm run build:content && vite build",
     "build:content": "esbuild src/content/content.ts --bundle --format=iife --target=chrome110 --outfile=dist/content/content.js",
-    "build:watch": "concurrently -k \"vite build --watch\" \"esbuild src/content/content.ts --bundle --format=iife --target=chrome110 --outfile=dist/content/content.js --watch\"",
+    "build:watch": "node scripts/sync-manifest.mjs && concurrently -k \"vite build --watch\" \"esbuild src/content/content.ts --bundle --format=iife --target=chrome110 --outfile=dist/content/content.js --watch\"",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write ."

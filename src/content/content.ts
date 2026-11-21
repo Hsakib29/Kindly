@@ -115,14 +115,16 @@ document.addEventListener('keydown', (event) => {
   const method = el.isContentEditable ? 'rich editor' : 'input/textarea';
   console.log(`[Kindly] spike insert via ${method} on`, el);
 
-  const okNative = insertNativeSetter(el);
+  insertNativeSetter(el);
   const value =
     el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
       ? el.value
       : el.textContent;
   console.log('[Kindly] after native setter, field reads:', JSON.stringify(value));
 
-  if (!okNative || value !== SPIKE_TEXT) {
+  // For contenteditable the field holds other text too, so check containment.
+  const inserted = typeof value === 'string' && value.includes(SPIKE_TEXT);
+  if (!inserted) {
     console.log('[Kindly] native setter did not take — trying beforeinput fallback');
     const okFallback = insertBeforeInput(el);
     console.log('[Kindly] beforeinput fallback ->', okFallback);
