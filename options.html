@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Kindly — Options</title>
+    <title>Kindly Options</title>
     <style>
       :root {
         color-scheme: light dark;
@@ -39,10 +39,15 @@
       section[hidden] {
         display: none;
       }
+      .tagline {
+        color: #888;
+        margin-top: -0.75rem;
+      }
     </style>
   </head>
   <body>
-    <h1>Kindly</h1>
+    <h1 id="app-title">Kindly</h1>
+    <p id="tagline" class="tagline"></p>
     <nav>
       <button data-section="api-key" aria-current="true">API key</button>
       <button data-section="models">Models</button>
