@@ -27,7 +27,7 @@ export interface PanelAnchor {
 export interface PanelCallbacks {
   onTone?: (tone: ToneId) => void;
   onUse?: (variant: Variant) => void;
-  onRegenerate?: () => void;
+  onGenerate?: () => void;
   onInstruction?: (instruction: string) => void;
 }
 
@@ -39,7 +39,7 @@ export class RewritePanel {
   private instructionInput: HTMLInputElement;
   private recentEl: HTMLElement;
   private useButton: HTMLButtonElement;
-  private regenButton: HTMLButtonElement;
+  private generateButton: HTMLButtonElement;
   private anchor: PanelAnchor | null = null;
   private rafId = 0;
   private variants: Variant[] = [];
@@ -208,8 +208,8 @@ export class RewritePanel {
           <button type="button">Apply</button>
         </div>
         <div class="actions">
+          <button type="button">Generate</button>
           <button type="button" class="primary" disabled>Use</button>
-          <button type="button">Regenerate</button>
         </div>
       </div>
     `;
@@ -229,10 +229,12 @@ export class RewritePanel {
     ) as HTMLInputElement;
     this.recentEl = shadow.querySelector('.recent') as HTMLElement;
     this.useButton = shadow.querySelector('.primary') as HTMLButtonElement;
-    this.regenButton = shadow.querySelector('.actions button:not(.primary)') as HTMLButtonElement;
+    this.generateButton = shadow.querySelector(
+      '.actions button:not(.primary)',
+    ) as HTMLButtonElement;
 
     this.buildChips();
-    this.showPlaceholder('Pick a tone to rewrite, or type below.');
+    this.showPlaceholder('Pick a tone, then hit Generate.');
 
     this.instructionInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
@@ -248,7 +250,7 @@ export class RewritePanel {
       const v = this.variants[this.selectedVariant];
       if (v) this.callbacks.onUse?.(v);
     });
-    this.regenButton.addEventListener('click', () => this.callbacks.onRegenerate?.());
+    this.generateButton.addEventListener('click', () => this.callbacks.onGenerate?.());
 
     (document.documentElement || document.body).appendChild(this.host);
     this.host.style.display = 'none';

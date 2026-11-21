@@ -173,7 +173,6 @@ function showRequestError(error: ApiError) {
 const panel = new RewritePanel({
   onTone: (tone) => {
     selectedTone = tone;
-    void requestRewrite(tone);
   },
   onUse: (variant: Variant) => {
     const field = currentField;
@@ -191,11 +190,13 @@ const panel = new RewritePanel({
     };
     toast.show();
   },
-  onRegenerate: () => {
+  onGenerate: () => {
+    // Generate doubles as Regenerate: existing variants are passed as
+    // "do not repeat" so a second click yields a fresh set.
     void requestRewrite(
       selectedTone,
       lastInstruction || panel.getInstruction() || undefined,
-      lastVariants.map((v) => v.text),
+      lastVariants.length > 0 ? lastVariants.map((v) => v.text) : undefined,
     );
   },
   onInstruction: (instruction: string) => {
@@ -208,6 +209,7 @@ const panel = new RewritePanel({
     void requestRewrite(selectedTone, instruction || undefined);
   },
 });
+panel.selectTone(selectedTone);
 
 const icon = new KindlyIcon(
   () => {
