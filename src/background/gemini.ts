@@ -78,7 +78,7 @@ export async function listModels(key: string): Promise<number> {
 
 // ---------- Structured generation (P1.5) ----------
 
-const DEFAULT_MODEL = 'gemini-2.0-flash';
+const DEFAULT_MODEL = 'gemini-3.8-flash';
 
 const VARIANTS_SCHEMA = {
   type: 'OBJECT',

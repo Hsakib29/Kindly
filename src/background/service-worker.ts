@@ -7,7 +7,7 @@ declare const __GEMINI_API_KEY__: string;
 
 console.log('[Kindly] service worker started');
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-3.8-flash';
 
 async function callGeminiSpike(): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
