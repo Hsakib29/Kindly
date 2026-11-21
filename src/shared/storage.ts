@@ -24,8 +24,9 @@ function storageSet(items: Record<string, unknown>): Promise<void> {
 }
 
 export async function getSettings(): Promise<Settings> {
-  const stored = await storageGet<Partial<Settings> | undefined>(SETTINGS_KEY);
-  const settings = stored ?? {};
+  // chrome.storage.local.get returns { settings: <value> }, not the value itself.
+  const stored = await storageGet<Record<string, Partial<Settings>>>(SETTINGS_KEY);
+  const settings = stored[SETTINGS_KEY] ?? {};
   return {
     ...SETTINGS_DEFAULTS,
     ...settings,
@@ -46,8 +47,8 @@ export async function setSettings(patch: Partial<Settings>): Promise<Settings> {
 }
 
 export async function getKey(): Promise<string | null> {
-  const stored = await storageGet<string | undefined>(API_KEY_KEY);
-  return stored ?? null;
+  const stored = await storageGet<Record<string, string>>(API_KEY_KEY);
+  return stored[API_KEY_KEY] ?? null;
 }
 
 export async function setKey(key: string): Promise<void> {
