@@ -20,8 +20,8 @@ type SettingsResponse = Extract<ExtensionResponse, { type: 'SETTINGS' }>;
 
 console.log('[Kindly] content script loaded');
 
-// P0.3 plumbing check (legacy ping shape kept for the spike).
-chrome.runtime.sendMessage({ type: 'ping' }, (response) => {
+// P0.3 plumbing check.
+chrome.runtime.sendMessage({ type: 'PING' }, (response) => {
   if (chrome.runtime.lastError) {
     console.warn('[Kindly] ping failed:', chrome.runtime.lastError.message);
     return;
