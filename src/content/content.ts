@@ -62,10 +62,17 @@ let lastInstruction = '';
 const recentInstructions: string[] = [];
 let pendingSelection: FieldSelection | undefined;
 let rewriteInFlight = false;
+// Latest-wins queue: chip clicks while a request is in flight are queued,
+// not dropped or parallel-fired.
+let queuedRewrite: { tone: ToneId; instruction?: string; avoid?: string[] } | null = null;
 
 async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string[]) {
+  if (rewriteInFlight) {
+    queuedRewrite = { tone, instruction, avoid };
+    return;
+  }
   const field = currentField;
-  if (!field || rewriteInFlight) return;
+  if (!field) return;
 
   // P3.9: a non-empty selection is rewritten on its own.
   const selection = getFieldSelection(field) ?? undefined;
@@ -103,6 +110,11 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
     });
   } finally {
     rewriteInFlight = false;
+    if (queuedRewrite) {
+      const next = queuedRewrite;
+      queuedRewrite = null;
+      void requestRewrite(next.tone, next.instruction, next.avoid);
+    }
   }
 }
 
