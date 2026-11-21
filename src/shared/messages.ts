@@ -63,7 +63,8 @@ export type ExtensionRequest =
       instruction?: string;
     }
   | { type: 'GET_SETTINGS' }
-  | { type: 'SET_SETTINGS'; patch: Partial<Settings> };
+  | { type: 'SET_SETTINGS'; patch: Partial<Settings> }
+  | { type: 'OPEN_OPTIONS' };
 
 // ---- Responses (sent back to the requester) ----
 

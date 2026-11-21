@@ -113,7 +113,7 @@ function showRequestError(error: ApiError) {
   const retry = { label: 'Retry', onClick: () => void requestRewrite(selectedTone, lastInstruction || undefined) };
   const openSettings = {
     label: 'Open settings',
-    onClick: () => void chrome.runtime.openOptionsPage(),
+    onClick: () => void sendRequest<ExtensionResponse>({ type: 'OPEN_OPTIONS' }),
   };
   switch (error.code) {
     case 'NO_KEY':

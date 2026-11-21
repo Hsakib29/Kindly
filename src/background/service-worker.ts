@@ -33,6 +33,11 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
     case 'SET_SETTINGS':
       return { type: 'SETTINGS', settings: await setSettings(request.patch) };
 
+    case 'OPEN_OPTIONS':
+      // openOptionsPage isn't callable from content scripts; do it here.
+      await chrome.runtime.openOptionsPage();
+      return { type: 'PONG' };
+
     case 'REWRITE': {
       const key = await getKey();
       if (!key) {
