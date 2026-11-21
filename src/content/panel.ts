@@ -310,6 +310,7 @@ export class RewritePanel {
 
     this.host.style.display = 'block';
     this.updatePosition();
+    console.log('[Kindly] panel opened');
   }
 
   close() {

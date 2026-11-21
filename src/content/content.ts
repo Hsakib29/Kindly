@@ -199,12 +199,14 @@ const panel = new RewritePanel({
 
 const icon = new KindlyIcon(
   () => {
+    console.log('[Kindly] icon clicked, currentField =', currentField);
     if (!currentField) return;
     const field = currentField;
     panel.open({
       getRect: () => field.getBoundingClientRect(),
       onClose: () => field.focus(),
     });
+    console.log('[Kindly] panel.open called, isOpen =', panel.isOpen);
   },
   () => {
     if (!confirm(`Hide Kindly on ${hostname}? You can re-enable it in settings.`)) return;
