@@ -3,7 +3,7 @@
 
 import { FLOATING_ICON_64_DATA_URI } from '../shared/assets';
 
-const ICON_SIZE = 32;
+const ICON_SIZE = 38;
 const EDGE_INSET = 6;
 const VIEWPORT_MARGIN = 8;
 
