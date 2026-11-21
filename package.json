@@ -4,10 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "icons": "node scripts/make-icons.mjs",
     "dev": "npm run build:watch",
-    "build": "node scripts/sync-manifest.mjs && npm run build:content && vite build",
+    "build": "node scripts/sync-manifest.mjs && node scripts/make-icons.mjs && npm run build:content && vite build",
     "build:content": "esbuild src/content/content.ts --bundle --format=iife --target=chrome110 --outfile=dist/content/content.js",
-    "build:watch": "node scripts/sync-manifest.mjs && concurrently -k \"vite build --watch\" \"esbuild src/content/content.ts --bundle --format=iife --target=chrome110 --outfile=dist/content/content.js --watch\"",
+    "build:watch": "node scripts/sync-manifest.mjs && node scripts/make-icons.mjs && concurrently -k \"vite build --watch\" \"esbuild src/content/content.ts --bundle --format=iife --target=chrome110 --outfile=dist/content/content.js --watch\"",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write ."
@@ -21,6 +22,7 @@
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.4.2",
+    "sharp": "^0.35.5",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.0",
     "vite": "^6.0.0"
