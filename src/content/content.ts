@@ -1,5 +1,16 @@
+import './spike';
+import { getDeepActiveElement, isSupportedField } from './fields';
+import { KindlyIcon } from './icon';
+import { TypingTrigger } from './typing-trigger';
+import { setSettings } from '../shared/storage';
+import { sendRequest } from '../shared/client';
+import type { ExtensionResponse } from '../shared/messages';
+
+type SettingsResponse = Extract<ExtensionResponse, { type: 'SETTINGS' }>;
+
 console.log('[Kindly] content script loaded');
 
+// P0.3 plumbing check (legacy ping shape kept for the spike).
 chrome.runtime.sendMessage({ type: 'ping' }, (response) => {
   if (chrome.runtime.lastError) {
     console.warn('[Kindly] ping failed:', chrome.runtime.lastError.message);
@@ -8,125 +19,89 @@ chrome.runtime.sendMessage({ type: 'ping' }, (response) => {
   console.log('[Kindly] received:', response);
 });
 
-// ---------- P0.5: field detection spike ----------
+const hostname = window.location.hostname;
+let hiddenSites = new Set<string>();
 
-function describeField(el: Element | null): string {
-  if (!el) return 'none';
-  const e = el as HTMLElement;
-  return [
-    el.tagName.toLowerCase(),
-    (el as HTMLInputElement).type || undefined,
-    e.isContentEditable ? 'contenteditable' : undefined,
-  ]
-    .filter(Boolean)
-    .join(' ');
+async function refreshHiddenSites() {
+  const res = await sendRequest<SettingsResponse>({ type: 'GET_SETTINGS' });
+  if (res.type === 'SETTINGS') {
+    hiddenSites = new Set(res.settings.hiddenSites);
+  }
+}
+void refreshHiddenSites();
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.settings) {
+    const s = changes.settings.newValue as { hiddenSites?: string[] } | undefined;
+    hiddenSites = new Set(s?.hiddenSites ?? []);
+  }
+});
+
+function siteIsHidden(): boolean {
+  return hiddenSites.has(hostname) || hiddenSites.has(window.location.host);
+}
+
+// ---------- Icon + typing orchestration (P2.3–P2.6) ----------
+
+const BLUR_GRACE_MS = 250;
+let blurTimer: number | undefined;
+let currentField: HTMLElement | null = null;
+
+const icon = new KindlyIcon(
+  () => {
+    // Stage 3 opens the rewrite panel here.
+    console.log('[Kindly] icon clicked on', currentField);
+  },
+  () => {
+    if (!confirm(`Hide Kindly on ${hostname}? You can re-enable it in settings.`)) return;
+    void setSettings({ hiddenSites: [...hiddenSites, hostname] }).then(() => {
+      hiddenSites.add(hostname);
+      icon.hide();
+    });
+  },
+);
+
+const trigger = new TypingTrigger(({ field, state }) => {
+  if (state === 'ready' || state === 'ready-empty') {
+    if (!siteIsHidden()) icon.show(field, state === 'ready-empty');
+  } else if (state === 'typing') {
+    icon.hide();
+  }
+  // 'idle' is handled by the blur grace timer below.
+});
+
+function fieldFromEvent(event: Event): HTMLElement | null {
+  // composedPath pierces shadow roots so fields inside them are seen (P2.6).
+  const target = (event.composedPath?.()[0] ?? event.target) as Element | null;
+  return isSupportedField(target) ? target : null;
 }
 
 document.addEventListener('focusin', (event) => {
-  const target = event.target as Element | null;
-  console.log('[Kindly] focusin ->', describeField(target), target);
-});
-
-// ---------- P0.6 / P0.7: insertion spikes ----------
-
-const SPIKE_TEXT = 'Kindly spike: text inserted by the extension.';
-
-function getActiveField(): HTMLElement | null {
-  const active = document.activeElement;
-  if (!active || active === document.body) return null;
-  return active as HTMLElement;
-}
-
-function isTextField(el: HTMLElement): boolean {
-  if (el instanceof HTMLTextAreaElement) return true;
-  if (el instanceof HTMLInputElement) {
-    return ['text', 'search', 'url', 'email', 'tel', ''].includes(el.type);
-  }
-  return el.isContentEditable;
-}
-
-/** Method A: native value setter + input/change events (P0.6). */
-function insertNativeSetter(el: HTMLElement): boolean {
-  if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) {
-    const proto =
-      el instanceof HTMLTextAreaElement
-        ? HTMLTextAreaElement.prototype
-        : HTMLInputElement.prototype;
-    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-    setter?.call(el, SPIKE_TEXT);
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-    return true;
-  }
-  if (el.isContentEditable) {
-    // Method B: execCommand insertText (P0.7) — preserves undo stack where supported.
-    const ok = document.execCommand('insertText', false, SPIKE_TEXT);
-    console.log('[Kindly] execCommand insertText ->', ok);
-    return ok;
-  }
-  return false;
-}
-
-/** Fallback: synthetic beforeinput / paste-style insertion for contenteditable. */
-function insertBeforeInput(el: HTMLElement): boolean {
-  if (!el.isContentEditable) return false;
-  el.focus();
-  const dt = new DataTransfer();
-  dt.setData('text/plain', SPIKE_TEXT);
-  const beforeInput = new InputEvent('beforeinput', {
-    bubbles: true,
-    cancelable: true,
-    inputType: 'insertFromPaste',
-    data: SPIKE_TEXT,
-    dataTransfer: dt,
-  });
-  el.dispatchEvent(beforeInput);
-  if (beforeInput.defaultPrevented) return false;
-  // Manual DOM insertion when the page didn't handle it.
-  const sel = window.getSelection();
-  if (sel && sel.rangeCount > 0) {
-    const range = sel.getRangeAt(0);
-    range.deleteContents();
-    const textNode = document.createTextNode(SPIKE_TEXT);
-    range.insertNode(textNode);
-    range.setStartAfter(textNode);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
-    el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste' }));
-    return true;
-  }
-  return false;
-}
-
-// Ctrl+Shift+K (Cmd+Shift+K on Mac): replace focused field with the spike text.
-document.addEventListener('keydown', (event) => {
-  const mod = event.metaKey || event.ctrlKey;
-  if (!mod || !event.shiftKey || event.key.toLowerCase() !== 'k') return;
-
-  const el = getActiveField();
-  if (!el || !isTextField(el)) {
-    console.warn('[Kindly] spike shortcut: no supported field focused');
+  window.clearTimeout(blurTimer);
+  const field = fieldFromEvent(event);
+  if (!field || siteIsHidden()) {
+    currentField = null;
+    icon.hide();
     return;
   }
-  event.preventDefault();
-  el.focus();
+  currentField = field;
+  trigger.noteFocus(field);
+});
 
-  const method = el.isContentEditable ? 'rich editor' : 'input/textarea';
-  console.log(`[Kindly] spike insert via ${method} on`, el);
+document.addEventListener('focusout', (event) => {
+  const field = fieldFromEvent(event);
+  if (field) trigger.noteBlur(field);
+  // Grace period so clicking the icon doesn't hide it (P2.5).
+  blurTimer = window.setTimeout(() => {
+    const active = getDeepActiveElement();
+    if (!active || !isSupportedField(active) || active !== currentField) {
+      currentField = null;
+      icon.hide();
+    }
+  }, BLUR_GRACE_MS);
+});
 
-  insertNativeSetter(el);
-  const value =
-    el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
-      ? el.value
-      : el.textContent;
-  console.log('[Kindly] after native setter, field reads:', JSON.stringify(value));
-
-  // For contenteditable the field holds other text too, so check containment.
-  const inserted = typeof value === 'string' && value.includes(SPIKE_TEXT);
-  if (!inserted) {
-    console.log('[Kindly] native setter did not take — trying beforeinput fallback');
-    const okFallback = insertBeforeInput(el);
-    console.log('[Kindly] beforeinput fallback ->', okFallback);
-  }
+// `input` is composed, so it crosses shadow boundaries.
+document.addEventListener('input', (event) => {
+  const field = fieldFromEvent(event);
+  if (field) trigger.noteInput(field);
 });
