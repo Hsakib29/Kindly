@@ -37,6 +37,7 @@ export class RewritePanel {
   private chipsEl: HTMLElement;
   private bodyEl: HTMLElement;
   private instructionInput: HTMLInputElement;
+  private recentEl: HTMLElement;
   private useButton: HTMLButtonElement;
   private regenButton: HTMLButtonElement;
   private anchor: PanelAnchor | null = null;
@@ -137,7 +138,7 @@ export class RewritePanel {
           padding: 6px 8px;
           font: inherit;
         }
-        .instruction button, .actions button {
+        .instruction button, .actions button, .recent button {
           border: 1px solid #ffffff2e;
           background: #2a3040;
           color: inherit;
@@ -161,6 +162,21 @@ export class RewritePanel {
           font-weight: 600;
         }
         .actions .primary:disabled { opacity: 0.45; cursor: default; }
+        .recent {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          padding: 0 10px 8px;
+        }
+        .recent button {
+          font-size: 11px;
+          padding: 3px 8px;
+          border-radius: 999px;
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
         .skeleton {
           height: 56px;
           border-radius: 10px;
@@ -186,6 +202,7 @@ export class RewritePanel {
         <div class="header"><span>${PRODUCT_NAME}</span><span class="hint-inline">Esc to close</span></div>
         <div class="chips" role="toolbar" aria-label="Tone"></div>
         <div class="body"></div>
+        <div class="recent" hidden></div>
         <div class="instruction">
           <input type="text" placeholder="Add an instruction… (e.g. offer a refund)" aria-label="Extra instruction" />
           <button type="button">Apply</button>
@@ -203,6 +220,7 @@ export class RewritePanel {
     this.instructionInput = shadow.querySelector(
       '.instruction input',
     ) as HTMLInputElement;
+    this.recentEl = shadow.querySelector('.recent') as HTMLElement;
     this.useButton = shadow.querySelector('.primary') as HTMLButtonElement;
     this.regenButton = shadow.querySelector('.actions button:not(.primary)') as HTMLButtonElement;
 
@@ -237,6 +255,23 @@ export class RewritePanel {
 
   getInstruction(): string {
     return this.instructionInput.value;
+  }
+
+  /** Show the last few instructions as quick chips (P3.8). */
+  setRecentInstructions(instructions: string[]) {
+    this.recentEl.innerHTML = '';
+    this.recentEl.hidden = instructions.length === 0;
+    for (const text of instructions.slice(-3).reverse()) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.textContent = text;
+      chip.title = text;
+      chip.addEventListener('click', () => {
+        this.instructionInput.value = text;
+        this.callbacks.onInstruction?.(text);
+      });
+      this.recentEl.appendChild(chip);
+    }
   }
 
   open(anchor: PanelAnchor) {

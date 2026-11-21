@@ -1,11 +1,20 @@
 import './spike';
 import { getDeepActiveElement, isSupportedField } from './fields';
+import {
+  getFieldSelection,
+  readFieldText,
+  replaceFieldText,
+  type FieldSelection,
+} from './inserter';
+import { UndoToast } from './toast';
 import { KindlyIcon } from './icon';
 import { TypingTrigger } from './typing-trigger';
 import { setSettings } from '../shared/storage';
 import { sendRequest } from '../shared/client';
 import { RewritePanel } from './panel';
-import type { ExtensionResponse } from '../shared/messages';
+import type { ApiError, ExtensionResponse, ToneId, Variant } from '../shared/messages';
+
+type ErrorResponse = Extract<ExtensionResponse, { type: 'ERROR' }>;
 
 type SettingsResponse = Extract<ExtensionResponse, { type: 'SETTINGS' }>;
 
@@ -47,18 +56,144 @@ const BLUR_GRACE_MS = 250;
 let blurTimer: number | undefined;
 let currentField: HTMLElement | null = null;
 
+let selectedTone: ToneId = 'professional';
+let lastVariants: Variant[] = [];
+let lastInstruction = '';
+const recentInstructions: string[] = [];
+let pendingSelection: FieldSelection | undefined;
+let rewriteInFlight = false;
+
+async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string[]) {
+  const field = currentField;
+  if (!field || rewriteInFlight) return;
+
+  // P3.9: a non-empty selection is rewritten on its own.
+  const selection = getFieldSelection(field) ?? undefined;
+  const text = selection?.text ?? readFieldText(field);
+  if (text.trim().length === 0) {
+    panel.showHint('Type a message first, then pick a tone.');
+    return;
+  }
+  pendingSelection = selection;
+
+  rewriteInFlight = true;
+  panel.showLoading();
+  const requestId = crypto.randomUUID();
+  try {
+    const res = await sendRequest<ExtensionResponse>({
+      type: 'REWRITE',
+      requestId,
+      text,
+      tone,
+      instruction,
+      avoid,
+    });
+    if (res.type === 'REWRITE_RESULT' && res.requestId === requestId) {
+      lastVariants = res.variants;
+      panel.showVariants(res.variants);
+    } else if (res.type === 'ERROR') {
+      showRequestError((res as ErrorResponse).error);
+    } else {
+      showRequestError({ code: 'NETWORK', message: 'Unexpected response.' });
+    }
+  } catch (err) {
+    showRequestError({
+      code: 'NETWORK',
+      message: err instanceof Error ? err.message : String(err),
+    });
+  } finally {
+    rewriteInFlight = false;
+  }
+}
+
+const toast = new UndoToast();
+
+// P3.10: friendly error copy + actions per error code.
+function showRequestError(error: ApiError) {
+  const retry = { label: 'Retry', onClick: () => void requestRewrite(selectedTone, lastInstruction || undefined) };
+  const openSettings = {
+    label: 'Open settings',
+    onClick: () => void chrome.runtime.openOptionsPage(),
+  };
+  switch (error.code) {
+    case 'NO_KEY':
+    case 'INVALID_KEY':
+      panel.showError(
+        { code: error.code, message: 'Your Gemini API key is missing or invalid.' },
+        [openSettings],
+      );
+      break;
+    case 'RATE_LIMIT':
+      panel.showError(
+        { code: error.code, message: 'Rate limited — please wait a moment and try again.' },
+        [retry],
+      );
+      break;
+    case 'NETWORK':
+      panel.showError(
+        { code: error.code, message: "Couldn't reach the Gemini API. Check your connection." },
+        [retry],
+      );
+      break;
+    case 'SAFETY_BLOCK':
+      panel.showError({
+        code: error.code,
+        message: 'That request was blocked by safety filters. Try rewording it.',
+      });
+      break;
+    case 'BAD_OUTPUT':
+      panel.showError(
+        { code: error.code, message: 'Got an unexpected response. Please try again.' },
+        [retry],
+      );
+      break;
+    case 'TEXT_TOO_SHORT':
+      panel.showError({ code: error.code, message: 'That text is too short to rewrite.' });
+      break;
+    case 'TEXT_TOO_LONG':
+      panel.showError(
+        { code: error.code, message: 'That text is too long (max ~8000 characters).' },
+      );
+      break;
+  }
+}
+
 const panel = new RewritePanel({
-  onTone: () => {
-    // P3.3 uses the selected tone for rewrite requests.
+  onTone: (tone) => {
+    selectedTone = tone;
+    void requestRewrite(tone);
   },
-  onUse: () => {
-    // P3.5 wires insertion.
+  onUse: (variant: Variant) => {
+    const field = currentField;
+    if (!field) return;
+    const originalText = readFieldText(field);
+    const ok = replaceFieldText(field, variant.text, pendingSelection);
+    if (!ok) {
+      panel.showError({ code: 'NETWORK', message: 'Could not insert text on this site.' });
+      return;
+    }
+    pendingSelection = undefined;
+    panel.close();
+    toast.onUndo = () => {
+      replaceFieldText(field, originalText);
+    };
+    toast.show();
   },
   onRegenerate: () => {
-    // P3.7 wires regeneration.
+    void requestRewrite(
+      selectedTone,
+      lastInstruction || panel.getInstruction() || undefined,
+      lastVariants.map((v) => v.text),
+    );
   },
-  onInstruction: () => {
-    // P3.8 wires the extra instruction.
+  onInstruction: (instruction: string) => {
+    lastInstruction = instruction;
+    if (instruction.trim()) {
+      recentInstructions.push(instruction.trim());
+      if (recentInstructions.length > 5) recentInstructions.shift();
+      panel.setRecentInstructions(recentInstructions);
+    }
+    void requestRewrite(selectedTone, instruction || undefined);
   },
 });
 
