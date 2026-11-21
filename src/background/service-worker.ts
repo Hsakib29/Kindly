@@ -1,5 +1,6 @@
 import { generateVariants, listModels } from './gemini';
 import { getKey, getSettings, setSettings } from '../shared/storage';
+import { SYSTEM_PROMPT, buildRewritePrompt } from '../shared/prompts';
 import type { ApiError, ExtensionRequest, ExtensionResponse } from '../shared/messages';
 
 declare const __GEMINI_API_KEY__: string;
@@ -64,8 +65,6 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
       return { type: 'SETTINGS', settings: await setSettings(request.patch) };
 
     case 'REWRITE': {
-      // Prompt builder lands in P1.7; this is a minimal stand-in so the
-      // structured-output client is exercised end to end.
       const key = await getKey();
       if (!key) {
         return {
@@ -74,10 +73,31 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
           error: { code: 'NO_KEY', message: 'No API key configured.' },
         };
       }
+      const trimmed = request.text.trim();
+      if (trimmed.length < 15) {
+        return {
+          type: 'ERROR',
+          requestId: request.requestId,
+          error: { code: 'TEXT_TOO_SHORT', message: 'Text is too short to rewrite.' },
+        };
+      }
+      if (trimmed.length > 8000) {
+        return {
+          type: 'ERROR',
+          requestId: request.requestId,
+          error: { code: 'TEXT_TOO_LONG', message: 'Text is too long to rewrite.' },
+        };
+      }
       try {
         const variants = await generateVariants({
           key,
-          userPrompt: `Rewrite the following message in a ${request.tone} tone. Return JSON variants.\n\n${request.text}`,
+          systemInstruction: SYSTEM_PROMPT,
+          userPrompt: buildRewritePrompt({
+            text: trimmed,
+            tone: request.tone,
+            instruction: request.instruction,
+            avoid: request.avoid,
+          }),
         });
         return { type: 'REWRITE_RESULT', requestId: request.requestId, variants };
       } catch (err) {
