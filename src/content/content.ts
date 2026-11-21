@@ -206,6 +206,7 @@ const icon = new KindlyIcon(
       getRect: () => field.getBoundingClientRect(),
       onClose: () => field.focus(),
     });
+    icon.hide();
     console.log('[Kindly] panel.open called, isOpen =', panel.isOpen);
   },
   () => {
@@ -249,6 +250,9 @@ document.addEventListener('focusout', (event) => {
   if (field) trigger.noteBlur(field);
   // Grace period so clicking the icon doesn't hide it (P2.5).
   blurTimer = window.setTimeout(() => {
+    // While the panel is open the field may legitimately lose focus
+    // (e.g. typing in the instruction box) — keep it as currentField.
+    if (panel.isOpen) return;
     const active = getDeepActiveElement();
     if (!active || !isSupportedField(active) || active !== currentField) {
       currentField = null;

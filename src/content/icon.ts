@@ -50,6 +50,11 @@ export class KindlyIcon {
       <button type="button" aria-label="Open Kindly" title="Kindly">${ICON_HTML}</button>
     `;
     this.button = shadow.querySelector('button') as HTMLButtonElement;
+    // Keep focus in the field: without this, mousedown blurs the field and
+    // sites like Gmail re-render it, removing the icon before click fires.
+    this.button.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+    });
     this.button.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();

@@ -214,6 +214,13 @@ export class RewritePanel {
       </div>
     `;
 
+    // Keep focus in the field while interacting with panel controls
+    // (except the instruction input, which needs real focus to type).
+    shadow.addEventListener('mousedown', (e) => {
+      if ((e.target as HTMLElement).closest('input')) return;
+      e.preventDefault();
+    });
+
     this.panel = shadow.querySelector('.panel') as HTMLDivElement;
     this.chipsEl = shadow.querySelector('.chips') as HTMLElement;
     this.bodyEl = shadow.querySelector('.body') as HTMLElement;
