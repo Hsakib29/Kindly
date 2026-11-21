@@ -47,7 +47,20 @@ const BLUR_GRACE_MS = 250;
 let blurTimer: number | undefined;
 let currentField: HTMLElement | null = null;
 
-const panel = new RewritePanel();
+const panel = new RewritePanel({
+  onTone: () => {
+    // P3.3 uses the selected tone for rewrite requests.
+  },
+  onUse: () => {
+    // P3.5 wires insertion.
+  },
+  onRegenerate: () => {
+    // P3.7 wires regeneration.
+  },
+  onInstruction: () => {
+    // P3.8 wires the extra instruction.
+  },
+});
 
 const icon = new KindlyIcon(
   () => {
