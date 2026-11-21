@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kindly — Options</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 640px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      nav {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+      }
+      nav button {
+        padding: 0.4rem 0.9rem;
+        border: 1px solid #8884;
+        border-radius: 6px;
+        background: transparent;
+        cursor: pointer;
+      }
+      nav button[aria-current='true'] {
+        background: #4f7cff;
+        color: #fff;
+        border-color: #4f7cff;
+      }
+      section {
+        border: 1px solid #8884;
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+      }
+      section[hidden] {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Kindly</h1>
+    <nav>
+      <button data-section="api-key" aria-current="true">API key</button>
+      <button data-section="models">Models</button>
+      <button data-section="tones">Tones</button>
+      <button data-section="brand-voice">Brand voice</button>
+      <button data-section="privacy">Privacy</button>
+    </nav>
+    <section id="api-key">
+      <h2>API key</h2>
+      <p>Gemini API key entry will live here (P1.4).</p>
+    </section>
+    <section id="models" hidden>
+      <h2>Models</h2>
+      <p>Model routing settings will live here (P5.x).</p>
+    </section>
+    <section id="tones" hidden>
+      <h2>Tones</h2>
+      <p>Tone presets will live here (P7.2).</p>
+    </section>
+    <section id="brand-voice" hidden>
+      <h2>Brand voice</h2>
+      <p>Brand voice settings will live here (P7.1).</p>
+    </section>
+    <section id="privacy" hidden>
+      <h2>Privacy</h2>
+      <p>
+        Kindly sends text to Google's Gemini API only when you click. Your key is stored locally in
+        this browser.
+      </p>
+    </section>
+    <script type="module" src="./src/options/options.ts"></script>
+  </body>
+</html>
