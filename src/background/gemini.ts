@@ -78,16 +78,17 @@ export async function listModels(key: string): Promise<number> {
 
 // ---------- Structured generation (P1.5) ----------
 
-const DEFAULT_MODEL = 'gemini-3.8-flash';
+const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 
-// Ordered fallback list (newest/best first). Updated from the live
-// /models list; Stage 5 (P5.1) replaces this with a configurable map.
+// Ordered fallback list — lite first for speed/cost, bigger flash models
+// behind it for quality and resilience. Updated from the live /models
+// list; Stage 5 (P5.1) replaces this with a configurable map.
 const MODEL_FALLBACK_ORDER = [
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
   'gemini-3.8-flash',
   'gemini-3.7-flash',
   'gemini-3.6-flash',
-  'gemini-3.5-flash',
-  'gemini-3.1-flash-lite',
 ];
 
 const VARIANTS_SCHEMA = {
