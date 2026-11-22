@@ -120,52 +120,37 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
 
 const toast = new UndoToast();
 
-// P3.10: friendly error copy + actions per error code.
+// P3.10: friendly error copy + actions per error code. The server-provided
+// message is shown when present since it carries the real cause.
 function showRequestError(error: ApiError) {
   const retry = { label: 'Retry', onClick: () => void requestRewrite(selectedTone, lastInstruction || undefined) };
   const openSettings = {
     label: 'Open settings',
     onClick: () => void sendRequest<ExtensionResponse>({ type: 'OPEN_OPTIONS' }),
   };
+  const detail = error.message || 'Something went wrong.';
   switch (error.code) {
     case 'NO_KEY':
     case 'INVALID_KEY':
-      panel.showError(
-        { code: error.code, message: 'Your Gemini API key is missing or invalid.' },
-        [openSettings],
-      );
+      panel.showError({ code: error.code, message: detail }, [openSettings]);
       break;
     case 'RATE_LIMIT':
-      panel.showError(
-        { code: error.code, message: 'Rate limited — please wait a moment and try again.' },
-        [retry],
-      );
+      panel.showError({ code: error.code, message: detail }, [retry]);
       break;
     case 'NETWORK':
-      panel.showError(
-        { code: error.code, message: "Couldn't reach the Gemini API. Check your connection." },
-        [retry],
-      );
+      panel.showError({ code: error.code, message: detail }, [retry]);
       break;
     case 'SAFETY_BLOCK':
-      panel.showError({
-        code: error.code,
-        message: 'That request was blocked by safety filters. Try rewording it.',
-      });
+      panel.showError({ code: error.code, message: detail });
       break;
     case 'BAD_OUTPUT':
-      panel.showError(
-        { code: error.code, message: 'Got an unexpected response. Please try again.' },
-        [retry],
-      );
+      panel.showError({ code: error.code, message: detail }, [retry]);
       break;
     case 'TEXT_TOO_SHORT':
-      panel.showError({ code: error.code, message: 'That text is too short to rewrite.' });
+      panel.showError({ code: error.code, message: detail });
       break;
     case 'TEXT_TOO_LONG':
-      panel.showError(
-        { code: error.code, message: 'That text is too long (max ~8000 characters).' },
-      );
+      panel.showError({ code: error.code, message: detail });
       break;
   }
 }

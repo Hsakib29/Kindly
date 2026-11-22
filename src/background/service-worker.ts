@@ -75,10 +75,12 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
         });
         return { type: 'REWRITE_RESULT', requestId: request.requestId, variants };
       } catch (err) {
+        const apiError = toApiError(err);
+        console.error('[Kindly] REWRITE failed:', apiError.code, apiError.message);
         return {
           type: 'ERROR',
           requestId: request.requestId,
-          error: toApiError(err),
+          error: apiError,
         };
       }
     }
