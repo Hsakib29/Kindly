@@ -80,6 +80,16 @@ export async function listModels(key: string): Promise<number> {
 
 const DEFAULT_MODEL = 'gemini-3.8-flash';
 
+// Ordered fallback list (newest/best first). Updated from the live
+// /models list; Stage 5 (P5.1) replaces this with a configurable map.
+const MODEL_FALLBACK_ORDER = [
+  'gemini-3.8-flash',
+  'gemini-3.7-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash',
+  'gemini-3.1-flash-lite',
+];
+
 const VARIANTS_SCHEMA = {
   type: 'OBJECT',
   properties: {
@@ -192,4 +202,37 @@ function validateVariants(parsed: unknown, count: number): Variant[] {
     throw new GeminiError('BAD_OUTPUT', 'Gemini returned no usable variants.');
   }
   return variants;
+}
+
+/**
+ * generateVariants with model fallback: on RATE_LIMIT move to the next
+ * model immediately; on NETWORK (5xx/overload) retry once, then move on.
+ * INVALID_KEY / SAFETY_BLOCK / BAD_OUTPUT do not fall back.
+ */
+export async function generateVariantsWithFallback(
+  options: GenerateVariantsOptions,
+): Promise<{ variants: Variant[]; model: string; fellBack: boolean }> {
+  const order = options.model
+    ? [options.model, ...MODEL_FALLBACK_ORDER.filter((m) => m !== options.model)]
+    : MODEL_FALLBACK_ORDER;
+
+  let lastError: GeminiError | null = null;
+  for (const model of order) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const variants = await generateVariants({ ...options, model });
+        return { variants, model, fellBack: model !== order[0] };
+      } catch (err) {
+        const apiErr =
+          err instanceof GeminiError
+            ? err
+            : new GeminiError('NETWORK', err instanceof Error ? err.message : String(err));
+        lastError = apiErr;
+        if (apiErr.code === 'RATE_LIMIT') break; // next model immediately
+        if (apiErr.code === 'NETWORK' && attempt === 0) continue; // retry once, then next model
+        break; // other errors, or second NETWORK failure — no more retries here
+      }
+    }
+  }
+  throw lastError ?? new GeminiError('NETWORK', 'All models failed.');
 }

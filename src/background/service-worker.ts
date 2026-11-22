@@ -1,4 +1,4 @@
-import { generateVariants, listModels } from './gemini';
+import { generateVariantsWithFallback, listModels } from './gemini';
 import { getKey, getSettings, setSettings } from '../shared/storage';
 import { SYSTEM_PROMPT, buildRewritePrompt } from '../shared/prompts';
 import type { ApiError, ExtensionRequest, ExtensionResponse } from '../shared/messages';
@@ -63,7 +63,7 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
         };
       }
       try {
-        const variants = await generateVariants({
+        const { variants } = await generateVariantsWithFallback({
           key,
           systemInstruction: SYSTEM_PROMPT,
           userPrompt: buildRewritePrompt({
