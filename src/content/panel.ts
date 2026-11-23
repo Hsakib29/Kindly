@@ -40,6 +40,8 @@ export class RewritePanel {
   private recentEl: HTMLElement;
   private useButton: HTMLButtonElement;
   private generateButton: HTMLButtonElement;
+  private copyButton: HTMLButtonElement;
+  private resizeObserver: ResizeObserver | null = null;
   private anchor: PanelAnchor | null = null;
   private rafId = 0;
   private variants: Variant[] = [];
@@ -208,7 +210,8 @@ export class RewritePanel {
           <button type="button">Apply</button>
         </div>
         <div class="actions">
-          <button type="button">Generate</button>
+          <button type="button" class="generate">Generate</button>
+          <button type="button" class="copy" disabled>Copy</button>
           <button type="button" class="primary" disabled>Use</button>
         </div>
       </div>
@@ -230,8 +233,9 @@ export class RewritePanel {
     this.recentEl = shadow.querySelector('.recent') as HTMLElement;
     this.useButton = shadow.querySelector('.primary') as HTMLButtonElement;
     this.generateButton = shadow.querySelector(
-      '.actions button:not(.primary)',
+      '.actions .generate',
     ) as HTMLButtonElement;
+    this.copyButton = shadow.querySelector('.actions .copy') as HTMLButtonElement;
 
     this.buildChips();
     this.showPlaceholder('Pick a tone, then hit Generate.');
@@ -251,6 +255,19 @@ export class RewritePanel {
       if (v) this.callbacks.onUse?.(v);
     });
     this.generateButton.addEventListener('click', () => this.callbacks.onGenerate?.());
+    this.copyButton.addEventListener('click', () => {
+      const v = this.variants[this.selectedVariant];
+      if (!v) return;
+      void navigator.clipboard.writeText(v.text).then(() => {
+        this.copyButton.textContent = 'Copied';
+        window.setTimeout(() => (this.copyButton.textContent = 'Copy'), 1500);
+      });
+    });
+
+    // Reposition whenever the panel's own size changes (content loads,
+    // variants arrive, errors render) so it never outgrows the viewport.
+    this.resizeObserver = new ResizeObserver(() => this.scheduleUpdate());
+    this.resizeObserver.observe(this.panel);
 
     (document.documentElement || document.body).appendChild(this.host);
     this.host.style.display = 'none';
@@ -346,6 +363,7 @@ export class RewritePanel {
 
   destroy() {
     this.close();
+    this.resizeObserver?.disconnect();
     this.host.remove();
   }
 
@@ -381,6 +399,8 @@ export class RewritePanel {
   showPlaceholder(text: string) {
     this.bodyEl.innerHTML = `<div class="placeholder">${escapeHtml(text)}</div>`;
     this.useButton.disabled = true;
+    this.copyButton.disabled = true;
+    this.generateButton.textContent = 'Generate';
     this.variants = [];
     this.selectedVariant = -1;
   }
@@ -393,21 +413,25 @@ export class RewritePanel {
     this.bodyEl.innerHTML = `
       <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>`;
     this.useButton.disabled = true;
+    this.copyButton.disabled = true;
   }
 
   showVariants(variants: Variant[]) {
     this.variants = variants;
-    this.selectedVariant = -1;
-    this.useButton.disabled = true;
+    this.selectedVariant = variants.length > 0 ? 0 : -1;
+    this.useButton.disabled = this.selectedVariant === -1;
+    this.copyButton.disabled = this.selectedVariant === -1;
+    this.generateButton.textContent = 'Regenerate';
     this.bodyEl.innerHTML = '';
     variants.forEach((v, i) => {
       const card = document.createElement('div');
-      card.className = 'card';
+      card.className = 'card' + (i === 0 ? ' selected' : '');
       card.tabIndex = 0;
       card.innerHTML = `<div class="label">${escapeHtml(v.label)}</div><div class="text">${escapeHtml(v.text)}</div>`;
       const select = () => {
         this.selectedVariant = i;
         this.useButton.disabled = false;
+        this.copyButton.disabled = false;
         for (const c of this.bodyEl.querySelectorAll('.card')) c.classList.remove('selected');
         card.classList.add('selected');
       };
@@ -420,6 +444,7 @@ export class RewritePanel {
       });
       this.bodyEl.appendChild(card);
     });
+    this.scheduleUpdate();
   }
 
   showError(error: ApiError, actions?: { label: string; onClick: () => void }[]) {
@@ -433,6 +458,8 @@ export class RewritePanel {
       box.appendChild(btn);
     }
     this.useButton.disabled = true;
+    this.copyButton.disabled = true;
+    this.generateButton.textContent = 'Generate';
   }
 
   // ---------- Positioning ----------
@@ -448,13 +475,27 @@ export class RewritePanel {
   private updatePosition() {
     if (!this.anchor) return;
     const rect = this.anchor.getRect();
-    const panelRect = this.panel.getBoundingClientRect();
-    const panelH = Math.min(panelRect.height || PANEL_MAX_HEIGHT, PANEL_MAX_HEIGHT);
     const panelW = PANEL_WIDTH;
 
     const spaceBelow = window.innerHeight - rect.bottom - EDGE_GAP - VIEWPORT_MARGIN;
     const spaceAbove = rect.top - EDGE_GAP - VIEWPORT_MARGIN;
-    const placeBelow = spaceBelow >= panelH || spaceBelow >= spaceAbove;
+
+    // Prefer below when it fits or has more room; otherwise above.
+    // Whichever side we pick, the panel may shrink to fit the space.
+    const placeBelow = spaceBelow >= spaceAbove;
+    const avail = Math.max(placeBelow ? spaceBelow : spaceAbove, 0);
+
+    // Measure the natural content height with the CSS max-height lifted,
+    // so repeated updates don't ratchet the panel smaller over time.
+    const prevMax = this.panel.style.maxHeight;
+    this.panel.style.maxHeight = 'none';
+    const naturalH = Math.min(this.panel.getBoundingClientRect().height, PANEL_MAX_HEIGHT);
+    this.panel.style.maxHeight = prevMax;
+
+    const allowedH = Math.max(Math.min(naturalH, avail), Math.min(160, avail));
+    this.panel.style.maxHeight = `${Math.floor(allowedH)}px`;
+
+    const panelH = Math.min(this.panel.getBoundingClientRect().height || allowedH, allowedH);
 
     let top = placeBelow ? rect.bottom + EDGE_GAP : rect.top - EDGE_GAP - panelH;
     let left = rect.right - panelW;

@@ -31,6 +31,7 @@ export function buildRewritePrompt(input: RewritePromptInput): string {
   const parts: string[] = [
     `Rewrite the message below in a ${TONE_DESCRIPTIONS[input.tone]} tone.`,
     'Produce exactly 3 distinct variants. Vary wording and structure, not meaning.',
+    'Give each variant a short, useful label of 2-4 words describing how it differs (e.g. "Warmer and shorter", "Most formal").',
   ];
 
   if (input.avoid && input.avoid.length > 0) {
