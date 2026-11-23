@@ -8,3 +8,4 @@ public/manifest.json
 key.txt
 *.pem
 tests/*/.build/
+*.zip
