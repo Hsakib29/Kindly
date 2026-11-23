@@ -9,6 +9,7 @@ import {
 } from './inserter';
 import { buildContextBrief } from './context';
 import { DEFAULT_NEVER_RUN_SITES, type ContextBriefData } from '../shared/messages';
+import { resolveTheme, watchSystemTheme } from '../shared/theme';
 import { debugLog, refreshDebugEnabled } from '../shared/debug';
 import { UndoToast } from './toast';
 import { KindlyIcon } from './icon';
@@ -38,6 +39,20 @@ let hiddenSites = new Set<string>();
 let neverRunSites: string[] = [];
 let contextBySite: Record<string, boolean> = {};
 let appSettings: import('../shared/messages').Settings | null = null;
+let themePref: 'auto' | 'light' | 'dark' = 'auto';
+let unwatchTheme: (() => void) | null = null;
+
+function applyTheme() {
+  const mode = resolveTheme(themePref);
+  panel.setTheme(mode);
+  toast.setTheme(mode);
+}
+
+function watchThemePref() {
+  unwatchTheme?.();
+  unwatchTheme = themePref === 'auto' ? watchSystemTheme(() => applyTheme()) : null;
+  applyTheme();
+}
 
 /** Hostname suffix match: 'chase.com' blocks 'secure.chase.com'. */
 function hostBlocked(patterns: string[]): boolean {
@@ -52,6 +67,8 @@ async function refreshHiddenSites() {
     neverRunSites = res.settings.neverRunSites ?? [];
     contextBySite = res.settings.usePageContextBySite ?? {};
     appSettings = res.settings;
+    themePref = res.settings.theme ?? 'auto';
+    watchThemePref();
     panel.setCustomTones(res.settings.customTones ?? []);
     panel.setSavedReplies(res.settings.savedReplies ?? []);
   }
@@ -64,9 +81,14 @@ chrome.storage.onChanged.addListener((changes, area) => {
           hiddenSites?: string[];
           usePageContextBySite?: Record<string, boolean>;
           customTones?: import('../shared/messages').CustomTone[];
+          theme?: 'auto' | 'light' | 'dark';
         }
       | undefined;
     hiddenSites = new Set(s?.hiddenSites ?? []);
+    if (s?.theme) {
+      themePref = s.theme;
+      watchThemePref();
+    }
     neverRunSites = (s as { neverRunSites?: string[] } | undefined)?.neverRunSites ?? neverRunSites;
     contextBySite = s?.usePageContextBySite ?? {};
     panel.setCustomTones(s?.customTones ?? []);

@@ -1,5 +1,10 @@
 // P3.6: small undo toast shown after "Use" inserts a variant.
 
+import { themeCssVars, type ThemeMode } from '../shared/theme';
+
+const LIGHT_VARS = themeCssVars('light');
+const DARK_VARS = themeCssVars('dark');
+
 const TOAST_MS = 8000;
 
 export class UndoToast {
@@ -13,30 +18,31 @@ export class UndoToast {
     const shadow = this.host.attachShadow({ mode: 'open' });
     shadow.innerHTML = `
       <style>
+        :host { color-scheme: light dark; }
+        :host([data-theme='light']) { ${LIGHT_VARS} }
+        :host([data-theme='dark']) { ${DARK_VARS} }
         .toast {
           display: flex;
           align-items: center;
           gap: 10px;
-          background: #1f2430;
-          color: #e8eaf0;
-          border: 1px solid #ffffff22;
+          background: var(--surface);
+          color: var(--text);
+          border: 1px solid var(--border);
           border-radius: 10px;
           padding: 8px 12px;
           font: 13px system-ui, sans-serif;
-          box-shadow: 0 6px 24px rgba(0,0,0,0.4);
-        }
-        @media (prefers-color-scheme: light) {
-          .toast { background: #fff; color: #1f2430; }
+          box-shadow: 0 6px 24px var(--shadow);
         }
         button {
           border: none;
-          background: #4f7cff;
-          color: #fff;
+          background: var(--accent);
+          color: var(--text-on-accent);
           border-radius: 6px;
           padding: 4px 10px;
           font: inherit;
           cursor: pointer;
         }
+        button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
       </style>
       <div class="toast" role="status">
         <span>Rewritten</span>
@@ -49,6 +55,11 @@ export class UndoToast {
       this.hide();
       this.onUndo?.();
     });
+  }
+
+  setTheme(mode: ThemeMode) {
+    this.host.dataset.theme = mode;
+    this.host.style.colorScheme = mode;
   }
 
   onUndo: (() => void) | null = null;

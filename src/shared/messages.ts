@@ -165,6 +165,8 @@ export interface Settings {
   usePageContextBySite: Record<string, boolean>;
   /** Developer: log request/context details to consoles. Default off. */
   debug: boolean;
+  /** UI theme: auto follows the system. Default 'auto'. */
+  theme: 'auto' | 'light' | 'dark';
 }
 
 /** Default never-run hostnames (banking/health) — editable in options. */
@@ -192,4 +194,5 @@ export const SETTINGS_DEFAULTS: Settings = {
   routerPreference: 'auto',
   usePageContextBySite: {},
   debug: false,
+  theme: 'auto',
 };

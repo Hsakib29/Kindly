@@ -11,6 +11,10 @@ import {
   type Variant,
 } from '../shared/messages';
 import { PRODUCT_NAME } from '../shared/brand';
+import { themeCssVars, type ThemeMode } from '../shared/theme';
+
+const LIGHT_VARS = themeCssVars('light');
+const DARK_VARS = themeCssVars('dark');
 
 const PANEL_WIDTH = 360;
 const PANEL_MAX_HEIGHT = 460;
@@ -97,6 +101,12 @@ export class RewritePanel {
   private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
   private callbacks: PanelCallbacks = {};
 
+  /** Apply the resolved theme to the shadow host (P8 theming). */
+  setTheme(mode: ThemeMode) {
+    this.host.dataset.theme = mode;
+    this.host.style.colorScheme = mode;
+  }
+
   constructor(callbacks: PanelCallbacks = {}) {
     this.callbacks = callbacks;
     this.host = document.createElement('div');
@@ -105,353 +115,159 @@ export class RewritePanel {
     const shadow = this.host.attachShadow({ mode: 'open' });
     shadow.innerHTML = `
       <style>
+        :host { color-scheme: light dark; }
+        :host([data-theme='light']) { ${LIGHT_VARS} }
+        :host([data-theme='dark']) { ${DARK_VARS} }
         .panel {
           pointer-events: auto;
           width: ${PANEL_WIDTH}px;
           max-height: ${PANEL_MAX_HEIGHT}px;
           display: flex;
           flex-direction: column;
-          background: #1f2430;
-          color: #e8eaf0;
-          border: 1px solid #ffffff22;
+          background: var(--surface);
+          color: var(--text);
+          border: 1px solid var(--border);
           border-radius: 12px;
-          box-shadow: 0 8px 30px rgba(0,0,0,0.45);
+          box-shadow: 0 8px 30px var(--shadow);
           font: 13px/1.4 system-ui, sans-serif;
           overflow: hidden;
-        }
-        @media (prefers-color-scheme: light) {
-          .panel { background: #ffffff; color: #1f2430; border-color: #00000022; }
-          .card { background: #f4f5f8; }
-          .chip { background: #eef0f5; color: #1f2430; }
-          .chip.selected { background: #4f7cff; color: #fff; }
-          .instruction input { background: #f4f5f8; color: #1f2430; }
         }
         .header {
           padding: 8px 10px 4px;
           font-weight: 600;
           font-size: 12px;
-          color: #9aa0ae;
+          color: var(--text-secondary);
           display: flex;
           justify-content: space-between;
           align-items: center;
         }
-        .chips {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
-          padding: 4px 10px 8px;
-        }
+        .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 10px 8px; }
         .chip {
-          border: 1px solid #ffffff2e;
-          background: #2a3040;
-          color: #e8eaf0;
+          border: 1px solid var(--control-border);
+          background: var(--surface);
+          color: var(--text);
           border-radius: 999px;
           padding: 4px 10px;
           font-size: 12px;
           cursor: pointer;
         }
-        .chip:hover { border-color: #4f7cff; }
-        .chip.selected { background: #4f7cff; border-color: #4f7cff; color: #fff; }
-        .chip:focus-visible, .card:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid #4f7cff; outline-offset: 1px; }
+        .chip:hover { border-color: var(--accent); }
+        .chip.selected { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); }
+        .chip:focus-visible, .card:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible {
+          outline: 2px solid var(--focus-ring); outline-offset: 1px;
+        }
         .body { padding: 0 10px 10px; overflow-y: auto; flex: 1; min-height: 60px; }
-        .placeholder, .hint { color: #9aa0ae; padding: 14px 4px; text-align: center; }
+        .placeholder, .hint { color: var(--text-secondary); padding: 14px 4px; text-align: center; }
         .card {
-          border: 1px solid #ffffff2e;
+          border: 1px solid var(--border);
           border-radius: 10px;
           padding: 8px 10px;
           margin-bottom: 8px;
           cursor: pointer;
-          background: #262c3b;
+          background: var(--surface);
         }
-        .card.selected { border-color: #4f7cff; box-shadow: 0 0 0 1px #4f7cff; }
-        .card .label { font-size: 11px; color: #9aa0ae; margin-bottom: 2px; }
-        .card .text {
-          white-space: pre-wrap;
-          word-break: break-word;
-          max-height: 140px;
-          overflow-y: auto;
-        }
-        .instruction {
-          display: flex;
-          gap: 6px;
-          padding: 8px 10px;
-          border-top: 1px solid #ffffff14;
-        }
-        .instruction input {
-          flex: 1;
-          min-width: 0;
-          border: 1px solid #ffffff2e;
+        .card:hover { border-color: var(--control-border); }
+        .card.selected { border: 2px solid var(--accent); background: var(--accent-tint); padding: 7px 9px; }
+        .card .label { font-size: 11px; color: var(--text-secondary); margin-bottom: 2px; }
+        .card .text { white-space: pre-wrap; word-break: break-word; max-height: 140px; overflow-y: auto; }
+        .instruction { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--divider); }
+        .instruction input, .write-instruction input, .write-prompt, .write-controls select {
+          border: 1px solid var(--control-border);
           border-radius: 8px;
-          background: #262c3b;
-          color: inherit;
-          padding: 6px 8px;
+          background: var(--surface);
+          color: var(--text);
           font: inherit;
         }
-        .instruction button, .actions button, .recent button {
-          border: 1px solid #ffffff2e;
-          background: #2a3040;
-          color: inherit;
+        .instruction input:focus, .write-instruction input:focus, .write-prompt:focus, .write-controls select:focus {
+          outline: 2px solid var(--focus-ring); outline-offset: 1px; border-color: var(--accent);
+        }
+        .instruction input::placeholder, .write-instruction input::placeholder, .write-prompt::placeholder {
+          color: var(--placeholder);
+        }
+        .instruction input, .write-instruction input {
+          flex: 1; min-width: 0; padding: 6px 8px;
+        }
+        .write-prompt { width: 100%; box-sizing: border-box; padding: 7px 9px; resize: vertical; min-height: 44px; }
+        .write-controls select { padding: 4px 6px; font-size: 12px; }
+        .instruction button, .actions button, .recent button, .write-instruction button,
+        .write-actions .generate, .write-actions .copy, .write-actions .cursor, .error-box button {
+          border: 1px solid var(--control-border);
+          background: var(--surface);
+          color: var(--text);
           border-radius: 8px;
           padding: 6px 10px;
           font: inherit;
           cursor: pointer;
         }
-        .instruction button:hover, .actions button:hover { border-color: #4f7cff; }
-        .actions {
-          display: flex;
-          gap: 8px;
-          padding: 8px 10px;
-          border-top: 1px solid #ffffff14;
-        }
-        .actions .primary {
+        .instruction button:hover, .actions button:hover, .write-instruction button:hover,
+        .write-actions .generate:hover, .write-actions .copy:hover, .write-actions .cursor:hover,
+        .error-box button:hover, .recent button:hover { border-color: var(--accent); }
+        .actions { display: flex; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--divider); }
+        .actions .primary, .write-actions .primary {
           flex: 1;
-          background: #4f7cff;
-          border-color: #4f7cff;
-          color: #fff;
+          background: var(--accent);
+          border: 1px solid var(--accent);
+          color: var(--text-on-accent);
+          border-radius: 8px;
           font-weight: 600;
+          padding: 6px 10px;
+          font: inherit;
+          cursor: pointer;
         }
-        .actions .primary:disabled { opacity: 0.45; cursor: default; }
-        .recent {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
-          padding: 0 10px 8px;
+        .actions .primary:disabled, .write-actions .primary:disabled {
+          background: var(--border);
+          border-color: var(--border);
+          color: var(--text);
+          opacity: 0.75;
+          cursor: default;
         }
-        .recent button {
-          font-size: 11px;
-          padding: 3px 8px;
-          border-radius: 999px;
-          max-width: 100%;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+        .actions button:disabled, .write-actions .generate:disabled,
+        .write-actions .copy:disabled, .write-actions .cursor:disabled {
+          color: var(--text-disabled); border-color: var(--border); cursor: default;
         }
+        .recent { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 10px 8px; }
+        .recent button { font-size: 11px; padding: 3px 8px; border-radius: 999px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .skeleton {
-          height: 56px;
-          border-radius: 10px;
-          margin-bottom: 8px;
-          background: linear-gradient(90deg, #2a3040 25%, #343b4d 50%, #2a3040 75%);
-          background-size: 200% 100%;
-          animation: shimmer 1.2s infinite;
+          height: 56px; border-radius: 10px; margin-bottom: 8px;
+          background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-shimmer) 50%, var(--skeleton-base) 75%);
+          background-size: 200% 100%; animation: shimmer 1.2s infinite;
         }
         @keyframes shimmer { to { background-position: -200% 0; } }
-        .result-note {
-          font-size: 11px;
-          color: #9aa0ae;
-          margin: -4px 0 8px;
-        }
+        .result-note { font-size: 11px; color: var(--text-secondary); margin: -4px 0 8px; }
         .error-box { padding: 10px; font-size: 12px; }
-        .error-box .msg { margin-bottom: 8px; }
-        .model-tag {
-          font-size: 10px;
-          color: #9aa0ae;
-          margin-left: auto;
-          margin-right: 6px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          max-width: 140px;
-        }
+        .error-box .msg { margin-bottom: 8px; color: var(--danger); }
+        .model-tag { font-size: 10px; color: var(--text-secondary); margin-left: auto; margin-right: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
         .header .close {
-          border: none;
-          background: transparent;
-          color: inherit;
-          font-size: 16px;
-          line-height: 1;
-          width: 30px;
-          height: 30px;
-          border-radius: 8px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 0;
+          border: none; background: transparent; color: var(--text-secondary);
+          font-size: 16px; line-height: 1; width: 30px; height: 30px; border-radius: 8px;
+          cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;
         }
-        .header .close:hover { background: #ffffff1f; }
-        @media (prefers-color-scheme: light) {
-          .header .close:hover { background: #0000000f; }
-        }
-        .error-box button {
-          border: 1px solid #ffffff2e;
-          background: #2a3040;
-          color: inherit;
-          border-radius: 8px;
-          padding: 4px 10px;
-          font: inherit;
-          cursor: pointer;
-        }
-        .tabs {
-          display: flex;
-          gap: 4px;
-          padding: 6px 10px 0;
-        }
+        .header .close:hover { background: var(--accent-tint); color: var(--text); }
+        .tabs { display: flex; gap: 4px; padding: 6px 10px 0; }
         .tab-btn {
-          border: none;
-          background: transparent;
-          color: #9aa0ae;
-          font: inherit;
-          font-weight: 600;
-          font-size: 12px;
-          padding: 5px 10px;
-          border-radius: 8px 8px 0 0;
-          cursor: pointer;
-          border-bottom: 2px solid transparent;
+          border: none; background: transparent; color: var(--text-secondary);
+          font: inherit; font-weight: 600; font-size: 12px; padding: 5px 10px;
+          border-radius: 8px 8px 0 0; cursor: pointer; border-bottom: 2px solid transparent;
         }
-        .tab-btn.active { color: #e8eaf0; border-bottom-color: #4f7cff; }
-        @media (prefers-color-scheme: light) {
-          .tab-btn.active { color: #1f2430; }
-        }
-        .ctx-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 2px 10px 6px;
-          flex-wrap: wrap;
-        }
-        .ctx-chip { font-size: 11px; color: #9aa0ae; margin-left: auto; }
-        .page {
-          display: flex;
-          flex-direction: column;
-          flex: 1;
-          min-height: 0;
-          overflow: hidden;
-        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+        .ctx-row { display: flex; align-items: center; gap: 8px; padding: 2px 10px 6px; flex-wrap: wrap; }
+        .ctx-chip { font-size: 11px; color: var(--text-secondary); margin-left: auto; }
+        .page { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
         .page[hidden] { display: none; }
         .write-form { padding: 8px 10px 4px; }
-        .write-prompt {
-          width: 100%;
-          box-sizing: border-box;
-          border: 1px solid #ffffff2e;
-          border-radius: 8px;
-          background: #262c3b;
-          color: inherit;
-          padding: 7px 9px;
-          font: inherit;
-          resize: vertical;
-          min-height: 44px;
-        }
-        @media (prefers-color-scheme: light) {
-          .write-prompt { background: #f4f5f8; color: #1f2430; }
-          select { color-scheme: light; }
-        }
-        .write-controls {
-          display: flex;
-          gap: 6px;
-          align-items: center;
-          margin-top: 6px;
-          flex-wrap: wrap;
-        }
-        .write-controls select {
-          border: 1px solid #ffffff2e;
-          border-radius: 8px;
-          background: #2a3040;
-          color: inherit;
-          padding: 4px 6px;
-          font: inherit;
-          font-size: 12px;
-        }
-        .ctx-toggle {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 12px;
-          color: #9aa0ae;
-          cursor: pointer;
-          margin-left: auto;
-        }
-        .preview-btn {
-          border: none;
-          background: transparent;
-          color: #4f7cff;
-          font: inherit;
-          font-size: 12px;
-          padding: 4px 0;
-          cursor: pointer;
-          text-decoration: underline;
-        }
-        .ctx-preview {
-          max-height: 140px;
-          overflow-y: auto;
-          background: #262c3b;
-          border: 1px solid #ffffff14;
-          border-radius: 8px;
-          padding: 8px;
-          font-size: 11px;
-          white-space: pre-wrap;
-          word-break: break-word;
-          margin: 4px 0 0;
-        }
-        @media (prefers-color-scheme: light) {
-          .ctx-preview { background: #f4f5f8; color: #1f2430; }
-        }
         .write-body { padding: 0 10px 10px; }
-        .write-instruction {
-          display: flex;
-          gap: 6px;
-          padding: 6px 10px;
-          border-top: 1px solid #ffffff14;
+        .write-instruction { display: flex; gap: 6px; padding: 6px 10px; border-top: 1px solid var(--divider); }
+        .write-actions { display: flex; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--divider); }
+        .write-actions .generate { white-space: nowrap; }
+        .ctx-toggle { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-secondary); cursor: pointer; margin-left: auto; }
+        .preview-btn { border: none; background: transparent; color: var(--accent); font: inherit; font-size: 12px; padding: 4px 0; cursor: pointer; text-decoration: underline; }
+        .ctx-preview {
+          max-height: 140px; overflow-y: auto;
+          background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+          padding: 8px; font-size: 11px; white-space: pre-wrap; word-break: break-word; margin: 4px 0 0;
+          color: var(--text);
         }
-        .write-instruction input {
-          flex: 1;
-          min-width: 0;
-          border: 1px solid #ffffff2e;
-          border-radius: 8px;
-          background: #262c3b;
-          color: inherit;
-          padding: 6px 8px;
-          font: inherit;
-        }
-        .write-instruction button {
-          border: 1px solid #ffffff2e;
-          background: #2a3040;
-          color: inherit;
-          border-radius: 8px;
-          padding: 6px 10px;
-          font: inherit;
-          cursor: pointer;
-        }
-        .write-actions {
-          display: flex;
-          gap: 8px;
-          padding: 8px 10px;
-          border-top: 1px solid #ffffff14;
-        }
-        .write-actions .generate {
-          border: 1px solid #ffffff2e;
-          background: #2a3040;
-          color: inherit;
-          border-radius: 8px;
-          padding: 6px 10px;
-          font: inherit;
-          cursor: pointer;
-        }
-        .write-actions .generate:hover { border-color: #4f7cff; }
-        .write-actions .copy,
-        .write-actions .cursor {
-          border: 1px solid #ffffff2e;
-          background: #2a3040;
-          color: inherit;
-          border-radius: 8px;
-          padding: 6px 10px;
-          font: inherit;
-          cursor: pointer;
-          white-space: nowrap;
-        }
-        .write-actions .primary {
-          flex: 1;
-          background: #4f7cff;
-          border: 1px solid #4f7cff;
-          color: #fff;
-          border-radius: 8px;
-          padding: 6px 10px;
-          font: inherit;
-          font-weight: 600;
-          cursor: pointer;
-        }
-        .write-actions .primary:disabled,
-        .write-actions .generate:disabled,
-        .write-actions .copy:disabled,
-        .write-actions .cursor:disabled { opacity: 0.45; cursor: default; }
       </style>
       <div class="panel" role="dialog" aria-label="Kindly">
         <div class="header"><span>${PRODUCT_NAME}</span><span class="model-tag"></span><button type="button" class="close" aria-label="Close">×</button></div>

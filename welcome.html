@@ -11,19 +11,19 @@
         margin: 0 auto;
         padding: 32px 20px 48px;
         font: 15px/1.55 system-ui, sans-serif;
-        color: CanvasText;
-        background: Canvas;
+        color: var(--text, CanvasText);
+        background: var(--bg, Canvas);
       }
       h1 { font-size: 22px; margin: 0 0 4px; }
-      .sub { color: color-mix(in srgb, CanvasText 65%, transparent); margin-bottom: 24px; }
+      .sub { color: var(--text-secondary, color-mix(in srgb, CanvasText 65%, transparent)); margin-bottom: 24px; }
       .steps { display: flex; gap: 8px; margin-bottom: 24px; }
       .step-dot {
         flex: 1; height: 4px; border-radius: 2px;
-        background: color-mix(in srgb, CanvasText 20%, transparent);
+        background: var(--divider, color-mix(in srgb, CanvasText 20%, transparent));
       }
-      .step-dot.on { background: LinkText; }
+      .step-dot.on { background: var(--accent, LinkText); }
       .card {
-        border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+        border: 1px solid var(--divider, color-mix(in srgb, CanvasText 20%, transparent));
         border-radius: 10px;
         padding: 20px;
       }
@@ -31,7 +31,7 @@
       input[type='text'], input[type='password'], textarea {
         width: 100%;
         padding: 8px 10px;
-        border: 1px solid color-mix(in srgb, CanvasText 30%, transparent);
+        border: 1px solid var(--control-border, color-mix(in srgb, CanvasText 30%, transparent));
         border-radius: 6px;
         background: transparent;
         color: inherit;
@@ -41,42 +41,54 @@
       .row { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
       button {
         padding: 8px 16px;
-        border: 1px solid color-mix(in srgb, CanvasText 30%, transparent);
+        border: 1px solid var(--control-border, color-mix(in srgb, CanvasText 30%, transparent));
         border-radius: 6px;
-        background: Canvas;
+        background: var(--bg, Canvas);
         color: inherit;
         font: inherit;
         font-weight: 600;
         cursor: pointer;
       }
-      button.primary { background: LinkText; border-color: LinkText; color: Canvas; }
+      button.primary { background: var(--accent, LinkText); border-color: var(--accent, LinkText); color: Canvas; }
       button:disabled { opacity: 0.5; cursor: default; }
       .status { font-size: 13px; margin-top: 10px; min-height: 18px; }
       .status.ok { color: #2e7d32; }
       .status.err { color: #c62828; }
       .variants { margin-top: 14px; display: grid; gap: 8px; }
       .variant {
-        border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+        border: 1px solid var(--divider, color-mix(in srgb, CanvasText 20%, transparent));
         border-radius: 8px;
         padding: 10px 12px;
         font-size: 14px;
       }
-      .variant .vlabel { font-size: 11px; color: color-mix(in srgb, CanvasText 60%, transparent); }
+      .variant .vlabel { font-size: 11px; color: var(--text-secondary, color-mix(in srgb, CanvasText 60%, transparent)); }
       .hidden { display: none; }
       .tip {
         margin-top: 20px; padding: 12px 14px;
         border-radius: 8px;
-        background: color-mix(in srgb, LinkText 10%, transparent);
+        background: var(--accent-tint, color-mix(in srgb, LinkText 10%, transparent));
         font-size: 14px;
       }
       .tone-pick { display: flex; flex-wrap: wrap; gap: 8px; }
       .tone-pick label {
         display: inline-flex; align-items: center; gap: 6px;
         font-weight: 400; margin: 0; padding: 6px 10px;
-        border: 1px solid color-mix(in srgb, CanvasText 25%, transparent);
+        border: 1px solid var(--divider, color-mix(in srgb, CanvasText 25%, transparent));
         border-radius: 999px; cursor: pointer;
       }
       .tone-pick input { margin: 0; }
+          :root[data-theme='light'] {
+        --bg:#F5F7FF; --surface:#FFFFFF; --text:#202B50; --accent:#5269D8; --border:#DCE3FF;
+        --text-secondary:#4C5683; --control-border:#8A93C4; --accent-tint:#E3E9FF;
+        --text-on-accent:#FFFFFF; --danger:#B3261E; --shadow:rgba(32,43,80,0.22);
+        --divider:#DCE3FF; --focus-ring:#5269D8;
+      }
+      :root[data-theme='dark'] {
+        --bg:#0D1224; --surface:#171F3A; --text:#F4F6FF; --accent:#AFC0FF; --border:#303B61;
+        --text-secondary:#A9B4D8; --control-border:#5A6690; --accent-tint:#26314F;
+        --text-on-accent:#0D1224; --danger:#FFB4AB; --shadow:rgba(0,0,0,0.55);
+        --divider:#303B61; --focus-ring:#AFC0FF;
+      }
     </style>
   </head>
   <body>

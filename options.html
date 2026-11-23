@@ -8,7 +8,35 @@
       :root {
         color-scheme: light dark;
       }
+      :root[data-theme='light'] {
+        --bg:#F5F7FF; --surface:#FFFFFF; --text:#202B50; --accent:#5269D8; --border:#DCE3FF;
+        --text-secondary:#4C5683; --placeholder:#5A6690; --text-disabled:#7C86AC;
+        --control-border:#7F89BC; --accent-hover:#4356C4; --accent-active:#384DB0;
+        --accent-tint:#E3E9FF; --text-on-accent:#FFFFFF; --danger:#B3261E; --danger-bg:#FDECEA;
+        --success:#1B7A3D; --warning:#8A5A00; --skeleton-base:#E6EBF8; --skeleton-shimmer:#F4F7FF;
+        --focus-ring:#5269D8; --shadow:rgba(32,43,80,0.22); --divider:#C6D0F2; --accent-text:#4756C0;
+        color-scheme: light;
+      }
+      :root[data-theme='dark'] {
+        --bg:#0D1224; --surface:#171F3A; --text:#F4F6FF; --accent:#AFC0FF; --border:#303B61;
+        --text-secondary:#A9B4D8; --placeholder:#8B96BC; --text-disabled:#6B7699;
+        --control-border:#6B78A3; --accent-hover:#C3D0FF; --accent-active:#D6E0FF;
+        --accent-tint:#26314F; --text-on-accent:#0D1224; --danger:#FFB4AB; --danger-bg:#3A1E22;
+        --success:#8FD6A0; --warning:#E8C37A; --skeleton-base:#232C4A; --skeleton-shimmer:#2E3A5E;
+        --focus-ring:#AFC0FF; --shadow:rgba(0,0,0,0.55); --divider:#46538A; --accent-text:#AFC0FF;
+        color-scheme: dark;
+      }
+      :root:not([data-theme]) {
+        --bg:Canvas; --surface:Canvas; --text:CanvasText; --accent:#5269D8; --border:var(--control-border);
+        --text-secondary:#888; --placeholder:#888; --text-disabled:#888;
+        --control-border:var(--control-border); --accent-hover:#4356C4; --accent-active:#384DB0;
+        --accent-tint:var(--divider); --text-on-accent:#fff; --danger:#cf222e; --danger-bg:#cf222e22;
+        --success:#1a7f37; --warning:#b58900; --skeleton-base:var(--divider); --skeleton-shimmer:#8881;
+        --focus-ring:#5269D8; --shadow:rgba(0,0,0,0.22); --divider:var(--divider);
+      }
       body {
+        background: var(--bg);
+        color: var(--text);
         font-family: system-ui, sans-serif;
         max-width: 640px;
         margin: 2rem auto;
@@ -21,18 +49,18 @@
       }
       nav button {
         padding: 0.4rem 0.9rem;
-        border: 1px solid #8884;
+        border: 1px solid var(--divider);
         border-radius: 6px;
         background: transparent;
         cursor: pointer;
       }
       nav button[aria-current='true'] {
-        background: #4f7cff;
-        color: #fff;
-        border-color: #4f7cff;
+        background: var(--accent);
+        color: var(--text-on-accent);
+        border-color: var(--accent);
       }
       section {
-        border: 1px solid #8884;
+        border: 1px solid var(--divider);
         border-radius: 8px;
         padding: 1rem 1.25rem;
       }
@@ -40,7 +68,7 @@
         display: none;
       }
       .tagline {
-        color: #888;
+        color: var(--text-secondary);
         margin-top: -0.75rem;
       }
       .key-row {
@@ -51,7 +79,7 @@
       .key-row input {
         flex: 1;
         padding: 0.45rem 0.6rem;
-        border: 1px solid #8886;
+        border: 1px solid var(--control-border);
         border-radius: 6px;
         background: transparent;
         color: inherit;
@@ -63,7 +91,7 @@
       }
       button {
         padding: 0.4rem 0.9rem;
-        border: 1px solid #8886;
+        border: 1px solid var(--control-border);
         border-radius: 6px;
         background: transparent;
         color: inherit;
@@ -81,7 +109,7 @@
         gap: 0.5rem;
         min-width: 220px;
         padding: 0.4rem 0.6rem;
-        border: 1px solid #8886;
+        border: 1px solid var(--control-border);
         border-radius: 6px;
         background: Canvas;
         color: CanvasText;
@@ -89,9 +117,9 @@
         cursor: pointer;
         text-align: left;
       }
-      .dropdown-button:hover { border-color: #4f7cff; }
+      .dropdown-button:hover { border-color: var(--accent); }
       .dropdown-button:focus-visible {
-        outline: 2px solid #4f7cff;
+        outline: 2px solid var(--accent);
         outline-offset: 1px;
       }
       .dropdown-arrow { margin-left: auto; }
@@ -105,7 +133,7 @@
         list-style: none;
         background: Canvas;
         color: CanvasText;
-        border: 1px solid #8886;
+        border: 1px solid var(--control-border);
         border-radius: 6px;
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
         z-index: 10;
@@ -130,19 +158,19 @@
         margin-top: 1px;
       }
       #verify-key {
-        background: #4f7cff;
-        border-color: #4f7cff;
-        color: #fff;
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--text-on-accent);
       }
       .status {
         min-height: 1.2em;
         margin: 0.5rem 0 0;
       }
       .status.ok {
-        color: #1a7f37;
+        color: var(--success);
       }
       .status.err {
-        color: #cf222e;
+        color: var(--danger);
       }
       .check-row {
         display: flex;
@@ -152,7 +180,7 @@
       }
       .warn {
         font-size: 0.85rem;
-        color: #b58900;
+        color: var(--warning);
       }
       .bv-grid {
         display: grid;
@@ -167,14 +195,14 @@
       }
       .bv-grid input[type='text'] {
         padding: 0.4rem 0.6rem;
-        border: 1px solid #8886;
+        border: 1px solid var(--control-border);
         border-radius: 6px;
         background: transparent;
         color: inherit;
         font: inherit;
       }
       .bv-formality {
-        border: 1px solid #8886;
+        border: 1px solid var(--control-border);
         border-radius: 6px;
         padding: 0.4rem 0.6rem;
         display: flex;
@@ -194,7 +222,7 @@
         flex: 1;
         min-width: 160px;
         padding: 0.4rem 0.6rem;
-        border: 1px solid #8886;
+        border: 1px solid var(--control-border);
         border-radius: 6px;
         background: transparent;
         color: inherit;
@@ -205,15 +233,15 @@
         align-items: center;
         gap: 0.5rem;
         padding: 0.4rem 0;
-        border-bottom: 1px solid #8883;
+        border-bottom: 1px solid var(--divider);
       }
       .tone-item .name { font-weight: 600; min-width: 140px; }
-      .tone-item .instr { flex: 1; color: #888; font-size: 0.9rem; }
+      .tone-item .instr { flex: 1; color: var(--text-secondary); font-size: 0.9rem; }
       #never-run {
         width: 100%;
         max-width: 480px;
         padding: 0.5rem 0.6rem;
-        border: 1px solid #8886;
+        border: 1px solid var(--control-border);
         border-radius: 6px;
         background: transparent;
         color: inherit;
@@ -221,7 +249,7 @@
         resize: vertical;
       }
       .tone-item button {
-        border: 1px solid #8886;
+        border: 1px solid var(--control-border);
         background: transparent;
         color: inherit;
         border-radius: 6px;
@@ -243,6 +271,7 @@
       <button data-section="knowledge">Saved replies</button>
       <button data-section="privacy">Privacy</button>
       <button data-section="developer">Developer</button>
+      <button data-section="appearance">Appearance</button>
     </nav>
     <section id="api-key">
       <h2>API key</h2>
@@ -381,6 +410,16 @@
         Kindly sends text to Google's Gemini API only when you click. Your key is stored locally in
         this browser.
       </p>
+    </section>
+    <section id="appearance" hidden>
+      <h2>Appearance</h2>
+      <p>Theme for the panel, popup and this page.</p>
+      <div class="tone-pick" style="display:flex;gap:1rem">
+        <label><input type="radio" name="app-theme" value="auto" /> Auto (system)</label>
+        <label><input type="radio" name="app-theme" value="light" /> Light</label>
+        <label><input type="radio" name="app-theme" value="dark" /> Dark</label>
+      </div>
+      <p id="theme-status" class="status" role="status"></p>
     </section>
     <section id="developer" hidden>
       <h2>Developer</h2>

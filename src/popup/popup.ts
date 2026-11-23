@@ -3,6 +3,7 @@
 import { getSettings, setSettings } from '../shared/storage';
 import type { ExtensionResponse } from '../shared/messages';
 import { PRODUCT_NAME } from '../shared/brand';
+import { resolveTheme } from '../shared/theme';
 
 const titleEl = document.getElementById('app-title') as HTMLElement;
 const toggleEl = document.getElementById('site-toggle') as HTMLInputElement;
@@ -22,6 +23,8 @@ async function activeTabId(): Promise<number | undefined> {
 }
 
 async function main() {
+  const settings = await getSettings();
+  document.documentElement.dataset.theme = resolveTheme(settings.theme ?? 'auto');
   const tabId = await activeTabId();
 
   // Ask the content script for this site's hostname + hidden state.

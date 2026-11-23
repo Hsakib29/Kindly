@@ -4,7 +4,11 @@ import { PRODUCT_NAME, TAGLINE } from '../shared/brand';
 import { setKey, setSettings, getSettings } from '../shared/storage';
 import { TONE_IDS, type ExtensionResponse, type ToneId } from '../shared/messages';
 import { sendRequest } from '../shared/client';
+import { resolveTheme } from '../shared/theme';
 
+void getSettings().then((st) => {
+  document.documentElement.dataset.theme = resolveTheme(st.theme ?? 'auto');
+});
 document.getElementById('app-title')!.textContent = PRODUCT_NAME;
 document.getElementById('tagline')!.textContent = TAGLINE;
 

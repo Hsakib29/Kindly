@@ -533,3 +533,44 @@ keyLock.addEventListener('click', async () => {
 });
 
 void refreshKeyState();
+
+// ---------- Appearance theme ----------
+
+const themeRadios = Array.from(
+  document.querySelectorAll('input[name="app-theme"]'),
+) as HTMLInputElement[];
+const themeStatus = document.getElementById('theme-status') as HTMLElement;
+
+function applyThemeAttr(mode: 'light' | 'dark') {
+  document.documentElement.dataset.theme = mode;
+}
+
+async function initTheme() {
+  const settings = await getSettings();
+  const pref = settings.theme ?? 'auto';
+  const radio = themeRadios.find((r) => r.value === pref);
+  if (radio) radio.checked = true;
+  applyThemeAttr(pref === 'dark' ? 'dark' : pref === 'light' ? 'light' : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  // keep auto in sync with system
+  if (pref === 'auto') {
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      applyThemeAttr(e.matches ? 'dark' : 'light');
+    });
+  }
+}
+
+for (const r of themeRadios) {
+  r.addEventListener('change', async () => {
+    const pref = r.value as 'auto' | 'light' | 'dark';
+    const res = await sendRequest<ExtensionResponse>({
+      type: 'SET_SETTINGS',
+      patch: { theme: pref },
+    });
+    if (res.type === 'SETTINGS') {
+      applyThemeAttr(pref === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : pref);
+      themeStatus.textContent = 'Saved.';
+      themeStatus.className = 'status ok';
+    }
+  });
+}
+void initTheme();
