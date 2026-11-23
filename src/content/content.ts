@@ -64,6 +64,7 @@ let queuedRewrite: { tone: ToneId; instruction?: string; avoid?: string[] } | nu
 // Incremented every time the panel closes; in-flight rewrite responses
 // from an older epoch are ignored (chrome messages can't be aborted).
 let rewriteEpoch = 0;
+let currentRequestId: string | null = null;
 
 function isContextInvalid(err: unknown): boolean {
   const m = err instanceof Error ? err.message : String(err);
@@ -90,6 +91,7 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
   rewriteInFlight = true;
   panel.showLoading();
   const requestId = crypto.randomUUID();
+  currentRequestId = requestId;
   const epoch = rewriteEpoch;
   try {
     const res = await sendRequest<ExtensionResponse>({
@@ -121,6 +123,7 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
     }
   } finally {
     rewriteInFlight = false;
+    currentRequestId = null;
     if (epoch === rewriteEpoch && queuedRewrite) {
       const next = queuedRewrite;
       queuedRewrite = null;
@@ -162,6 +165,12 @@ function showRequestError(error: ApiError) {
       break;
     case 'TEXT_TOO_LONG':
       panel.showError({ code: error.code, message: detail });
+      break;
+    case 'TIMEOUT':
+      panel.showError(
+        { code: error.code, message: 'Request timed out — try again.' },
+        [retry],
+      );
       break;
   }
 }
@@ -236,6 +245,12 @@ const ui = new FieldUiController(icon, panel, {
   getDeepActiveElement: () => getDeepActiveElement(),
   onPanelClosed: () => {
     rewriteEpoch++;
+    // Actually abort the in-flight Gemini call, not just ignore its result.
+    if (rewriteInFlight && currentRequestId) {
+      void sendRequest<ExtensionResponse>({ type: 'CANCEL', requestId: currentRequestId }).catch(
+        () => {},
+      );
+    }
   },
 });
 

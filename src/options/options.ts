@@ -135,7 +135,7 @@ function select(index: number) {
   for (const o of options()) {
     o.setAttribute('aria-selected', String(o === opt));
   }
-  dropdownLabel.textContent = opt.textContent ?? '';
+  dropdownLabel.textContent = opt.querySelector('.opt')?.textContent ?? opt.textContent ?? '';
   setOpen(false);
   void savePreference(opt.dataset.value ?? 'auto');
 }

@@ -132,7 +132,11 @@ export interface GenerateVariantsOptions {
   userPrompt: string;
   /** Maximum variants to return (default 3). */
   count?: number;
+  /** External abort signal (e.g. user cancelled by closing the panel). */
+  signal?: AbortSignal;
 }
+
+const REQUEST_TIMEOUT_MS = 25_000;
 
 /**
  * Ask Gemini for rewrite variants as structured JSON, then parse,
@@ -154,11 +158,29 @@ export async function generateVariants(
     },
   };
 
-  const res = await geminiFetch(`/models/${model}:generateContent`, options.key, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  // Per-attempt timeout (25s) linked to the caller's abort signal.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  options.signal?.addEventListener('abort', () => controller.abort(), { once: true });
+
+  let res: Response;
+  try {
+    res = await geminiFetch(`/models/${model}:generateContent`, options.key, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw options.signal?.aborted
+        ? new GeminiError('NETWORK', 'Request cancelled.')
+        : new GeminiError('TIMEOUT', 'Request timed out.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
   const data = (await res.json()) as GenerateContentResponse;
 
   if (data.promptFeedback?.blockReason) {

@@ -6,6 +6,10 @@ import type { ApiError, ExtensionRequest, ExtensionResponse } from '../shared/me
 
 console.log('[Kindly] service worker started');
 
+// In-flight REWRITE abort controllers, keyed by requestId, so the panel
+// can cancel a running request by closing (CANCEL message).
+const pendingRequests = new Map<string, AbortController>();
+
 function toApiError(err: unknown): ApiError {
   if (err instanceof Error && 'code' in err) {
     const e = err as { code: ApiError['code']; message: string; retryAfterMs?: number };
@@ -39,6 +43,10 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
       await chrome.runtime.openOptionsPage();
       return { type: 'PONG' };
 
+    case 'CANCEL':
+      pendingRequests.get(request.requestId)?.abort();
+      return { type: 'PONG' };
+
     case 'REWRITE': {
       const key = await getKey();
       if (!key) {
@@ -65,9 +73,12 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
       }
       try {
         const settings = await getSettings();
+        const controller = new AbortController();
+        pendingRequests.set(request.requestId, controller);
         const { variants, model } = await generateRouted({
           key,
           routerPreference: settings.routerPreference,
+          signal: controller.signal,
           systemInstruction: SYSTEM_PROMPT,
           userPrompt: buildRewritePrompt({
             text: trimmed,
@@ -85,6 +96,8 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
           requestId: request.requestId,
           error: apiError,
         };
+      } finally {
+        pendingRequests.delete(request.requestId);
       }
     }
 

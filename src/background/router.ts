@@ -114,11 +114,13 @@ export async function generateRouted(
             ? err
             : new GeminiError('NETWORK', err instanceof Error ? err.message : String(err));
         lastError = apiErr;
+        if (options.signal?.aborted) throw apiErr; // user cancelled — stop routing
         if (apiErr.code === 'RATE_LIMIT') {
           coolDown(model, apiErr.retryAfterMs);
           break; // next model immediately
         }
-        if (apiErr.code === 'NETWORK' && attempt === 0) continue; // retry once
+        // TIMEOUT and NETWORK are transient: retry once, then next model.
+        if ((apiErr.code === 'NETWORK' || apiErr.code === 'TIMEOUT') && attempt === 0) continue;
         break;
       }
     }

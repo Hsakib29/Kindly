@@ -33,7 +33,8 @@ export type ErrorCode =
   | 'BAD_OUTPUT'
   | 'NO_KEY'
   | 'TEXT_TOO_SHORT'
-  | 'TEXT_TOO_LONG';
+  | 'TEXT_TOO_LONG'
+  | 'TIMEOUT';
 
 export interface ApiError {
   code: ErrorCode;
@@ -62,6 +63,7 @@ export type ExtensionRequest =
       length?: 'short' | 'medium' | 'long';
       instruction?: string;
     }
+  | { type: 'CANCEL'; requestId: string }
   | { type: 'GET_SETTINGS' }
   | { type: 'SET_SETTINGS'; patch: Partial<Settings> }
   | { type: 'OPEN_OPTIONS' };
