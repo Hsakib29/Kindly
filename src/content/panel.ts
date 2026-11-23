@@ -24,11 +24,26 @@ export interface PanelAnchor {
   onClose?: () => void;
 }
 
+export interface WriteGenerateRequest {
+  prompt: string;
+  tone?: ToneId;
+  length?: 'short' | 'medium' | 'long';
+  instruction?: string;
+  context?: string;
+  /** Existing draft to revise (follow-up instructions, P6.6). */
+  draft?: string;
+}
+
 export interface PanelCallbacks {
   onTone?: (tone: ToneId) => void;
   onUse?: (variant: Variant) => void;
   onGenerate?: () => void;
   onInstruction?: (instruction: string) => void;
+  onWriteGenerate?: (req: WriteGenerateRequest) => void;
+  onWriteUse?: (variant: Variant, mode: 'replace' | 'cursor') => void;
+  onWriteInstruction?: (instruction: string) => void;
+  /** Returns the extracted page context to send (or undefined if none). */
+  getWriteContext?: () => string | undefined;
 }
 
 export class RewritePanel {
@@ -47,6 +62,21 @@ export class RewritePanel {
   private rafId = 0;
   private variants: Variant[] = [];
   private selectedVariant = -1;
+  // Write tab state
+  private writePromptEl!: HTMLTextAreaElement;
+  private writeToneEl!: HTMLSelectElement;
+  private writeLenEl!: HTMLSelectElement;
+  private ctxToggleEl!: HTMLInputElement;
+  private ctxPreviewEl!: HTMLPreElement;
+  private writeBodyEl!: HTMLElement;
+  private writeInstrInput!: HTMLInputElement;
+  private writeUseBtn!: HTMLButtonElement;
+  private writeGenBtn!: HTMLButtonElement;
+  private writeCopyBtn!: HTMLButtonElement;
+  private writeCursorBtn!: HTMLButtonElement;
+  private writeVariants: Variant[] = [];
+  private writeSelected = -1;
+  private writeLastInstruction = '';
   private onDocumentClick: ((e: Event) => void) | null = null;
   private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
   private callbacks: PanelCallbacks = {};
@@ -229,20 +259,218 @@ export class RewritePanel {
           font: inherit;
           cursor: pointer;
         }
+        .tabs {
+          display: flex;
+          gap: 4px;
+          padding: 6px 10px 0;
+        }
+        .tab-btn {
+          border: none;
+          background: transparent;
+          color: #9aa0ae;
+          font: inherit;
+          font-weight: 600;
+          font-size: 12px;
+          padding: 5px 10px;
+          border-radius: 8px 8px 0 0;
+          cursor: pointer;
+          border-bottom: 2px solid transparent;
+        }
+        .tab-btn.active { color: #e8eaf0; border-bottom-color: #4f7cff; }
+        @media (prefers-color-scheme: light) {
+          .tab-btn.active { color: #1f2430; }
+        }
+        .page {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          min-height: 0;
+          overflow: hidden;
+        }
+        .page[hidden] { display: none; }
+        .write-form { padding: 8px 10px 4px; }
+        .write-prompt {
+          width: 100%;
+          box-sizing: border-box;
+          border: 1px solid #ffffff2e;
+          border-radius: 8px;
+          background: #262c3b;
+          color: inherit;
+          padding: 7px 9px;
+          font: inherit;
+          resize: vertical;
+          min-height: 44px;
+        }
+        @media (prefers-color-scheme: light) {
+          .write-prompt { background: #f4f5f8; color: #1f2430; }
+          select { color-scheme: light; }
+        }
+        .write-controls {
+          display: flex;
+          gap: 6px;
+          align-items: center;
+          margin-top: 6px;
+          flex-wrap: wrap;
+        }
+        .write-controls select {
+          border: 1px solid #ffffff2e;
+          border-radius: 8px;
+          background: #2a3040;
+          color: inherit;
+          padding: 4px 6px;
+          font: inherit;
+          font-size: 12px;
+        }
+        .ctx-toggle {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 12px;
+          color: #9aa0ae;
+          cursor: pointer;
+          margin-left: auto;
+        }
+        .preview-btn {
+          border: none;
+          background: transparent;
+          color: #4f7cff;
+          font: inherit;
+          font-size: 12px;
+          padding: 4px 0;
+          cursor: pointer;
+          text-decoration: underline;
+        }
+        .ctx-preview {
+          max-height: 140px;
+          overflow-y: auto;
+          background: #262c3b;
+          border: 1px solid #ffffff14;
+          border-radius: 8px;
+          padding: 8px;
+          font-size: 11px;
+          white-space: pre-wrap;
+          word-break: break-word;
+          margin: 4px 0 0;
+        }
+        @media (prefers-color-scheme: light) {
+          .ctx-preview { background: #f4f5f8; color: #1f2430; }
+        }
+        .write-body { padding: 0 10px 10px; }
+        .write-instruction {
+          display: flex;
+          gap: 6px;
+          padding: 6px 10px;
+          border-top: 1px solid #ffffff14;
+        }
+        .write-instruction input {
+          flex: 1;
+          min-width: 0;
+          border: 1px solid #ffffff2e;
+          border-radius: 8px;
+          background: #262c3b;
+          color: inherit;
+          padding: 6px 8px;
+          font: inherit;
+        }
+        .write-instruction button {
+          border: 1px solid #ffffff2e;
+          background: #2a3040;
+          color: inherit;
+          border-radius: 8px;
+          padding: 6px 10px;
+          font: inherit;
+          cursor: pointer;
+        }
+        .write-actions {
+          display: flex;
+          gap: 8px;
+          padding: 8px 10px;
+          border-top: 1px solid #ffffff14;
+        }
+        .write-actions .generate {
+          border: 1px solid #ffffff2e;
+          background: #2a3040;
+          color: inherit;
+          border-radius: 8px;
+          padding: 6px 10px;
+          font: inherit;
+          cursor: pointer;
+        }
+        .write-actions .generate:hover { border-color: #4f7cff; }
+        .write-actions .copy,
+        .write-actions .cursor {
+          border: 1px solid #ffffff2e;
+          background: #2a3040;
+          color: inherit;
+          border-radius: 8px;
+          padding: 6px 10px;
+          font: inherit;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .write-actions .primary {
+          flex: 1;
+          background: #4f7cff;
+          border: 1px solid #4f7cff;
+          color: #fff;
+          border-radius: 8px;
+          padding: 6px 10px;
+          font: inherit;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .write-actions .primary:disabled,
+        .write-actions .generate:disabled,
+        .write-actions .copy:disabled,
+        .write-actions .cursor:disabled { opacity: 0.45; cursor: default; }
       </style>
       <div class="panel" role="dialog" aria-label="Kindly">
         <div class="header"><span>${PRODUCT_NAME}</span><span class="model-tag"></span><button type="button" class="close" aria-label="Close">×</button></div>
-        <div class="chips" role="toolbar" aria-label="Tone"></div>
-        <div class="body"></div>
-        <div class="recent" hidden></div>
-        <div class="instruction">
-          <input type="text" placeholder="Add an instruction… (e.g. offer a refund)" aria-label="Extra instruction" />
-          <button type="button">Apply</button>
+        <div class="tabs" role="tablist">
+          <button type="button" class="tab-btn active" data-tab="rewrite" role="tab" aria-selected="true">Rewrite</button>
+          <button type="button" class="tab-btn" data-tab="write" role="tab" aria-selected="false">Write</button>
         </div>
-        <div class="actions">
-          <button type="button" class="generate">Generate</button>
-          <button type="button" class="copy" disabled>Copy</button>
-          <button type="button" class="primary" disabled>Use</button>
+        <div class="page" id="page-rewrite">
+          <div class="chips" role="toolbar" aria-label="Tone"></div>
+          <div class="body"></div>
+          <div class="recent" hidden></div>
+          <div class="instruction">
+            <input type="text" placeholder="Add an instruction… (e.g. offer a refund)" aria-label="Extra instruction" />
+            <button type="button">Apply</button>
+          </div>
+          <div class="actions">
+            <button type="button" class="generate">Generate</button>
+            <button type="button" class="copy" disabled>Copy</button>
+            <button type="button" class="primary" disabled>Use</button>
+          </div>
+        </div>
+        <div class="page" id="page-write" hidden>
+          <div class="write-form">
+            <textarea class="write-prompt" rows="2" placeholder="What should it say? e.g. apologize for the delay and offer a refund" aria-label="What to write"></textarea>
+            <div class="write-controls">
+              <select class="tone-select" aria-label="Tone"></select>
+              <select class="len-select" aria-label="Length">
+                <option value="">Any length</option>
+                <option value="short">Short</option>
+                <option value="medium">Medium</option>
+                <option value="long">Long</option>
+              </select>
+              <label class="ctx-toggle"><input type="checkbox" checked /> Page context</label>
+            </div>
+            <button type="button" class="preview-btn">Preview context</button>
+            <pre class="ctx-preview" hidden></pre>
+          </div>
+          <div class="body write-body"></div>
+          <div class="write-instruction">
+            <input type="text" placeholder="Follow-up: shorter, mention opening hours…" aria-label="Follow-up instruction" />
+            <button type="button">Apply</button>
+          </div>
+          <div class="write-actions">
+            <button type="button" class="generate">Generate</button>
+            <button type="button" class="copy" disabled>Copy</button>
+            <button type="button" class="primary" disabled>Use</button>
+            <button type="button" class="cursor" disabled title="Insert at cursor instead of replacing">At cursor</button>
+          </div>
         </div>
       </div>
     `;
@@ -267,6 +495,87 @@ export class RewritePanel {
     ) as HTMLButtonElement;
     this.copyButton = shadow.querySelector('.actions .copy') as HTMLButtonElement;
     this.modelTag = shadow.querySelector('.model-tag') as HTMLElement;
+
+    // ---------- Write tab wiring ----------
+    const writePage = shadow.querySelector('#page-write') as HTMLElement;
+    this.writePromptEl = writePage.querySelector('.write-prompt') as HTMLTextAreaElement;
+    this.writeToneEl = writePage.querySelector('.tone-select') as HTMLSelectElement;
+    this.writeLenEl = writePage.querySelector('.len-select') as HTMLSelectElement;
+    this.ctxToggleEl = writePage.querySelector('.ctx-toggle input') as HTMLInputElement;
+    this.ctxPreviewEl = writePage.querySelector('.ctx-preview') as HTMLPreElement;
+    this.writeBodyEl = writePage.querySelector('.write-body') as HTMLElement;
+    this.writeInstrInput = writePage.querySelector(
+      '.write-instruction input',
+    ) as HTMLInputElement;
+    this.writeUseBtn = writePage.querySelector('.write-actions .primary') as HTMLButtonElement;
+    this.writeGenBtn = writePage.querySelector('.write-actions .generate') as HTMLButtonElement;
+    this.writeCopyBtn = writePage.querySelector('.write-actions .copy') as HTMLButtonElement;
+    this.writeCursorBtn = writePage.querySelector('.write-actions .cursor') as HTMLButtonElement;
+
+    // Tone selector: "No preference" + the shared tone list.
+    const none = document.createElement('option');
+    none.value = '';
+    none.textContent = 'Any tone';
+    this.writeToneEl.appendChild(none);
+    for (const tone of TONE_IDS) {
+      const opt = document.createElement('option');
+      opt.value = tone;
+      opt.textContent = TONE_LABELS[tone];
+      this.writeToneEl.appendChild(opt);
+    }
+
+    // Tab switching.
+    for (const btn of Array.from(shadow.querySelectorAll<HTMLButtonElement>('.tab-btn'))) {
+      btn.addEventListener('click', () => this.setTab(btn.dataset.tab === 'write' ? 'write' : 'rewrite'));
+    }
+
+    // Preview context shows EXACTLY what will be sent (P6.4).
+    const previewBtn = writePage.querySelector('.preview-btn') as HTMLButtonElement;
+    previewBtn.addEventListener('click', () => {
+      const ctx = this.callbacks.getWriteContext?.();
+      this.ctxPreviewEl.textContent = ctx?.trim()
+        ? ctx
+        : this.ctxToggleEl.checked
+          ? '(no page context could be extracted)'
+          : '(page context is turned off)';
+      this.ctxPreviewEl.hidden = !this.ctxPreviewEl.hidden;
+      previewBtn.textContent = this.ctxPreviewEl.hidden ? 'Preview context' : 'Hide context';
+    });
+
+    this.writeGenBtn.addEventListener('click', () => {
+      const req = this.buildWriteRequest();
+      if (req) this.callbacks.onWriteGenerate?.(req);
+    });
+    this.writeInstrInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const v = this.writeInstrInput.value;
+        if (v.trim()) this.callbacks.onWriteInstruction?.(v);
+      }
+    });
+    (writePage.querySelector('.write-instruction button') as HTMLButtonElement).addEventListener(
+      'click',
+      () => {
+        const v = this.writeInstrInput.value;
+        if (v.trim()) this.callbacks.onWriteInstruction?.(v);
+      },
+    );
+    this.writeUseBtn.addEventListener('click', () => {
+      const v = this.writeVariants[this.writeSelected];
+      if (v) this.callbacks.onWriteUse?.(v, 'replace');
+    });
+    this.writeCursorBtn.addEventListener('click', () => {
+      const v = this.writeVariants[this.writeSelected];
+      if (v) this.callbacks.onWriteUse?.(v, 'cursor');
+    });
+    this.writeCopyBtn.addEventListener('click', () => {
+      const v = this.writeVariants[this.writeSelected];
+      if (!v) return;
+      void navigator.clipboard.writeText(v.text).then(() => {
+        this.writeCopyBtn.textContent = 'Copied';
+        window.setTimeout(() => (this.writeCopyBtn.textContent = 'Copy'), 1500);
+      });
+    });
 
     this.buildChips();
     this.showPlaceholder('Pick a tone, then hit Generate.');
@@ -502,6 +811,103 @@ export class RewritePanel {
     this.useButton.disabled = true;
     this.copyButton.disabled = true;
     this.generateButton.textContent = 'Generate';
+  }
+
+  // ---------- Write tab ----------
+
+  private setTab(tab: 'rewrite' | 'write') {
+    const rewritePage = this.panel.querySelector('#page-rewrite') as HTMLElement;
+    const writePage = this.panel.querySelector('#page-write') as HTMLElement;
+    rewritePage.hidden = tab !== 'rewrite';
+    writePage.hidden = tab !== 'write';
+    for (const btn of Array.from(this.panel.querySelectorAll<HTMLButtonElement>('.tab-btn'))) {
+      const active = (btn.dataset.tab === 'write') === (tab === 'write');
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-selected', String(active));
+    }
+    this.scheduleUpdate();
+  }
+
+  private buildWriteRequest(): WriteGenerateRequest | null {
+    const prompt = this.writePromptEl.value.trim();
+    if (!prompt) {
+      this.showWriteHint('Describe what the reply should say first.');
+      return null;
+    }
+    const tone = (this.writeToneEl.value || undefined) as ToneId | undefined;
+    const length = (this.writeLenEl.value || undefined) as
+      | 'short'
+      | 'medium'
+      | 'long'
+      | undefined;
+    const context = this.ctxToggleEl.checked ? this.callbacks.getWriteContext?.() : undefined;
+    return { prompt, tone, length, instruction: this.writeLastInstruction || undefined, context };
+  }
+
+  /** Called by content when a follow-up instruction should revise drafts. */
+  buildFollowUpRequest(instruction: string): WriteGenerateRequest | null {
+    const draft = this.writeVariants[this.writeSelected];
+    if (!draft) return null;
+    this.writeLastInstruction = instruction;
+    return {
+      prompt: instruction,
+      context: this.ctxToggleEl.checked ? this.callbacks.getWriteContext?.() : undefined,
+      draft: draft.text,
+    };
+  }
+
+  showWriteLoading() {
+    this.writeBodyEl.innerHTML = `
+      <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>`;
+    this.writeUseBtn.disabled = true;
+    this.writeCopyBtn.disabled = true;
+    this.writeCursorBtn.disabled = true;
+  }
+
+  showWriteHint(text: string) {
+    this.writeBodyEl.innerHTML = `<div class="hint">${escapeHtml(text)}</div>`;
+  }
+
+  showWriteError(message: string) {
+    this.writeBodyEl.innerHTML = `<div class="error-box"><div class="msg">${escapeHtml(message)}</div></div>`;
+    this.writeUseBtn.disabled = true;
+    this.writeCopyBtn.disabled = true;
+    this.writeCursorBtn.disabled = true;
+    this.writeGenBtn.textContent = 'Generate';
+  }
+
+  showWriteVariants(variants: Variant[]) {
+    this.writeVariants = variants;
+    this.writeSelected = variants.length > 0 ? 0 : -1;
+    const has = this.writeSelected !== -1;
+    this.writeUseBtn.disabled = !has;
+    this.writeCopyBtn.disabled = !has;
+    this.writeCursorBtn.disabled = !has;
+    this.writeGenBtn.textContent = 'Regenerate';
+    this.writeBodyEl.innerHTML = '';
+    variants.forEach((v, i) => {
+      const card = document.createElement('div');
+      card.className = 'card' + (i === 0 ? ' selected' : '');
+      card.tabIndex = 0;
+      card.innerHTML = `<div class="label">${escapeHtml(v.label)}</div><div class="text">${escapeHtml(v.text)}</div>`;
+      const select = () => {
+        this.writeSelected = i;
+        this.writeUseBtn.disabled = false;
+        this.writeCopyBtn.disabled = false;
+        this.writeCursorBtn.disabled = false;
+        for (const c of this.writeBodyEl.querySelectorAll('.card')) c.classList.remove('selected');
+        card.classList.add('selected');
+      };
+      card.addEventListener('click', select);
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          select();
+        }
+      });
+      this.writeBodyEl.appendChild(card);
+    });
+    this.scheduleUpdate();
   }
 
   // ---------- Positioning ----------

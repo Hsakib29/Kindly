@@ -2,16 +2,18 @@ import './spike';
 import { getDeepActiveElement, isSupportedField } from './fields';
 import {
   getFieldSelection,
+  insertAtCursor,
   insertText,
   readFieldText,
   type FieldSelection,
 } from './inserter';
+import { extractPageContext } from './context';
 import { UndoToast } from './toast';
 import { KindlyIcon } from './icon';
 import { FieldUiController } from './field-ui';
 import { setSettings } from '../shared/storage';
 import { sendRequest } from '../shared/client';
-import { RewritePanel } from './panel';
+import { RewritePanel, type WriteGenerateRequest } from './panel';
 import type { ApiError, ExtensionResponse, ToneId, Variant } from '../shared/messages';
 
 type ErrorResponse = Extract<ExtensionResponse, { type: 'ERROR' }>;
@@ -64,7 +66,8 @@ let queuedRewrite: { tone: ToneId; instruction?: string; avoid?: string[] } | nu
 // Incremented every time the panel closes; in-flight rewrite responses
 // from an older epoch are ignored (chrome messages can't be aborted).
 let rewriteEpoch = 0;
-let currentRequestId: string | null = null;
+// In-flight requestIds (rewrite + write) so panel close can cancel them all.
+const activeRequestIds = new Set<string>();
 
 function isContextInvalid(err: unknown): boolean {
   const m = err instanceof Error ? err.message : String(err);
@@ -91,7 +94,7 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
   rewriteInFlight = true;
   panel.showLoading();
   const requestId = crypto.randomUUID();
-  currentRequestId = requestId;
+  activeRequestIds.add(requestId);
   const epoch = rewriteEpoch;
   try {
     const res = await sendRequest<ExtensionResponse>({
@@ -123,11 +126,61 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
     }
   } finally {
     rewriteInFlight = false;
-    currentRequestId = null;
+    activeRequestIds.delete(requestId);
     if (epoch === rewriteEpoch && queuedRewrite) {
       const next = queuedRewrite;
       queuedRewrite = null;
       void requestRewrite(next.tone, next.instruction, next.avoid);
+    }
+  }
+}
+
+let writeInFlight = false;
+let writeQueued: WriteGenerateRequest | null = null;
+
+async function requestWrite(req: WriteGenerateRequest) {
+  if (writeInFlight) {
+    writeQueued = req;
+    return;
+  }
+  writeInFlight = true;
+  panel.showWriteLoading();
+  const requestId = crypto.randomUUID();
+  activeRequestIds.add(requestId);
+  const epoch = rewriteEpoch;
+  try {
+    const res = await sendRequest<ExtensionResponse>({
+      type: 'WRITE',
+      requestId,
+      prompt: req.prompt,
+      tone: req.tone,
+      length: req.length,
+      instruction: req.instruction,
+      context: req.context,
+      draft: req.draft,
+    });
+    if (epoch !== rewriteEpoch) return;
+    if (res.type === 'WRITE_RESULT' && res.requestId === requestId) {
+      panel.setModelTag(res.model);
+      panel.showWriteVariants(res.variants);
+    } else if (res.type === 'ERROR') {
+      panel.showWriteError((res as ErrorResponse).error.message || 'Something went wrong.');
+    } else {
+      panel.showWriteError('Unexpected response.');
+    }
+  } catch (err) {
+    if (isContextInvalid(err)) {
+      panel.showWriteError('Kindly was reloaded — refresh this page to keep using it.');
+    } else {
+      panel.showWriteError(err instanceof Error ? err.message : String(err));
+    }
+  } finally {
+    writeInFlight = false;
+    activeRequestIds.delete(requestId);
+    if (epoch === rewriteEpoch && writeQueued) {
+      const next = writeQueued;
+      writeQueued = null;
+      void requestWrite(next);
     }
   }
 }
@@ -177,7 +230,7 @@ function showRequestError(error: ApiError) {
 
 // ---------- Panel ----------
 
-const panel = new RewritePanel({
+const panel: RewritePanel = new RewritePanel({
   onTone: (tone) => {
     selectedTone = tone;
   },
@@ -221,6 +274,40 @@ const panel = new RewritePanel({
     }
     void requestRewrite(selectedTone, instruction || undefined);
   },
+  // ---------- Write mode (P6.x) ----------
+  onWriteGenerate: (req) => {
+    void requestWrite(req);
+  },
+  onWriteUse: (variant, mode) => {
+    const field = ui?.activeField;
+    if (!field) return;
+    const originalText = readFieldText(field);
+    const insert = mode === 'cursor' ? insertAtCursor : insertText;
+    void (async () => {
+      const result = await insert(field, variant.text);
+      if (!result.ok) {
+        panel.showWriteHint(
+          result.copiedToClipboard
+            ? 'Could not insert on this site — text copied. Press Ctrl+V to paste.'
+            : 'Could not insert text on this site.',
+        );
+        return;
+      }
+      panel.close();
+      toast.onUndo = () => {
+        void insertText(field, originalText);
+      };
+      toast.show();
+    })();
+  },
+  onWriteInstruction: (instruction) => {
+    const req = panel.buildFollowUpRequest(instruction);
+    if (req) void requestWrite(req);
+  },
+  getWriteContext: (): string | undefined => {
+    const field: HTMLElement | null | undefined = ui?.activeField;
+    return field ? extractPageContext(field).mainText : undefined;
+  },
 });
 panel.selectTone(selectedTone);
 
@@ -240,16 +327,14 @@ const icon = new KindlyIcon(
   },
 );
 
-const ui = new FieldUiController(icon, panel, {
+const ui: FieldUiController = new FieldUiController(icon, panel, {
   isSiteHidden: siteIsHidden,
   getDeepActiveElement: () => getDeepActiveElement(),
   onPanelClosed: () => {
     rewriteEpoch++;
-    // Actually abort the in-flight Gemini call, not just ignore its result.
-    if (rewriteInFlight && currentRequestId) {
-      void sendRequest<ExtensionResponse>({ type: 'CANCEL', requestId: currentRequestId }).catch(
-        () => {},
-      );
+    // Actually abort in-flight Gemini calls, not just ignore their results.
+    for (const requestId of activeRequestIds) {
+      void sendRequest<ExtensionResponse>({ type: 'CANCEL', requestId }).catch(() => {});
     }
   },
 });

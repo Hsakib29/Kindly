@@ -1,7 +1,12 @@
 import { listModels } from './gemini';
 import { generateRouted } from './router';
 import { getKey, getSettings, setSettings } from '../shared/storage';
-import { SYSTEM_PROMPT, buildRewritePrompt } from '../shared/prompts';
+import {
+  SYSTEM_PROMPT,
+  WRITE_SYSTEM_PROMPT,
+  buildRewritePrompt,
+  buildWritePrompt,
+} from '../shared/prompts';
 import type { ApiError, ExtensionRequest, ExtensionResponse } from '../shared/messages';
 
 console.log('[Kindly] service worker started');
@@ -101,13 +106,61 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
       }
     }
 
-    case 'WRITE':
-      // Implemented in P1.5/P3.x and P6.x.
-      return {
-        type: 'ERROR',
-        requestId: request.requestId,
-        error: { code: 'NETWORK', message: 'Not implemented yet' },
-      };
+    case 'WRITE': {
+      const key = await getKey();
+      if (!key) {
+        return {
+          type: 'ERROR',
+          requestId: request.requestId,
+          error: { code: 'NO_KEY', message: 'No API key configured.' },
+        };
+      }
+      const prompt = request.prompt.trim();
+      if (prompt.length === 0) {
+        return {
+          type: 'ERROR',
+          requestId: request.requestId,
+          error: { code: 'TEXT_TOO_SHORT', message: 'Describe what to write first.' },
+        };
+      }
+      if (prompt.length > 2000) {
+        return {
+          type: 'ERROR',
+          requestId: request.requestId,
+          error: { code: 'TEXT_TOO_LONG', message: 'Prompt is too long (max ~2000 characters).' },
+        };
+      }
+      try {
+        const settings = await getSettings();
+        const controller = new AbortController();
+        pendingRequests.set(request.requestId, controller);
+        const { variants, model } = await generateRouted({
+          key,
+          routerPreference: settings.routerPreference,
+          signal: controller.signal,
+          systemInstruction: WRITE_SYSTEM_PROMPT,
+          userPrompt: buildWritePrompt({
+            prompt,
+            context: request.context,
+            tone: request.tone,
+            length: request.length,
+            instruction: request.instruction,
+            draft: request.draft,
+          }),
+        });
+        return { type: 'WRITE_RESULT', requestId: request.requestId, variants, model };
+      } catch (err) {
+        const apiError = toApiError(err);
+        console.error('[Kindly] WRITE failed:', apiError.code, apiError.message);
+        return {
+          type: 'ERROR',
+          requestId: request.requestId,
+          error: apiError,
+        };
+      } finally {
+        pendingRequests.delete(request.requestId);
+      }
+    }
   }
 }
 

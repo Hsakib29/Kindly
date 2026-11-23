@@ -207,6 +207,60 @@ async function copyToClipboard(text: string): Promise<boolean> {
 }
 
 /**
+ * Insert text at the current caret/selection without replacing the
+ * whole field (P6.7). Falls back to the clipboard on total failure.
+ */
+export async function insertAtCursor(
+  el: HTMLElement,
+  text: string,
+): Promise<InsertResult> {
+  el.focus();
+  let ok = false;
+  let method = 'none';
+
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+    const s = el.selectionStart ?? el.value.length;
+    const e = el.selectionEnd ?? s;
+    el.setRangeText(text, s, e, 'end');
+    dispatchInput(el);
+    ok = fieldContains(el, text);
+    method = 'setRangeText';
+    if (!ok) {
+      ok = document.execCommand('insertText', false, text) && fieldContains(el, text);
+      method = 'execCommand';
+    }
+  } else if (el.isContentEditable) {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      if (el.contains(range.commonAncestorContainer)) {
+        range.deleteContents();
+        const node = document.createTextNode(text);
+        range.insertNode(node);
+        range.setStartAfter(node);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        dispatchInput(el);
+        ok = fieldContains(el, text);
+        method = 'range-insert';
+      }
+    }
+    if (!ok) {
+      ok = document.execCommand('insertText', false, text) && fieldContains(el, text);
+      method = 'execCommand';
+    }
+  }
+
+  if (ok) {
+    console.log(`[Kindly] cursor insert succeeded via ${method}`);
+    return { ok: true, method };
+  }
+  const copiedToClipboard = await copyToClipboard(text);
+  return { ok: false, copiedToClipboard };
+}
+
+/**
  * Replace the whole field's text (or just `selection` when given).
  * Each method is verified by reading the field back; on total failure
  * the text is copied to the clipboard.

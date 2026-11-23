@@ -62,6 +62,10 @@ export type ExtensionRequest =
       tone?: ToneId;
       length?: 'short' | 'medium' | 'long';
       instruction?: string;
+      /** Extracted page context — exactly what the preview showed. */
+      context?: string;
+      /** Existing draft to revise (follow-up instructions). */
+      draft?: string;
     }
   | { type: 'CANCEL'; requestId: string }
   | { type: 'GET_SETTINGS' }
@@ -74,7 +78,7 @@ export type ExtensionResponse =
   | { type: 'PONG' }
   | { type: 'VERIFY_KEY_RESULT'; ok: boolean; modelCount?: number; error?: ApiError }
   | { type: 'REWRITE_RESULT'; requestId: string; variants: Variant[]; model?: string }
-  | { type: 'WRITE_RESULT'; requestId: string; variants: Variant[] }
+  | { type: 'WRITE_RESULT'; requestId: string; variants: Variant[]; model?: string }
   | { type: 'ERROR'; requestId?: string; error: ApiError }
   | { type: 'SETTINGS'; settings: Settings };
 
