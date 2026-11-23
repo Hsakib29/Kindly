@@ -70,6 +70,15 @@
         font: inherit;
         cursor: pointer;
       }
+      select {
+        padding: 0.4rem 0.6rem;
+        border: 1px solid #8886;
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        margin: 0.25rem 0 0.5rem;
+      }
       #verify-key {
         background: #4f7cff;
         border-color: #4f7cff;
@@ -118,7 +127,14 @@
     </section>
     <section id="models" hidden>
       <h2>Models</h2>
-      <p>Model routing settings will live here (P5.x).</p>
+      <p>Choose how Kindly picks a Gemini model for each rewrite.</p>
+      <label for="router-preference">Routing</label>
+      <select id="router-preference">
+        <option value="auto">Auto (recommended)</option>
+        <option value="speed">Speed — cheapest, fastest models first</option>
+        <option value="quality">Quality — strongest models first</option>
+      </select>
+      <p id="router-status" class="status" role="status"></p>
     </section>
     <section id="tones" hidden>
       <h2>Tones</h2>

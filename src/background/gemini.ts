@@ -70,6 +70,14 @@ async function geminiFetch(path: string, key: string, init?: RequestInit): Promi
 }
 
 /** List available models; returns the count (used by key verification). */
+export async function listModelIds(key: string): Promise<string[]> {
+  const res = await geminiFetch('/models?pageSize=1000', key);
+  const data = (await res.json()) as { models?: { name?: string }[] };
+  return (data.models ?? [])
+    .map((m) => m.name?.replace(/^models\//, '') ?? '')
+    .filter(Boolean);
+}
+
 export async function listModels(key: string): Promise<number> {
   const res = await geminiFetch('/models?pageSize=1000', key);
   const data = (await res.json()) as { models?: unknown[] };
@@ -83,7 +91,7 @@ const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 // Ordered fallback list — lite first for speed/cost, bigger flash models
 // behind it for quality and resilience. Updated from the live /models
 // list; Stage 5 (P5.1) replaces this with a configurable map.
-const MODEL_FALLBACK_ORDER = [
+export const MODEL_FALLBACK_ORDER = [
   'gemini-3.5-flash-lite',
   'gemini-3.1-flash-lite',
   'gemini-3.8-flash',

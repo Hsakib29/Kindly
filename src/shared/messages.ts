@@ -71,7 +71,7 @@ export type ExtensionRequest =
 export type ExtensionResponse =
   | { type: 'PONG' }
   | { type: 'VERIFY_KEY_RESULT'; ok: boolean; modelCount?: number; error?: ApiError }
-  | { type: 'REWRITE_RESULT'; requestId: string; variants: Variant[] }
+  | { type: 'REWRITE_RESULT'; requestId: string; variants: Variant[]; model?: string }
   | { type: 'WRITE_RESULT'; requestId: string; variants: Variant[] }
   | { type: 'ERROR'; requestId?: string; error: ApiError }
   | { type: 'SETTINGS'; settings: Settings };

@@ -1,4 +1,5 @@
-import { generateVariantsWithFallback, listModels } from './gemini';
+import { listModels } from './gemini';
+import { generateRouted } from './router';
 import { getKey, getSettings, setSettings } from '../shared/storage';
 import { SYSTEM_PROMPT, buildRewritePrompt } from '../shared/prompts';
 import type { ApiError, ExtensionRequest, ExtensionResponse } from '../shared/messages';
@@ -63,8 +64,10 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
         };
       }
       try {
-        const { variants } = await generateVariantsWithFallback({
+        const settings = await getSettings();
+        const { variants, model } = await generateRouted({
           key,
+          routerPreference: settings.routerPreference,
           systemInstruction: SYSTEM_PROMPT,
           userPrompt: buildRewritePrompt({
             text: trimmed,
@@ -73,7 +76,7 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
             avoid: request.avoid,
           }),
         });
-        return { type: 'REWRITE_RESULT', requestId: request.requestId, variants };
+        return { type: 'REWRITE_RESULT', requestId: request.requestId, variants, model };
       } catch (err) {
         const apiError = toApiError(err);
         console.error('[Kindly] REWRITE failed:', apiError.code, apiError.message);

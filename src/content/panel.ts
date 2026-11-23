@@ -41,6 +41,7 @@ export class RewritePanel {
   private useButton: HTMLButtonElement;
   private generateButton: HTMLButtonElement;
   private copyButton: HTMLButtonElement;
+  private modelTag: HTMLElement;
   private resizeObserver: ResizeObserver | null = null;
   private anchor: PanelAnchor | null = null;
   private rafId = 0;
@@ -190,6 +191,16 @@ export class RewritePanel {
         @keyframes shimmer { to { background-position: -200% 0; } }
         .error-box { padding: 10px; font-size: 12px; }
         .error-box .msg { margin-bottom: 8px; }
+        .model-tag {
+          font-size: 10px;
+          color: #9aa0ae;
+          margin-left: auto;
+          margin-right: 6px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 140px;
+        }
         .header .close {
           border: none;
           background: transparent;
@@ -220,7 +231,7 @@ export class RewritePanel {
         }
       </style>
       <div class="panel" role="dialog" aria-label="Kindly">
-        <div class="header"><span>${PRODUCT_NAME}</span><button type="button" class="close" aria-label="Close">×</button></div>
+        <div class="header"><span>${PRODUCT_NAME}</span><span class="model-tag"></span><button type="button" class="close" aria-label="Close">×</button></div>
         <div class="chips" role="toolbar" aria-label="Tone"></div>
         <div class="body"></div>
         <div class="recent" hidden></div>
@@ -255,6 +266,7 @@ export class RewritePanel {
       '.actions .generate',
     ) as HTMLButtonElement;
     this.copyButton = shadow.querySelector('.actions .copy') as HTMLButtonElement;
+    this.modelTag = shadow.querySelector('.model-tag') as HTMLElement;
 
     this.buildChips();
     this.showPlaceholder('Pick a tone, then hit Generate.');
@@ -310,6 +322,11 @@ export class RewritePanel {
 
   getInstruction(): string {
     return this.instructionInput.value;
+  }
+
+  /** Show which model produced the current variants (router transparency). */
+  setModelTag(model?: string) {
+    this.modelTag.textContent = model ?? '';
   }
 
   /** Show the last few instructions as quick chips (P3.8). */

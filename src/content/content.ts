@@ -103,6 +103,7 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
     if (epoch !== rewriteEpoch) return; // panel closed mid-flight — ignore
     if (res.type === 'REWRITE_RESULT' && res.requestId === requestId) {
       lastVariants = res.variants;
+      panel.setModelTag(res.model);
       panel.showVariants(res.variants);
     } else if (res.type === 'ERROR') {
       showRequestError((res as ErrorResponse).error);

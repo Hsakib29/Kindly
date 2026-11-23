@@ -1,6 +1,6 @@
 import { PRODUCT_NAME, TAGLINE } from '../shared/brand';
 import { sendRequest } from '../shared/client';
-import { clearKey, getKey, setKey } from '../shared/storage';
+import { clearKey, getKey, getSettings, setKey } from '../shared/storage';
 import type { ExtensionResponse } from '../shared/messages';
 
 type VerifyResult = Extract<ExtensionResponse, { type: 'VERIFY_KEY_RESULT' }>;
@@ -88,3 +88,26 @@ clearKeyButton.addEventListener('click', async () => {
 });
 
 void initKeyField();
+
+// ---------- Models section (P5.4) ----------
+
+const routerSelect = document.getElementById('router-preference') as HTMLSelectElement;
+const routerStatus = document.getElementById('router-status') as HTMLParagraphElement;
+
+async function initRouter() {
+  const settings = await getSettings();
+  routerSelect.value = settings.routerPreference;
+}
+
+routerSelect.addEventListener('change', async () => {
+  const res = await sendRequest<ExtensionResponse>({
+    type: 'SET_SETTINGS',
+    patch: { routerPreference: routerSelect.value as 'auto' | 'speed' | 'quality' },
+  });
+  if (res.type === 'SETTINGS') {
+    routerStatus.textContent = 'Saved.';
+    routerStatus.className = 'status ok';
+  }
+});
+
+void initRouter();
