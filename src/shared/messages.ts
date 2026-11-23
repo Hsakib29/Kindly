@@ -104,6 +104,8 @@ export type ExtensionRequest =
       savedReply?: SavedReply;
     }
   | { type: 'CANCEL'; requestId: string }
+  | { type: 'GET_SITE_INFO' }
+  | { type: 'GET_USAGE' }
   | { type: 'GET_SETTINGS' }
   | { type: 'SET_SETTINGS'; patch: Partial<Settings> }
   | { type: 'OPEN_OPTIONS' };
@@ -116,7 +118,9 @@ export type ExtensionResponse =
   | { type: 'REWRITE_RESULT'; requestId: string; variants: Variant[]; model?: string; mode?: string }
   | { type: 'WRITE_RESULT'; requestId: string; variants: Variant[]; model?: string; mode?: string }
   | { type: 'ERROR'; requestId?: string; error: ApiError }
-  | { type: 'SETTINGS'; settings: Settings };
+  | { type: 'SETTINGS'; settings: Settings }
+  | { type: 'SITE_INFO'; hostname: string; hidden: boolean }
+  | { type: 'USAGE'; day: string; count: number };
 
 // ---- Settings (P1.2 storage schema; extended in later stages) ----
 

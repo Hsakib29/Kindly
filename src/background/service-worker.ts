@@ -17,6 +17,16 @@ console.log('[Kindly] service worker started');
 // can cancel a running request by closing (CANCEL message).
 const pendingRequests = new Map<string, AbortController>();
 
+// Daily rewrite counter for the toolbar popup (P7.6).
+async function bumpUsage() {
+  const day = new Date().toISOString().slice(0, 10);
+  const { usage } = (await chrome.storage.local.get('usage')) as {
+    usage?: { day: string; count: number };
+  };
+  const count = usage?.day === day ? usage.count + 1 : 1;
+  await chrome.storage.local.set({ usage: { day, count } });
+}
+
 // Stronger models tried once when quality checks still fail on a lite model.
 const ESCALATION_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash'];
 
@@ -152,6 +162,18 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
       pendingRequests.get(request.requestId)?.abort();
       return { type: 'PONG' };
 
+    case 'GET_USAGE': {
+      const { usage } = (await chrome.storage.local.get('usage')) as {
+        usage?: { day: string; count: number };
+      };
+      const day = new Date().toISOString().slice(0, 10);
+      return {
+        type: 'USAGE',
+        day,
+        count: usage?.day === day ? usage.count : 0,
+      };
+    }
+
     case 'REWRITE': {
       const key = await getKey();
       if (!key) {
@@ -196,6 +218,7 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
         const controller = new AbortController();
         pendingRequests.set(request.requestId, controller);
         const t0 = performance.now();
+        await bumpUsage();
         const { variants, model, fellBack, attempts } = await generateRouted({
           key,
           routerPreference: settings.routerPreference,
@@ -295,6 +318,7 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
         const controller = new AbortController();
         pendingRequests.set(request.requestId, controller);
         const t0 = performance.now();
+        await bumpUsage();
         const { variants, model, fellBack, attempts } = await generateRouted({
           key,
           routerPreference: settings.routerPreference,
@@ -343,6 +367,10 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
         pendingRequests.delete(request.requestId);
       }
     }
+
+    default:
+      // GET_SITE_INFO is answered by the content script, not the SW.
+      return { type: 'PONG' };
   }
 }
 

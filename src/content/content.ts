@@ -487,3 +487,13 @@ document.addEventListener('keydown', (e) => {
     }
   }
 });
+
+// Toolbar popup query (P7.6): reports this site's hostname + hidden state.
+chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
+  const msg = message as { type?: string };
+  if (msg?.type === 'GET_SITE_INFO') {
+    sendResponse({ type: 'SITE_INFO', hostname, hidden: siteIsHidden() });
+    return false;
+  }
+  return false;
+});
