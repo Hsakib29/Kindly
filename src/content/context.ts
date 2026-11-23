@@ -18,43 +18,44 @@ export interface PageContext {
 const CONTEXT_BUDGET = 6000; // chars sent to Gemini
 const NEAR_FIELD_BUDGET = 2000;
 
-const BOILERPLATE_TAGS = new Set([
-  'SCRIPT',
-  'STYLE',
-  'NOSCRIPT',
-  'TEMPLATE',
-  'SVG',
-  'CANVAS',
-  'NAV',
-  'HEADER',
-  'FOOTER',
-  'ASIDE',
-  'FORM',
-]);
+// Hard limits so extraction can never freeze the tab (it runs on the
+// main thread inside the page).
+const EXTRACT_TIME_BUDGET_MS = 150;
+const EXTRACT_TEXT_CAP = 12000; // raw chars collected before tail-trim
 
-function isHidden(el: Element): boolean {
-  if (el instanceof HTMLElement) {
-    if (el.hidden) return true;
-    const style = el.style;
-    if (style.display === 'none' || style.visibility === 'hidden') return true;
-  }
+const BOILERPLATE_SELECTOR =
+  'script, style, noscript, template, svg, canvas, nav, header, footer, aside, form, [hidden], [aria-hidden="true"]';
+
+// Block-level candidates that carry readable text. Much cheaper than
+// walking every element: one querySelectorAll, then per-node cheap checks.
+const TEXT_BLOCK_SELECTOR =
+  'p, li, td, h1, h2, h3, h4, h5, h6, blockquote, pre, article, [role="article"], [class*="message"], [class*="msg-"], [class*="comment"], [class*="bubble"]';
+
+function isInlineHidden(el: Element): boolean {
+  if (el instanceof HTMLElement && el.style.display === 'none') return true;
   return false;
 }
 
-/** Inner text of an element with boilerplate and hidden subtrees removed. */
-function cleanText(root: Element | Document): string {
-  const clone = root instanceof Document ? root.documentElement.cloneNode(true) : root.cloneNode(true);
-  const walk = (node: Element | Document) => {
-    for (const el of Array.from(node.querySelectorAll('*'))) {
-      if (BOILERPLATE_TAGS.has(el.tagName) || isHidden(el)) {
-        el.remove();
-      } else {
-        walk(el);
-      }
-    }
-  };
-  walk(clone as Element);
-  return (clone as HTMLElement).innerText ?? clone.textContent ?? '';
+/**
+ * Collect readable text blocks under `root`, skipping boilerplate and
+ * hidden subtrees, within strict time/node/text budgets. Returns the
+ * OLDEST-FIRST join; callers tail-budget it so recent content wins.
+ */
+function collectText(root: Element, deadline: number): string {
+  const blocks = root.querySelectorAll(TEXT_BLOCK_SELECTOR);
+  const parts: string[] = [];
+  let chars = 0;
+
+  for (const el of Array.from(blocks)) {
+    if (Date.now() > deadline || chars > EXTRACT_TEXT_CAP) break;
+    // Skip anything inside boilerplate/hidden containers (one closest() call).
+    if (el.closest(BOILERPLATE_SELECTOR) || isInlineHidden(el)) continue;
+    const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
+    if (text.length < 2) continue;
+    parts.push(text);
+    chars += text.length;
+  }
+  return parts.join('\n');
 }
 
 /** Pick the most content-dense block as the "main" region. */
@@ -115,8 +116,9 @@ export function extractPageContext(field: HTMLElement): PageContext {
   const selection = window.getSelection();
   const selected = selection && !selection.isCollapsed ? selection.toString().trim() : '';
 
+  const deadline = Date.now() + EXTRACT_TIME_BUDGET_MS;
   const mainRoot = pickMainRoot(document);
-  const mainText = cleanText(mainRoot);
+  const mainText = collectText(mainRoot, deadline);
   // The field's own ancestors may live outside <main>; merge near-field text.
   const near = nearFieldText(field);
 
