@@ -475,12 +475,24 @@ export class RewritePanel {
       </div>
     `;
 
-    // Keep focus in the field while interacting with panel controls
-    // (except the instruction input, which needs real focus to type).
+    // Keep focus in the page field while clicking non-input controls
+    // (chips, cards, buttons). Form controls MUST be exempt or they can
+    // never receive focus — that was the Write-tab bug.
     shadow.addEventListener('mousedown', (e) => {
-      if ((e.target as HTMLElement).closest('input')) return;
+      if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable="true"]'))
+        return;
       e.preventDefault();
     });
+
+    // Keep keystrokes and edits inside our fields from reaching page-level
+    // shortcut handlers (Gmail 'c'/'e', ChatGPT submit, etc.).
+    const stopLeak = (e: Event) => {
+      const t = e.target as HTMLElement;
+      if (t.closest('input, textarea, select')) e.stopPropagation();
+    };
+    for (const type of ['keydown', 'keyup', 'keypress', 'beforeinput', 'input', 'paste']) {
+      shadow.addEventListener(type, stopLeak);
+    }
 
     this.panel = shadow.querySelector('.panel') as HTMLDivElement;
     this.chipsEl = shadow.querySelector('.chips') as HTMLElement;
