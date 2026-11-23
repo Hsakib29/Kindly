@@ -17,6 +17,10 @@ type RouterPreference = Settings['routerPreference'];
 const cooldowns = new Map<string, number>();
 const COOLDOWN_MS = 60_000;
 
+export function isModelCooling(model: string): boolean {
+  return isCooling(model);
+}
+
 function isCooling(model: string): boolean {
   return (cooldowns.get(model) ?? 0) > Date.now();
 }
