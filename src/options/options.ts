@@ -90,24 +90,114 @@ clearKeyButton.addEventListener('click', async () => {
 void initKeyField();
 
 // ---------- Models section (P5.4) ----------
+// Custom listbox dropdown — the native <select> popup ignores page
+// colors on Windows, leaving light text on a white list in dark mode.
 
-const routerSelect = document.getElementById('router-preference') as HTMLSelectElement;
+const dropdown = document.getElementById('router-dropdown') as HTMLElement;
+const dropdownButton = dropdown.querySelector('.dropdown-button') as HTMLButtonElement;
+const dropdownLabel = dropdown.querySelector('.dropdown-label') as HTMLElement;
+const dropdownList = dropdown.querySelector('.dropdown-list') as HTMLUListElement;
 const routerStatus = document.getElementById('router-status') as HTMLParagraphElement;
 
-async function initRouter() {
-  const settings = await getSettings();
-  routerSelect.value = settings.routerPreference;
+const LABELS: Record<string, string> = {
+  auto: 'Auto (recommended)',
+  speed: 'Prefer speed',
+  quality: 'Prefer quality',
+};
+
+let open = false;
+let activeIndex = -1;
+
+function options(): HTMLElement[] {
+  return Array.from(dropdownList.querySelectorAll<HTMLElement>('[role="option"]'));
 }
 
-routerSelect.addEventListener('change', async () => {
+function setOpen(next: boolean) {
+  open = next;
+  dropdownList.hidden = !open;
+  dropdownButton.setAttribute('aria-expanded', String(open));
+  if (open) {
+    const selected = options().findIndex((o) => o.getAttribute('aria-selected') === 'true');
+    activeIndex = selected >= 0 ? selected : 0;
+    highlight(activeIndex);
+  }
+}
+
+function highlight(index: number) {
+  const opts = options();
+  activeIndex = (index + opts.length) % opts.length;
+  opts.forEach((o, i) => o.classList.toggle('active', i === activeIndex));
+}
+
+function select(index: number) {
+  const opt = options()[index];
+  if (!opt) return;
+  for (const o of options()) {
+    o.setAttribute('aria-selected', String(o === opt));
+  }
+  dropdownLabel.textContent = opt.textContent ?? '';
+  setOpen(false);
+  void savePreference(opt.dataset.value ?? 'auto');
+}
+
+async function savePreference(value: string) {
   const res = await sendRequest<ExtensionResponse>({
     type: 'SET_SETTINGS',
-    patch: { routerPreference: routerSelect.value as 'auto' | 'speed' | 'quality' },
+    patch: { routerPreference: value as 'auto' | 'speed' | 'quality' },
   });
   if (res.type === 'SETTINGS') {
     routerStatus.textContent = 'Saved.';
     routerStatus.className = 'status ok';
   }
+}
+
+dropdownButton.addEventListener('click', () => setOpen(!open));
+
+dropdownList.addEventListener('click', (e) => {
+  const opt = (e.target as HTMLElement).closest<HTMLElement>('[role="option"]');
+  if (opt) select(options().indexOf(opt));
 });
+
+dropdownButton.addEventListener('keydown', (e) => {
+  if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ')) {
+    e.preventDefault();
+    setOpen(true);
+    return;
+  }
+  if (!open) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    highlight(activeIndex + 1);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    highlight(activeIndex - 1);
+  } else if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    select(activeIndex);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    setOpen(false);
+  } else if (e.key.length === 1) {
+    // Type-ahead: jump to the first option starting with the typed letter.
+    const letter = e.key.toLowerCase();
+    const idx = options().findIndex((o) =>
+      (o.textContent ?? '').trim().toLowerCase().startsWith(letter),
+    );
+    if (idx >= 0) highlight(idx);
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (open && !dropdown.contains(e.target as Node)) setOpen(false);
+});
+
+async function initRouter() {
+  const settings = await getSettings();
+  const value = settings.routerPreference;
+  for (const o of options()) {
+    o.setAttribute('aria-selected', String(o.dataset.value === value));
+  }
+  dropdownLabel.textContent = LABELS[value] ?? LABELS.auto;
+}
 
 void initRouter();

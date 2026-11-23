@@ -70,15 +70,58 @@
         font: inherit;
         cursor: pointer;
       }
-      select {
+      .dropdown {
+        position: relative;
+        display: inline-block;
+        margin: 0.25rem 0 0.5rem;
+      }
+      .dropdown-button {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 220px;
         padding: 0.4rem 0.6rem;
         border: 1px solid #8886;
         border-radius: 6px;
-        background: transparent;
-        color: inherit;
+        background: Canvas;
+        color: CanvasText;
         font: inherit;
-        margin: 0.25rem 0 0.5rem;
+        cursor: pointer;
+        text-align: left;
       }
+      .dropdown-button:hover { border-color: #4f7cff; }
+      .dropdown-button:focus-visible {
+        outline: 2px solid #4f7cff;
+        outline-offset: 1px;
+      }
+      .dropdown-arrow { margin-left: auto; }
+      .dropdown-list {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        margin: 0;
+        padding: 4px;
+        list-style: none;
+        background: Canvas;
+        color: CanvasText;
+        border: 1px solid #8886;
+        border-radius: 6px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+        z-index: 10;
+      }
+      .dropdown-list[hidden] { display: none; }
+      .dropdown-list li {
+        padding: 0.4rem 0.6rem;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .dropdown-list li:hover,
+      .dropdown-list li.active {
+        background: Highlight;
+        color: HighlightText;
+      }
+      .dropdown-list li[aria-selected='true'] { font-weight: 600; }
       #verify-key {
         background: #4f7cff;
         border-color: #4f7cff;
@@ -128,12 +171,24 @@
     <section id="models" hidden>
       <h2>Models</h2>
       <p>Choose how Kindly picks a Gemini model for each rewrite.</p>
-      <label for="router-preference">Routing</label>
-      <select id="router-preference">
-        <option value="auto">Auto (recommended)</option>
-        <option value="speed">Speed — cheapest, fastest models first</option>
-        <option value="quality">Quality — strongest models first</option>
-      </select>
+      <label id="router-label">Routing</label>
+      <div class="dropdown" id="router-dropdown">
+        <button
+          type="button"
+          class="dropdown-button"
+          aria-haspopup="listbox"
+          aria-expanded="false"
+          aria-labelledby="router-label"
+        >
+          <span class="dropdown-label">Auto (recommended)</span>
+          <span class="dropdown-arrow" aria-hidden="true">▾</span>
+        </button>
+        <ul class="dropdown-list" role="listbox" hidden>
+          <li role="option" aria-selected="true" data-value="auto">Auto (recommended)</li>
+          <li role="option" aria-selected="false" data-value="speed">Prefer speed</li>
+          <li role="option" aria-selected="false" data-value="quality">Prefer quality</li>
+        </ul>
+      </div>
       <p id="router-status" class="status" role="status"></p>
     </section>
     <section id="tones" hidden>
