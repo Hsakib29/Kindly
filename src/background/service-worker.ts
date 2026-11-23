@@ -45,7 +45,7 @@ async function applyQualityChecks(args: QualityPassArgs): Promise<{
   const label = (vs: Variant[]) =>
     vs.map((v) => ({ ...v, label: ROLE_LABELS[args.mode][v.role ?? ''] ?? v.label }));
   const check = (vs: Variant[]) =>
-    checkVariants(vs, { draft: args.draft, brief: args.brief });
+    checkVariants(vs, { draft: args.draft, brief: args.brief, mode: args.mode });
 
   let best = label(args.variants);
   let bestFailures = check(best).failures;

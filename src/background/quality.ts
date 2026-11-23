@@ -7,6 +7,8 @@ import { detectLanguage } from '../shared/lang';
 export interface QualityCheckOptions {
   draft: string;
   brief?: ContextBriefData;
+  /** 'polish' allows higher overlap — keeping meaning is the point. */
+  mode?: 'expand' | 'polish';
 }
 
 export interface QualityResult {
@@ -30,14 +32,20 @@ function normalize(s: string): string {
   return s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
 }
 
-/** Word-overlap similarity in [0,1] — catches near-duplicates cheaply. */
-function similarity(a: string, b: string): number {
+/**
+ * Near-duplicate test: high word containment AND similar length.
+ * Containment alone false-positives on short drafts ("I am interested"
+ * is inside every expansion); length ratio alone misses true echoes.
+ */
+function isNearDuplicate(a: string, b: string, containment: number, maxRatio: number): boolean {
   const wa = new Set(normalize(a).split(' ').filter(Boolean));
   const wb = new Set(normalize(b).split(' ').filter(Boolean));
-  if (wa.size === 0 || wb.size === 0) return 0;
+  if (wa.size === 0 || wb.size === 0) return false;
   let inter = 0;
   for (const w of wa) if (wb.has(w)) inter++;
-  return inter / Math.min(wa.size, wb.size);
+  const contain = inter / Math.min(wa.size, wb.size);
+  const ratio = Math.max(wa.size, wb.size) / Math.min(wa.size, wb.size);
+  return contain >= containment && ratio <= maxRatio;
 }
 
 const STOPWORDS = new Set(
@@ -76,16 +84,28 @@ export function checkVariants(
   const failures: string[] = [];
   const draftNorm = normalize(opts.draft);
 
-  // 1. Echo / near-duplicate checks.
+  // 1. Echo / near-duplicate checks. Polish mode legitimately reuses the
+  // draft's wording, so thresholds are stricter there.
+  const polish = opts.mode === 'polish';
+  // Echo of the draft: strict for both modes (draft ≈ variant is never ok).
+  const echoContain = 0.95;
+  const echoRatio = 1.6;
+  // Pair duplicates: roles legitimately share content words, so require
+  // near-total containment AND similar length to call it a lazy duplicate.
+  const pairContain = polish ? 0.97 : 0.93;
+  const pairRatio = polish ? 1.4 : 1.5;
   let echoes = 0;
   let dupPairs = 0;
   for (const v of variants) {
-    const vn = normalize(v.text);
-    if (vn === draftNorm || similarity(v.text, opts.draft) > 0.9) echoes++;
+    // 'closest' in polish mode is SUPPOSED to stay near the draft.
+    if (polish && v.role === 'closest') continue;
+    if (normalize(v.text) === draftNorm || isNearDuplicate(v.text, opts.draft, echoContain, echoRatio)) {
+      echoes++;
+    }
   }
   for (let i = 0; i < variants.length; i++) {
     for (let j = i + 1; j < variants.length; j++) {
-      if (similarity(variants[i].text, variants[j].text) > 0.9) dupPairs++;
+      if (isNearDuplicate(variants[i].text, variants[j].text, pairContain, pairRatio)) dupPairs++;
     }
   }
   if (echoes > 0) failures.push(`${echoes} variant(s) echo the draft`);

@@ -11,7 +11,8 @@
     "build:watch": "node scripts/sync-manifest.mjs && node scripts/make-icons.mjs && concurrently -k \"vite build --watch\" \"esbuild src/content/content.ts --bundle --format=iife --target=chrome110 --outfile=dist/content/content.js --watch\"",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "eval": "node scripts/eval.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

@@ -159,7 +159,7 @@ export function buildTaskPrompt(input: TaskPromptInput): BuiltTaskPrompt {
     input.isWrite
       ? 'Write a complete reply the agent can send as-is.'
       : 'The draft is the user\'s own words — preserve their intent and facts.',
-    'Produce exactly 3 variants with "role" set to the values above. All 3 must be genuinely different in structure and length.',
+    'Produce exactly 3 variants with "role" set to the values above. The 3 must differ in sentence STRUCTURE and length — not just wording. Even the shortest must be a complete reply, never the draft restated.',
     'Each variant needs "role" and "text". Keep each under 1200 characters.',
   ];
   parts.push(`<task>\n${taskLines.join('\n')}\n</task>`);

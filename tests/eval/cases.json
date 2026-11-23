@@ -1,0 +1,264 @@
+[
+  {
+    "id": "recruiter-email",
+    "description": "Gmail reply to recruiter email, short interested draft",
+    "brief": {
+      "platform": "Gmail",
+      "title": "Acceptability - Translation Raters needed Bengali (India) to Arabic (Saudi Arabia)",
+      "replyTarget": "Hi, We are looking for native Bengali speakers to rate translations from Bengali to Arabic for a translation evaluation project. The work is remote and paid per task. If you are interested, please reply with your resume and availability. Requirements: native Bengali, fluent Arabic, prior translation or evaluation experience is a plus. Best regards, Sarah Khan, Project Coordinator",
+      "otherParty": "Sarah Khan",
+      "replyLanguage": "en",
+      "earlierMessages": []
+    },
+    "draft": "I am interested",
+    "tone": "professional",
+    "expected": {
+      "mode": "expand",
+      "mentions": [
+        "sarah"
+      ],
+      "forbiddenClaims": [
+        "5 years",
+        "native arabic speaker certified",
+        "I have 10 years"
+      ]
+    }
+  },
+  {
+    "id": "chat-fixed",
+    "description": "Chat page, very short status draft",
+    "brief": {
+      "platform": "web",
+      "title": "Team chat",
+      "replyTarget": "The deploy failed again on staging, can someone look?",
+      "otherParty": "Alex",
+      "replyLanguage": "en",
+      "earlierMessages": [
+        "Alex: The deploy failed again on staging, can someone look?"
+      ]
+    },
+    "draft": "its fixed",
+    "expected": {
+      "mode": "expand"
+    }
+  },
+  {
+    "id": "chatgpt-remove-bg",
+    "description": "ChatGPT page, short request draft",
+    "brief": {
+      "platform": "ChatGPT",
+      "replyTarget": "I've uploaded a photo of a product on a busy desk. The user asks how to remove the background.",
+      "replyLanguage": "en"
+    },
+    "draft": "remove bg",
+    "expected": {
+      "mode": "expand"
+    }
+  },
+  {
+    "id": "complaint-thread",
+    "description": "Customer complaint email thread",
+    "brief": {
+      "platform": "Gmail",
+      "title": "Order #4482 never arrived",
+      "replyTarget": "This is the third time I am writing. My order was supposed to arrive last week and tracking shows nothing. I want a refund or a firm delivery date.",
+      "otherParty": "Maria Lopez",
+      "replyLanguage": "en",
+      "earlierMessages": [
+        "Support: We are sorry for the inconvenience, checking with the carrier.",
+        "Maria Lopez: No update since. This is unacceptable."
+      ]
+    },
+    "draft": "so sorry about this, ive escalated it and you will get a refund today",
+    "tone": "empathetic",
+    "expected": {
+      "mode": "polish",
+      "mentions": [
+        "maria"
+      ]
+    }
+  },
+  {
+    "id": "refund-request",
+    "description": "Refund request reply",
+    "brief": {
+      "platform": "Gmail",
+      "title": "Refund for duplicate charge",
+      "replyTarget": "I was charged twice for order #9917 on Monday. Please refund the duplicate payment of $49.99.",
+      "otherParty": "David Chen",
+      "replyLanguage": "en"
+    },
+    "draft": "refund processed, should see it in 3-5 days",
+    "expected": {
+      "mode": "expand",
+      "mentions": [
+        "david"
+      ]
+    }
+  },
+  {
+    "id": "thank-you",
+    "description": "Simple thank-you note",
+    "brief": {
+      "platform": "web",
+      "replyTarget": "Thanks so much for the quick help with the report yesterday, you saved me hours!",
+      "otherParty": "Priya",
+      "replyLanguage": "en"
+    },
+    "draft": "happy to help!",
+    "expected": {
+      "mode": "expand"
+    }
+  },
+  {
+    "id": "one-word-ok",
+    "description": "One-word draft on plain page",
+    "brief": {
+      "platform": "web",
+      "replyTarget": "Can you send me the updated budget file by Friday?",
+      "otherParty": "Sam",
+      "replyLanguage": "en"
+    },
+    "draft": "ok",
+    "expected": {
+      "mode": "expand"
+    }
+  },
+  {
+    "id": "japanese-draft",
+    "description": "Draft in Japanese",
+    "brief": {
+      "platform": "web",
+      "replyTarget": "来週の会議の資料を送っていただけますか？",
+      "otherParty": "田中",
+      "replyLanguage": "ja"
+    },
+    "draft": "来週の月曜日に送ります",
+    "expected": {
+      "mode": "expand",
+      "language": "ja"
+    }
+  },
+  {
+    "id": "angry-customer",
+    "description": "Angry customer needing de-escalation",
+    "brief": {
+      "platform": "Gmail",
+      "title": "Unacceptable service",
+      "replyTarget": "I am furious. Your app charged me twice AND deleted my files. This is the worst service I have ever used and I am telling everyone.",
+      "otherParty": "Jordan Blake",
+      "replyLanguage": "en"
+    },
+    "draft": "im really sorry, were fixing the charge and restoring your files now",
+    "tone": "empathetic",
+    "expected": {
+      "mode": "polish"
+    }
+  },
+  {
+    "id": "long-draft-polish",
+    "description": "Long draft needing polish not expansion",
+    "brief": {
+      "platform": "Gmail",
+      "replyTarget": "Could you share the Q3 roadmap and let me know if the mobile launch moved?",
+      "otherParty": "Elena",
+      "replyLanguage": "en"
+    },
+    "draft": "Hi Elena, thanks for reaching out. I wanted to let you know that the Q3 roadmap document has been updated and is now available in the shared drive under product planning. Regarding the mobile launch, after reviewing the timeline with the engineering team we have decided to move it from September to early October to allow more time for QA and localization. I have attached the revised schedule for your reference. Please let me know if you have any questions or if there is anything else I can help with. Best regards, The Product Team",
+    "expected": {
+      "mode": "polish"
+    }
+  },
+  {
+    "id": "no-context",
+    "description": "Plain page, no useful context",
+    "brief": {
+      "platform": "web"
+    },
+    "draft": "sounds good, talk tomorrow",
+    "expected": {
+      "mode": "expand"
+    }
+  },
+  {
+    "id": "grok-chat",
+    "description": "Grok chat page reply",
+    "brief": {
+      "platform": "Grok",
+      "replyTarget": "What are the main differences between HTTP/1.1 and HTTP/2 for a small API?",
+      "otherParty": "Grok",
+      "replyLanguage": "en"
+    },
+    "draft": "mainly multiplexing and header compression, http2 is faster for many small requests",
+    "expected": {
+      "mode": "polish"
+    }
+  },
+  {
+    "id": "bengali-draft",
+    "description": "Draft in Bengali",
+    "brief": {
+      "platform": "web",
+      "replyTarget": "আপনার leaned resume পেয়েছি, আগামী সপ্তাহে ইন্টারভিউর সময় জানাব।",
+      "otherParty": "রাহুল",
+      "replyLanguage": "bn"
+    },
+    "draft": "ধন্যবাদ, আমি.ready আছি",
+    "expected": {
+      "mode": "expand",
+      "language": "bn"
+    }
+  },
+  {
+    "id": "vendor-followup",
+    "description": "Vendor follow-up email",
+    "brief": {
+      "platform": "Gmail",
+      "title": "Invoice #5521 overdue",
+      "replyTarget": "Following up on invoice #5521 which was due two weeks ago. Please advise on payment status.",
+      "otherParty": "Accounts Payable",
+      "replyLanguage": "en"
+    },
+    "draft": "payment sent yesterday, check your records",
+    "expected": {
+      "mode": "expand",
+      "mentions": [
+        "invoice"
+      ]
+    }
+  },
+  {
+    "id": "meeting-reschedule",
+    "description": "Meeting reschedule request",
+    "brief": {
+      "platform": "web",
+      "replyTarget": "Can we move our 3pm sync to 4pm tomorrow? Something came up.",
+      "otherParty": "Casey",
+      "replyLanguage": "en"
+    },
+    "draft": "sure, 4pm works",
+    "expected": {
+      "mode": "expand"
+    }
+  },
+  {
+    "id": "write-mode-case",
+    "description": "Write mode: draft a reply from scratch with context",
+    "isWrite": true,
+    "brief": {
+      "platform": "Gmail",
+      "title": "Partnership proposal",
+      "replyTarget": "We would like to explore a partnership for Q1. Can you send over your media kit and rate card?",
+      "otherParty": "Partners Team",
+      "replyLanguage": "en"
+    },
+    "draft": "thank them, say we will send the media kit tomorrow and ask about their budget range",
+    "tone": "professional",
+    "expected": {
+      "mode": "expand",
+      "mentions": [
+        "media kit"
+      ]
+    }
+  }
+]
