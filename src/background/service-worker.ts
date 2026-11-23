@@ -2,17 +2,11 @@ import { listModels } from './gemini';
 import { generateRouted } from './router';
 import { getKey, getSettings, setSettings } from '../shared/storage';
 import {
-  SYSTEM_PROMPT,
-  WRITE_SYSTEM_PROMPT,
-  buildRewritePrompt,
-  buildWritePrompt,
+  ROLE_LABELS,
+  TASK_SYSTEM_PROMPT,
+  buildTaskPrompt,
 } from '../shared/prompts';
-import type {
-  ApiError,
-  ContextBriefData,
-  ExtensionRequest,
-  ExtensionResponse,
-} from '../shared/messages';
+import type { ApiError, ExtensionRequest, ExtensionResponse } from '../shared/messages';
 import { debugEnabled, debugGroup, debugGroupEnd, debugLog, setDebugEnabled } from '../shared/debug';
 
 console.log('[Kindly] service worker started');
@@ -20,26 +14,6 @@ console.log('[Kindly] service worker started');
 // In-flight REWRITE abort controllers, keyed by requestId, so the panel
 // can cancel a running request by closing (CANCEL message).
 const pendingRequests = new Map<string, AbortController>();
-
-/** Flatten a structured brief into prompt context (Q3 will use fields directly). */
-function briefToContext(brief?: ContextBriefData): string | undefined {
-  if (!brief) return undefined;
-  const parts: string[] = [];
-  const head = [brief.platform, brief.title].filter(Boolean).join(' — ');
-  if (head) parts.push(`Page: ${head}`);
-  if (brief.replyTarget) {
-    parts.push(
-      `Message being replied to${brief.otherParty ? ` (from ${brief.otherParty})` : ''}:\n"""\n${brief.replyTarget}\n"""`,
-    );
-  }
-  if (brief.earlierMessages?.length) {
-    parts.push(`Earlier messages:\n${brief.earlierMessages.map((m) => `- ${m}`).join('\n')}`);
-  }
-  if (!brief.replyTarget && brief.contextText) {
-    parts.push(`Page content:\n"""\n${brief.contextText}\n"""`);
-  }
-  return parts.length ? parts.join('\n\n') : undefined;
-}
 
 function toApiError(err: unknown): ApiError {
   if (err instanceof Error && 'code' in err) {
@@ -105,14 +79,18 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
       try {
         const settings = await getSettings();
         setDebugEnabled(settings.debug);
-        const context = request.context ?? briefToContext(request.brief);
-        const userPrompt = buildRewritePrompt({
-          text: trimmed,
+        // Legacy string context becomes a brief fallback.
+        const brief =
+          request.brief ??
+          (request.context ? { platform: 'web', contextText: request.context } : undefined);
+        const built = buildTaskPrompt({
+          draft: trimmed,
           tone: request.tone,
           instruction: request.instruction,
           avoid: request.avoid,
-          context,
+          brief,
         });
+        const userPrompt = built.userPrompt;
         const controller = new AbortController();
         pendingRequests.set(request.requestId, controller);
         const t0 = performance.now();
@@ -120,7 +98,7 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
           key,
           routerPreference: settings.routerPreference,
           signal: controller.signal,
-          systemInstruction: SYSTEM_PROMPT,
+          systemInstruction: TASK_SYSTEM_PROMPT,
           userPrompt,
         });
         const ms = Math.round(performance.now() - t0);
@@ -129,7 +107,8 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
           debugLog('task: rewrite | tone:', request.tone);
           debugLog('model:', model, '| fellBack:', fellBack, '| attempts:', attempts.join(' → '));
           debugLog('instruction:', request.instruction ? 'yes' : 'no');
-          debugLog('context:', context ? `${context.length} chars` : 'none');
+          debugLog('mode:', built.mode);
+          debugLog('context:', request.brief || request.context ? 'yes' : 'none');
           if (request.brief) {
             debugLog('brief:', JSON.stringify({ ...request.brief, replyTarget: undefined, contextText: undefined }));
           }
@@ -137,7 +116,11 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
           debugLog(`response: ${variants.length} variants in ${ms}ms`);
           debugGroupEnd();
         }
-        return { type: 'REWRITE_RESULT', requestId: request.requestId, variants, model };
+        const labeled = variants.map((v) => ({
+          ...v,
+          label: ROLE_LABELS[built.mode][v.role ?? ''] ?? v.label,
+        }));
+        return { type: 'REWRITE_RESULT', requestId: request.requestId, variants: labeled, model };
       } catch (err) {
         const apiError = toApiError(err);
         console.error('[Kindly] REWRITE failed:', apiError.code, apiError.message);
@@ -178,14 +161,18 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
       try {
         const settings = await getSettings();
         setDebugEnabled(settings.debug);
-        const userPrompt = buildWritePrompt({
-          prompt,
-          context: request.context ?? briefToContext(request.brief),
+        const built = buildTaskPrompt({
+          draft: prompt,
+          isWrite: true,
+          reviseDraft: request.draft,
           tone: request.tone,
           length: request.length,
           instruction: request.instruction,
-          draft: request.draft,
+          brief:
+            request.brief ??
+            (request.context ? { platform: 'web', contextText: request.context } : undefined),
         });
+        const userPrompt = built.userPrompt;
         const controller = new AbortController();
         pendingRequests.set(request.requestId, controller);
         const t0 = performance.now();
@@ -193,7 +180,7 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
           key,
           routerPreference: settings.routerPreference,
           signal: controller.signal,
-          systemInstruction: WRITE_SYSTEM_PROMPT,
+          systemInstruction: TASK_SYSTEM_PROMPT,
           userPrompt,
         });
         const ms = Math.round(performance.now() - t0);
@@ -207,7 +194,11 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
           debugLog(`response: ${variants.length} variants in ${ms}ms`);
           debugGroupEnd();
         }
-        return { type: 'WRITE_RESULT', requestId: request.requestId, variants, model };
+        const labeled = variants.map((v) => ({
+          ...v,
+          label: ROLE_LABELS[built.mode][v.role ?? ''] ?? v.label,
+        }));
+        return { type: 'WRITE_RESULT', requestId: request.requestId, variants: labeled, model };
       } catch (err) {
         const apiError = toApiError(err);
         console.error('[Kindly] WRITE failed:', apiError.code, apiError.message);

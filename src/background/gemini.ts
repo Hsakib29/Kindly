@@ -102,15 +102,17 @@ export const MODEL_FALLBACK_ORDER = [
 const VARIANTS_SCHEMA = {
   type: 'OBJECT',
   properties: {
+    understanding: { type: 'STRING' },
     variants: {
       type: 'ARRAY',
       items: {
         type: 'OBJECT',
         properties: {
+          role: { type: 'STRING' },
           label: { type: 'STRING' },
           text: { type: 'STRING' },
         },
-        required: ['label', 'text'],
+        required: ['text'],
       },
     },
   },
@@ -134,6 +136,8 @@ export interface GenerateVariantsOptions {
   count?: number;
   /** External abort signal (e.g. user cancelled by closing the panel). */
   signal?: AbortSignal;
+  /** Sampling temperature (default 0.5 — tuned for small models). */
+  temperature?: number;
 }
 
 const REQUEST_TIMEOUT_MS = 25_000;
@@ -154,7 +158,7 @@ export async function generateVariants(
     generationConfig: {
       responseMimeType: 'application/json',
       responseJsonSchema: VARIANTS_SCHEMA,
-      temperature: 0.7,
+      temperature: options.temperature ?? 0.5,
     },
   };
 
@@ -218,7 +222,11 @@ function validateVariants(parsed: unknown, count: number): Variant[] {
   const variants: Variant[] = [];
   for (const item of list) {
     if (typeof item !== 'object' || item === null) continue;
-    const { label, text } = item as { label?: unknown; text?: unknown };
+    const { label, text, role } = item as {
+      label?: unknown;
+      text?: unknown;
+      role?: unknown;
+    };
     if (typeof text !== 'string' || !text.trim()) continue;
     const key = text.trim().toLowerCase();
     if (seen.has(key)) continue;
@@ -226,6 +234,7 @@ function validateVariants(parsed: unknown, count: number): Variant[] {
     variants.push({
       label: typeof label === 'string' && label.trim() ? label.trim() : `Option ${variants.length + 1}`,
       text: text.trim(),
+      role: typeof role === 'string' ? role.trim() : undefined,
     });
     if (variants.length >= count) break;
   }

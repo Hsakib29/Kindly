@@ -23,6 +23,8 @@ export const TONE_IDS: readonly ToneId[] = [
 export interface Variant {
   label: string;
   text: string;
+  /** Fixed role assigned by the prompt ('short'|'balanced'|'detailed'|...). */
+  role?: string;
 }
 
 export type ErrorCode =
