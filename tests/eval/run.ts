@@ -27,6 +27,7 @@ interface EvalCase {
     mentions?: string[];
     language?: string;
     forbiddenClaims?: string[];
+    skipAnchor?: boolean;
   };
 }
 
@@ -71,7 +72,7 @@ async function runCase(c: EvalCase): Promise<{ pass: boolean; detail: string; mo
       systemInstruction: built.systemInstruction,
       userPrompt: built.userPrompt,
     });
-    const quality = checkVariants(variants, { draft: c.draft, brief: c.brief, mode: built.mode as "expand" | "polish" });
+    const quality = checkVariants(variants, { draft: c.draft, brief: c.brief, mode: built.mode as "expand" | "polish", skipAnchor: c.expected?.skipAnchor });
     const caseFails = caseChecks(c, variants, built.mode);
     const fails = [...quality.failures, ...caseFails];
     return {
@@ -89,7 +90,7 @@ async function runCase(c: EvalCase): Promise<{ pass: boolean; detail: string; mo
           systemInstruction: built.systemInstruction,
           userPrompt: built.userPrompt,
         });
-        const quality = checkVariants(variants, { draft: c.draft, brief: c.brief, mode: built.mode as "expand" | "polish" });
+        const quality = checkVariants(variants, { draft: c.draft, brief: c.brief, mode: built.mode as "expand" | "polish", skipAnchor: c.expected?.skipAnchor });
         const caseFails = caseChecks(c, variants, built.mode);
         const fails = [...quality.failures, ...caseFails];
         return { pass: fails.length === 0, detail: fails.join('; ') || 'ok (after rate-limit retry)', model: MODEL };

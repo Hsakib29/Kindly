@@ -84,7 +84,8 @@ const EXPAND_TASK = `Mode: EXPAND. The draft is short — turn its intent into a
 Roles (use exactly these "role" values):
 - "short": 1-2 sentences, the essentials only.
 - "balanced": a standard complete reply.
-- "detailed": warmer and fuller, still no invented facts.`;
+- "detailed": warmer and fuller, still no invented facts.
+Every variant must add something the draft lacks (greeting, next step, or detail) — never just restate it.`;
 
 const POLISH_TASK = `Mode: POLISH. Improve the draft's wording while keeping its meaning and facts.
 Roles (use exactly these "role" values):

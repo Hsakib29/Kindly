@@ -9,6 +9,8 @@ export interface QualityCheckOptions {
   brief?: ContextBriefData;
   /** 'polish' allows higher overlap — keeping meaning is the point. */
   mode?: 'expand' | 'polish';
+  /** Skip the reply-target anchor check (eval injection cases). */
+  skipAnchor?: boolean;
 }
 
 export interface QualityResult {
@@ -129,16 +131,16 @@ export function checkVariants(
   // 4. AI-speak.
   if (variants.some((v) => AI_SPEAK.test(v.text))) failures.push('contains AI-disclaimer speak');
 
-  // 4b. Language match: only flag confident mismatches (CJK/Bengali target
-  // answered in plain English, etc.).
+  // 4b. Language match: only for confident non-Latin scripts (ja/bn).
+  // 'other' covers es/fr/etc which detectLanguage can't distinguish from en.
   const targetLang = opts.brief?.replyLanguage;
-  if (targetLang && targetLang !== 'en') {
+  if (targetLang === 'ja' || targetLang === 'bn') {
     const mismatched = variants.filter((v) => detectLanguage(v.text) === 'en').length;
     if (mismatched === variants.length) failures.push('wrong language for reply target');
   }
 
   // 5. Context anchoring: with a reply target, >=2 variants must reference it.
-  const target = opts.brief?.replyTarget;
+  const target = opts.skipAnchor ? undefined : opts.brief?.replyTarget;
   if (target) {
     const anchors = [
       ...(opts.brief?.otherParty ? [opts.brief.otherParty.split(/\s+/)[0]] : []),

@@ -42,7 +42,8 @@ var EXPAND_TASK = `Mode: EXPAND. The draft is short \u2014 turn its intent into 
 Roles (use exactly these "role" values):
 - "short": 1-2 sentences, the essentials only.
 - "balanced": a standard complete reply.
-- "detailed": warmer and fuller, still no invented facts.`;
+- "detailed": warmer and fuller, still no invented facts.
+Every variant must add something the draft lacks (greeting, next step, or detail) \u2014 never just restate it.`;
 var POLISH_TASK = `Mode: POLISH. Improve the draft's wording while keeping its meaning and facts.
 Roles (use exactly these "role" values):
 - "closest": stays closest to the draft's wording.
@@ -103,11 +104,38 @@ ${input.draft}
 """
 </draft>`);
   const opts = [];
-  if (input.tone) opts.push(`tone: ${TONE_DESCRIPTIONS[input.tone]}`);
+  if (input.customToneInstruction?.trim()) {
+    opts.push(`style (custom preset \u2014 follow exactly): ${input.customToneInstruction.trim()}`);
+  } else if (input.tone) {
+    opts.push(`tone: ${TONE_DESCRIPTIONS[input.tone]}`);
+  }
   if (input.length) opts.push(`length: ${LENGTH_GUIDANCE[input.length]}`);
   if (opts.length) parts.push(`<preferences>
 ${opts.join("\n")}
 </preferences>`);
+  const bv = input.brandVoice;
+  if (bv && (bv.companyName || bv.greeting || bv.closing || bv.wordsToUse?.length || bv.wordsToAvoid?.length || bv.formality)) {
+    const lines = ["Apply this brand voice to all variants:"];
+    if (bv.companyName) lines.push(`- Company name: ${bv.companyName}`);
+    if (bv.greeting) lines.push(`- Greeting to use: "${bv.greeting}"`);
+    if (bv.closing) lines.push(`- Closing to use: "${bv.closing}"`);
+    if (bv.formality) lines.push(`- Formality: ${bv.formality}`);
+    if (bv.wordsToUse?.length) lines.push(`- Prefer these words: ${bv.wordsToUse.join(", ")}`);
+    if (bv.wordsToAvoid?.length) lines.push(`- NEVER use these words: ${bv.wordsToAvoid.join(", ")}`);
+    parts.push(`<brand_voice>
+${lines.join("\n")}
+</brand_voice>`);
+  }
+  if (input.savedReply) {
+    parts.push(
+      `<approved_reply name="${input.savedReply.title}">
+The user attached this approved wording \u2014 reuse its facts and phrasing exactly, do not add details:
+"""
+${input.savedReply.text}
+"""
+</approved_reply>`
+    );
+  }
   if (input.instruction?.trim()) {
     parts.push(`<instruction>
 ${input.instruction.trim()}
@@ -394,11 +422,11 @@ function checkVariants(variants, opts) {
   }
   if (variants.some((v) => AI_SPEAK.test(v.text))) failures.push("contains AI-disclaimer speak");
   const targetLang = opts.brief?.replyLanguage;
-  if (targetLang && targetLang !== "en") {
+  if (targetLang === "ja" || targetLang === "bn") {
     const mismatched = variants.filter((v) => detectLanguage(v.text) === "en").length;
     if (mismatched === variants.length) failures.push("wrong language for reply target");
   }
-  const target = opts.brief?.replyTarget;
+  const target = opts.skipAnchor ? void 0 : opts.brief?.replyTarget;
   if (target) {
     const anchors = [
       ...opts.brief?.otherParty ? [opts.brief.otherParty.split(/\s+/)[0]] : [],
@@ -453,7 +481,7 @@ async function runCase(c) {
       systemInstruction: built.systemInstruction,
       userPrompt: built.userPrompt
     });
-    const quality = checkVariants(variants, { draft: c.draft, brief: c.brief, mode: built.mode });
+    const quality = checkVariants(variants, { draft: c.draft, brief: c.brief, mode: built.mode, skipAnchor: c.expected?.skipAnchor });
     const caseFails = caseChecks(c, variants, built.mode);
     const fails = [...quality.failures, ...caseFails];
     return {
@@ -471,7 +499,7 @@ async function runCase(c) {
           systemInstruction: built.systemInstruction,
           userPrompt: built.userPrompt
         });
-        const quality = checkVariants(variants, { draft: c.draft, brief: c.brief, mode: built.mode });
+        const quality = checkVariants(variants, { draft: c.draft, brief: c.brief, mode: built.mode, skipAnchor: c.expected?.skipAnchor });
         const caseFails = caseChecks(c, variants, built.mode);
         const fails = [...quality.failures, ...caseFails];
         return { pass: fails.length === 0, detail: fails.join("; ") || "ok (after rate-limit retry)", model: MODEL };
