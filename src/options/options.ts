@@ -462,3 +462,74 @@ const _initReplies = async () => {
   renderReplies();
 };
 void _initReplies();
+
+// ---------- Optional key encryption (P8.7) ----------
+
+const keyProtect = document.getElementById('key-protect') as HTMLElement;
+const keyPass = document.getElementById('key-pass') as HTMLInputElement;
+const keyUnlock = document.getElementById('key-unlock') as HTMLButtonElement;
+const keyLock = document.getElementById('key-lock') as HTMLButtonElement;
+const keyEncrypt = document.getElementById('key-encrypt') as HTMLButtonElement;
+const keyStatusEl = document.getElementById('key-status') as HTMLElement;
+
+async function refreshKeyState() {
+  const res = (await sendRequest<ExtensionResponse>({ type: 'GET_KEY_STATE' })) as Extract<
+    ExtensionResponse,
+    { type: 'KEY_STATE' }
+  >;
+  if (res.type !== 'KEY_STATE') return;
+  keyProtect.hidden = false;
+  keyStatusEl.textContent = res.protected
+    ? res.unlocked
+      ? 'Key is encrypted and unlocked.'
+      : 'Key is encrypted — enter your passphrase to unlock.'
+    : 'Key stored unencrypted.';
+  keyUnlock.hidden = !res.protected || res.unlocked;
+  keyLock.hidden = !(res.protected && res.unlocked);
+  keyEncrypt.hidden = res.protected;
+}
+
+keyEncrypt.addEventListener('click', async () => {
+  const passphrase = keyPass.value;
+  if (passphrase.length < 8) {
+    keyStatusEl.textContent = 'Passphrase must be at least 8 characters.';
+    keyStatusEl.className = 'status err';
+    return;
+  }
+  const res = (await sendRequest<ExtensionResponse>({
+    type: 'ENCRYPT_KEY',
+    passphrase,
+  })) as ExtensionResponse;
+  if (res.type === 'KEY_STATE') {
+    keyPass.value = '';
+    keyStatusEl.textContent = 'Key encrypted.';
+    keyStatusEl.className = 'status ok';
+    await refreshKeyState();
+  } else if (res.type === 'ERROR') {
+    keyStatusEl.textContent = res.error.message;
+    keyStatusEl.className = 'status err';
+  }
+});
+
+keyUnlock.addEventListener('click', async () => {
+  const res = (await sendRequest<ExtensionResponse>({
+    type: 'UNLOCK_KEY',
+    passphrase: keyPass.value,
+  })) as ExtensionResponse;
+  if (res.type === 'KEY_STATE') {
+    keyPass.value = '';
+    keyStatusEl.textContent = 'Unlocked.';
+    keyStatusEl.className = 'status ok';
+    await refreshKeyState();
+  } else if (res.type === 'ERROR') {
+    keyStatusEl.textContent = res.error.message;
+    keyStatusEl.className = 'status err';
+  }
+});
+
+keyLock.addEventListener('click', async () => {
+  await sendRequest<ExtensionResponse>({ type: 'LOCK_KEY' });
+  await refreshKeyState();
+});
+
+void refreshKeyState();

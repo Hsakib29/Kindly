@@ -36,7 +36,8 @@ export type ErrorCode =
   | 'NO_KEY'
   | 'TEXT_TOO_SHORT'
   | 'TEXT_TOO_LONG'
-  | 'TIMEOUT';
+  | 'TIMEOUT'
+  | 'KEY_LOCKED';
 
 export interface ApiError {
   code: ErrorCode;
@@ -106,6 +107,10 @@ export type ExtensionRequest =
   | { type: 'CANCEL'; requestId: string }
   | { type: 'GET_SITE_INFO' }
   | { type: 'GET_USAGE' }
+  | { type: 'GET_KEY_STATE' }
+  | { type: 'ENCRYPT_KEY'; passphrase: string }
+  | { type: 'UNLOCK_KEY'; passphrase: string }
+  | { type: 'LOCK_KEY' }
   | { type: 'GET_SETTINGS' }
   | { type: 'SET_SETTINGS'; patch: Partial<Settings> }
   | { type: 'OPEN_OPTIONS' };
@@ -120,7 +125,8 @@ export type ExtensionResponse =
   | { type: 'ERROR'; requestId?: string; error: ApiError }
   | { type: 'SETTINGS'; settings: Settings }
   | { type: 'SITE_INFO'; hostname: string; hidden: boolean }
-  | { type: 'USAGE'; day: string; count: number };
+  | { type: 'USAGE'; day: string; count: number }
+  | { type: 'KEY_STATE'; protected: boolean; unlocked: boolean };
 
 // ---- Settings (P1.2 storage schema; extended in later stages) ----
 

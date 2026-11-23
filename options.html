@@ -262,6 +262,26 @@
         <button id="clear-key" type="button">Clear</button>
       </div>
       <p id="key-status" class="status" role="status"></p>
+      <div id="key-protect" hidden>
+        <label for="key-pass" style="font-size:0.85rem">Passphrase</label>
+        <div class="key-row">
+          <input
+            id="key-pass"
+            type="password"
+            placeholder="Passphrase — never stored"
+            autocomplete="off"
+          />
+          <button id="key-unlock" type="button">Unlock</button>
+          <button id="key-lock" type="button">Lock</button>
+        </div>
+        <div class="key-actions">
+          <button id="key-encrypt" type="button">Encrypt key</button>
+        </div>
+        <p class="warn" style="margin-top:0.4rem">
+          Encryption uses AES-256-GCM. The passphrase is asked once per browser session and is
+          never stored.
+        </p>
+      </div>
     </section>
     <section id="models" hidden>
       <h2>Models</h2>

@@ -2,7 +2,8 @@ import { listModels, generateVariants } from './gemini';
 import { generateRouted, isModelCooling } from './router';
 import { checkVariants } from './quality';
 import type { ContextBriefData, Variant } from '../shared/messages';
-import { getKey, getSettings, setSettings } from '../shared/storage';
+import { getSettings, setSettings, getStoredKey, setStoredKey, isEncryptedKey } from '../shared/storage';
+import { decryptWithKey, deriveSessionKey, encryptSecret } from '../shared/crypto';
 import {
   ROLE_LABELS,
   TASK_SYSTEM_PROMPT,
@@ -125,6 +126,44 @@ async function applyQualityChecks(args: QualityPassArgs): Promise<{
   return { variants: best, model: bestModel, extraRequests };
 }
 
+// ---------- Key resolution (P8.7: optional passphrase encryption) ----------
+
+const SESSION_KEY_NAME = 'kindlySessionKey';
+
+async function getSessionKey(): Promise<CryptoKey | null> {
+  const stored = (await chrome.storage.session.get(SESSION_KEY_NAME)) as {
+    [SESSION_KEY_NAME]?: CryptoKey;
+  };
+  return stored[SESSION_KEY_NAME] ?? null;
+}
+
+async function setSessionKey(key: CryptoKey | null) {
+  if (key) await chrome.storage.session.set({ [SESSION_KEY_NAME]: key });
+  else await chrome.storage.session.remove(SESSION_KEY_NAME);
+}
+
+/** Returns the usable API key, or null when locked/absent. */
+async function resolveApiKey(): Promise<{ key: string | null; locked: boolean }> {
+  const stored = await getStoredKey();
+  if (!stored) return { key: null, locked: false };
+  if (typeof stored === 'string') return { key: stored, locked: false };
+  const sessionKey = await getSessionKey();
+  if (!sessionKey) return { key: null, locked: true };
+  try {
+    return { key: await decryptWithKey(stored, sessionKey), locked: false };
+  } catch {
+    await setSessionKey(null);
+    return { key: null, locked: true };
+  }
+}
+
+async function keyState() {
+  const stored = await getStoredKey();
+  const protectedKey = isEncryptedKey(stored);
+  const unlocked = protectedKey ? (await getSessionKey()) !== null : true;
+  return { type: 'KEY_STATE' as const, protected: protectedKey, unlocked };
+}
+
 function toApiError(err: unknown): ApiError {
   if (err instanceof Error && 'code' in err) {
     const e = err as { code: ApiError['code']; message: string; retryAfterMs?: number };
@@ -174,8 +213,60 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
       };
     }
 
+    case 'GET_KEY_STATE':
+      return keyState();
+
+    case 'ENCRYPT_KEY': {
+      const stored = await getStoredKey();
+      if (isEncryptedKey(stored)) {
+        return {
+          type: 'ERROR',
+          error: { code: 'INVALID_KEY', message: 'Key is already encrypted.' },
+        };
+      }
+      if (typeof stored !== 'string' || !stored) {
+        return {
+          type: 'ERROR',
+          error: { code: 'NO_KEY', message: 'No API key to encrypt.' },
+        };
+      }
+      const blob = await encryptSecret(stored, request.passphrase);
+      await setStoredKey(blob);
+      await setSessionKey(null);
+      return keyState();
+    }
+
+    case 'UNLOCK_KEY': {
+      const stored = await getStoredKey();
+      if (!isEncryptedKey(stored)) return keyState();
+      try {
+        const sessionKey = await deriveSessionKey(stored, request.passphrase);
+        await setSessionKey(sessionKey);
+        return keyState();
+      } catch {
+        return {
+          type: 'ERROR',
+          error: { code: 'INVALID_KEY', message: 'Wrong passphrase.' },
+        };
+      }
+    }
+
+    case 'LOCK_KEY':
+      await setSessionKey(null);
+      return keyState();
+
     case 'REWRITE': {
-      const key = await getKey();
+      const { key, locked } = await resolveApiKey();
+      if (locked) {
+        return {
+          type: 'ERROR',
+          requestId: request.requestId,
+          error: {
+            code: 'KEY_LOCKED',
+            message: 'API key is locked — unlock it in Settings.',
+          },
+        };
+      }
       if (!key) {
         return {
           type: 'ERROR',
@@ -273,7 +364,17 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
     }
 
     case 'WRITE': {
-      const key = await getKey();
+      const { key, locked } = await resolveApiKey();
+      if (locked) {
+        return {
+          type: 'ERROR',
+          requestId: request.requestId,
+          error: {
+            code: 'KEY_LOCKED',
+            message: 'API key is locked — unlock it in Settings.',
+          },
+        };
+      }
       if (!key) {
         return {
           type: 'ERROR',

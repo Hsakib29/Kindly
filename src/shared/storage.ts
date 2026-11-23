@@ -64,3 +64,28 @@ export async function clearKey(): Promise<void> {
     });
   });
 }
+
+// ---------- Raw key storage (P8.7: plaintext OR encrypted blob) ----------
+
+import type { EncryptedKeyBlob } from './crypto';
+
+export type StoredKey = string | EncryptedKeyBlob;
+
+export function isEncryptedKey(v: unknown): v is EncryptedKeyBlob {
+  return (
+    typeof v === 'object' &&
+    v !== null &&
+    'salt' in v &&
+    'iv' in v &&
+    'ct' in v
+  );
+}
+
+export async function getStoredKey(): Promise<StoredKey | null> {
+  const stored = await storageGet<Record<string, StoredKey>>(API_KEY_KEY);
+  return stored[API_KEY_KEY] ?? null;
+}
+
+export async function setStoredKey(value: StoredKey): Promise<void> {
+  await storageSet({ [API_KEY_KEY]: value });
+}

@@ -315,6 +315,9 @@ function showRequestError(error: ApiError) {
         [retry],
       );
       break;
+    case 'KEY_LOCKED':
+      panel.showError({ code: error.code, message: detail });
+      break;
   }
 }
 
