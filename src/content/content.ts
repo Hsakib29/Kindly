@@ -208,7 +208,10 @@ const icon = new KindlyIcon(
     currentField = field;
     panel.open({
       getRect: () => field.getBoundingClientRect(),
-      onClose: () => field.focus(),
+      onClose: () => {
+        field.focus();
+        trigger.refresh(field);
+      },
     });
     icon.hide();
     console.log('[Kindly] panel.open called, isOpen =', panel.isOpen);

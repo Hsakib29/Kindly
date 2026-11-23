@@ -67,6 +67,11 @@ export class TypingTrigger {
     this.emit(field, 'idle');
   }
 
+  /** Force an immediate re-evaluation (e.g. after the panel closes). */
+  refresh(field: HTMLElement) {
+    this.evaluate(field);
+  }
+
   private evaluate(field: HTMLElement, forceEmpty = false) {
     this.timers.delete(field);
     const len = fieldText(field).trim().length;
