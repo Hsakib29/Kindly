@@ -11,6 +11,8 @@ export interface PageContext {
   mainText: string;
   /** Text from the field's surrounding container (conversation tail). */
   nearField: string;
+  /** Rough count of message-like blocks found (for the status chip). */
+  messageCount: number;
 }
 
 const CONTEXT_BUDGET = 6000; // chars sent to Gemini
@@ -138,10 +140,20 @@ export function extractPageContext(field: HTMLElement): PageContext {
   push('Near the text field', near, NEAR_FIELD_BUDGET);
   if (remaining > 200) push('Page content', mainText, remaining);
 
+  // Rough message count for the "Read N messages" chip: article/comment/
+  // message-like blocks on the page, capped for sanity.
+  const messageCount = Math.min(
+    document.querySelectorAll(
+      'article, [role="article"], [class*="message"], [class*="msg-"], [class*="comment"], [class*="bubble"]',
+    ).length,
+    999,
+  );
+
   return {
     title,
     url,
     mainText: parts.join('\n\n'),
     nearField: near,
+    messageCount,
   };
 }

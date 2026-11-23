@@ -54,6 +54,8 @@ export type ExtensionRequest =
       tone: ToneId;
       instruction?: string;
       avoid?: string[];
+      /** Extracted page context (untrusted data) when enabled. */
+      context?: string;
     }
   | {
       type: 'WRITE';

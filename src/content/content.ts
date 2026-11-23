@@ -32,24 +32,34 @@ chrome.runtime.sendMessage({ type: 'PING' }, (response) => {
 
 const hostname = window.location.hostname;
 let hiddenSites = new Set<string>();
+let contextBySite: Record<string, boolean> = {};
 
 async function refreshHiddenSites() {
   const res = await sendRequest<SettingsResponse>({ type: 'GET_SETTINGS' });
   if (res.type === 'SETTINGS') {
     hiddenSites = new Set(res.settings.hiddenSites);
+    contextBySite = res.settings.usePageContextBySite ?? {};
   }
 }
 void refreshHiddenSites();
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.settings) {
-    const s = changes.settings.newValue as { hiddenSites?: string[] } | undefined;
+    const s = changes.settings.newValue as
+      | { hiddenSites?: string[]; usePageContextBySite?: Record<string, boolean> }
+      | undefined;
     hiddenSites = new Set(s?.hiddenSites ?? []);
+    contextBySite = s?.usePageContextBySite ?? {};
     ui?.resync();
   }
 });
 
 function siteIsHidden(): boolean {
   return hiddenSites.has(hostname) || hiddenSites.has(window.location.host);
+}
+
+// Page context defaults ON for both tabs; per-site override persists.
+function contextEnabled(): boolean {
+  return contextBySite[hostname] ?? contextBySite[window.location.host] ?? true;
 }
 
 // ---------- Rewrite state ----------
@@ -91,6 +101,21 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
   }
   pendingSelection = selection;
 
+  // Page context for rewrite (P6.x extension): extracted only when the
+  // per-site toggle is on; the chip reports exactly what was read.
+  let context: string | undefined;
+  if (contextEnabled()) {
+    const pc = extractPageContext(field);
+    context = pc.mainText.trim() ? pc.mainText : undefined;
+    panel.setContextChip(
+      context
+        ? `Read ~${pc.messageCount} messages from this page`
+        : 'No page context found',
+    );
+  } else {
+    panel.setContextChip('Page context off');
+  }
+
   rewriteInFlight = true;
   panel.showLoading();
   const requestId = crypto.randomUUID();
@@ -104,6 +129,7 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
       tone,
       instruction,
       avoid,
+      context,
     });
     if (epoch !== rewriteEpoch) return; // panel closed mid-flight — ignore
     if (res.type === 'REWRITE_RESULT' && res.requestId === requestId) {
@@ -306,7 +332,14 @@ const panel: RewritePanel = new RewritePanel({
   },
   getWriteContext: (): string | undefined => {
     const field: HTMLElement | null | undefined = ui?.activeField;
-    return field ? extractPageContext(field).mainText : undefined;
+    if (!field) return undefined;
+    const pc = extractPageContext(field);
+    return pc.mainText.trim() ? pc.mainText : undefined;
+  },
+  getContextEnabled: () => contextEnabled(),
+  onContextToggle: (enabled) => {
+    contextBySite = { ...contextBySite, [hostname]: enabled };
+    void setSettings({ usePageContextBySite: contextBySite });
   },
 });
 panel.selectTone(selectedTone);

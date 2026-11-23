@@ -44,6 +44,9 @@ export interface PanelCallbacks {
   onWriteInstruction?: (instruction: string) => void;
   /** Returns the extracted page context to send (or undefined if none). */
   getWriteContext?: () => string | undefined;
+  /** Persisted per-site "Page context" toggle state. */
+  getContextEnabled?: () => boolean;
+  onContextToggle?: (enabled: boolean) => void;
 }
 
 export class RewritePanel {
@@ -77,6 +80,10 @@ export class RewritePanel {
   private writeVariants: Variant[] = [];
   private writeSelected = -1;
   private writeLastInstruction = '';
+  // Rewrite-tab context row
+  private ctxRewriteToggle!: HTMLInputElement;
+  private ctxPreviewPreR!: HTMLPreElement;
+  private ctxChipEl!: HTMLElement;
   private onDocumentClick: ((e: Event) => void) | null = null;
   private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
   private callbacks: PanelCallbacks = {};
@@ -280,6 +287,14 @@ export class RewritePanel {
         @media (prefers-color-scheme: light) {
           .tab-btn.active { color: #1f2430; }
         }
+        .ctx-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 2px 10px 6px;
+          flex-wrap: wrap;
+        }
+        .ctx-chip { font-size: 11px; color: #9aa0ae; margin-left: auto; }
         .page {
           display: flex;
           flex-direction: column;
@@ -432,6 +447,12 @@ export class RewritePanel {
         </div>
         <div class="page" id="page-rewrite">
           <div class="chips" role="toolbar" aria-label="Tone"></div>
+          <div class="ctx-row">
+            <label class="ctx-toggle"><input type="checkbox" class="ctx-rewrite" checked /> Page context</label>
+            <button type="button" class="preview-btn ctx-rw-preview">Preview context</button>
+            <span class="ctx-chip"></span>
+          </div>
+          <pre class="ctx-preview ctx-rw-pre" hidden></pre>
           <div class="body"></div>
           <div class="recent" hidden></div>
           <div class="instruction">
@@ -514,6 +535,10 @@ export class RewritePanel {
     this.writeToneEl = writePage.querySelector('.tone-select') as HTMLSelectElement;
     this.writeLenEl = writePage.querySelector('.len-select') as HTMLSelectElement;
     this.ctxToggleEl = writePage.querySelector('.ctx-toggle input') as HTMLInputElement;
+    this.ctxToggleEl.checked = callbacks.getContextEnabled?.() ?? true;
+    this.ctxToggleEl.addEventListener('change', () =>
+      this.callbacks.onContextToggle?.(this.ctxToggleEl.checked),
+    );
     this.ctxPreviewEl = writePage.querySelector('.ctx-preview') as HTMLPreElement;
     this.writeBodyEl = writePage.querySelector('.write-body') as HTMLElement;
     this.writeInstrInput = writePage.querySelector(
@@ -535,6 +560,25 @@ export class RewritePanel {
       opt.textContent = TONE_LABELS[tone];
       this.writeToneEl.appendChild(opt);
     }
+
+    // ---------- Rewrite-tab context row ----------
+    const rewritePage = shadow.querySelector('#page-rewrite') as HTMLElement;
+    this.ctxRewriteToggle = rewritePage.querySelector('.ctx-rewrite') as HTMLInputElement;
+    this.ctxPreviewPreR = rewritePage.querySelector('.ctx-rw-pre') as HTMLPreElement;
+    this.ctxChipEl = rewritePage.querySelector('.ctx-chip') as HTMLElement;
+    this.ctxRewriteToggle.addEventListener('change', () =>
+      this.callbacks.onContextToggle?.(this.ctxRewriteToggle.checked),
+    );
+    (rewritePage.querySelector('.ctx-rw-preview') as HTMLButtonElement).addEventListener(
+      'click',
+      () => {
+        const ctx = this.callbacks.getWriteContext?.();
+        this.ctxPreviewPreR.textContent = ctx?.trim()
+          ? ctx
+          : '(no page context could be extracted)';
+        this.ctxPreviewPreR.hidden = !this.ctxPreviewPreR.hidden;
+      },
+    );
 
     // Tab switching.
     for (const btn of Array.from(shadow.querySelectorAll<HTMLButtonElement>('.tab-btn'))) {
@@ -650,6 +694,11 @@ export class RewritePanel {
     this.modelTag.textContent = model ?? '';
   }
 
+  /** Status chip on the Rewrite tab: what context was (or wasn't) read. */
+  setContextChip(text: string) {
+    this.ctxChipEl.textContent = text;
+  }
+
   /** Show the last few instructions as quick chips (P3.8). */
   setRecentInstructions(instructions: string[]) {
     this.recentEl.innerHTML = '';
@@ -670,6 +719,10 @@ export class RewritePanel {
   open(anchor: PanelAnchor) {
     this.close();
     this.anchor = anchor;
+    // Sync the per-site context toggle every open.
+    const enabled = this.callbacks.getContextEnabled?.() ?? true;
+    this.ctxRewriteToggle.checked = enabled;
+    this.ctxToggleEl.checked = enabled;
 
     this.onDocumentClick = (e) => {
       if (!e.composedPath().includes(this.host)) this.close();

@@ -90,6 +90,7 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
             tone: request.tone,
             instruction: request.instruction,
             avoid: request.avoid,
+            context: request.context,
           }),
         });
         return { type: 'REWRITE_RESULT', requestId: request.requestId, variants, model };
