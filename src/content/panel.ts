@@ -275,6 +275,11 @@ export class RewritePanel {
 
   // ---------- Public API ----------
 
+  /** True when the event happened inside this panel's shadow DOM. */
+  handlesEvent(e: Event): boolean {
+    return e.composedPath().includes(this.host);
+  }
+
   get isOpen(): boolean {
     return this.anchor !== null;
   }

@@ -8,14 +8,13 @@ import {
 } from './inserter';
 import { UndoToast } from './toast';
 import { KindlyIcon } from './icon';
-import { TypingTrigger } from './typing-trigger';
+import { FieldUiController } from './field-ui';
 import { setSettings } from '../shared/storage';
 import { sendRequest } from '../shared/client';
 import { RewritePanel } from './panel';
 import type { ApiError, ExtensionResponse, ToneId, Variant } from '../shared/messages';
 
 type ErrorResponse = Extract<ExtensionResponse, { type: 'ERROR' }>;
-
 type SettingsResponse = Extract<ExtensionResponse, { type: 'SETTINGS' }>;
 
 console.log('[Kindly] content script loaded');
@@ -43,6 +42,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.settings) {
     const s = changes.settings.newValue as { hiddenSites?: string[] } | undefined;
     hiddenSites = new Set(s?.hiddenSites ?? []);
+    ui?.resync();
   }
 });
 
@@ -50,11 +50,7 @@ function siteIsHidden(): boolean {
   return hiddenSites.has(hostname) || hiddenSites.has(window.location.host);
 }
 
-// ---------- Icon + typing orchestration (P2.3–P2.6) ----------
-
-const BLUR_GRACE_MS = 250;
-let blurTimer: number | undefined;
-let currentField: HTMLElement | null = null;
+// ---------- Rewrite state ----------
 
 let selectedTone: ToneId = 'professional';
 let lastVariants: Variant[] = [];
@@ -62,16 +58,21 @@ let lastInstruction = '';
 const recentInstructions: string[] = [];
 let pendingSelection: FieldSelection | undefined;
 let rewriteInFlight = false;
-// Latest-wins queue: chip clicks while a request is in flight are queued,
+// Latest-wins queue: requests while one is in flight are queued,
 // not dropped or parallel-fired.
 let queuedRewrite: { tone: ToneId; instruction?: string; avoid?: string[] } | null = null;
+
+function isContextInvalid(err: unknown): boolean {
+  const m = err instanceof Error ? err.message : String(err);
+  return /invalidated|message port|receiving end|context/i.test(m);
+}
 
 async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string[]) {
   if (rewriteInFlight) {
     queuedRewrite = { tone, instruction, avoid };
     return;
   }
-  const field = currentField;
+  const field = ui?.activeField;
   if (!field) return;
 
   // P3.9: a non-empty selection is rewritten on its own.
@@ -104,10 +105,14 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
       showRequestError({ code: 'NETWORK', message: 'Unexpected response.' });
     }
   } catch (err) {
-    showRequestError({
-      code: 'NETWORK',
-      message: err instanceof Error ? err.message : String(err),
-    });
+    if (isContextInvalid(err)) {
+      panel.showHint('Kindly was reloaded — refresh this page to keep using it.');
+    } else {
+      showRequestError({
+        code: 'NETWORK',
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
   } finally {
     rewriteInFlight = false;
     if (queuedRewrite) {
@@ -155,12 +160,14 @@ function showRequestError(error: ApiError) {
   }
 }
 
+// ---------- Panel ----------
+
 const panel = new RewritePanel({
   onTone: (tone) => {
     selectedTone = tone;
   },
   onUse: (variant: Variant) => {
-    const field = currentField;
+    const field = ui?.activeField;
     if (!field) return;
     const originalText = readFieldText(field);
     void (async () => {
@@ -202,36 +209,25 @@ const panel = new RewritePanel({
 });
 panel.selectTone(selectedTone);
 
+// ---------- Icon + field UI state machine ----------
+
 const icon = new KindlyIcon(
   (field) => {
-    console.log('[Kindly] icon clicked on', field);
-    currentField = field;
-    panel.open({
-      getRect: () => field.getBoundingClientRect(),
-      onClose: () => {
-        field.focus();
-        trigger.refresh(field);
-      },
-    });
-    icon.hide();
-    console.log('[Kindly] panel.open called, isOpen =', panel.isOpen);
+    if (field !== ui.activeField) ui.focusField(field);
+    ui.openPanel();
   },
   () => {
     if (!confirm(`Hide Kindly on ${hostname}? You can re-enable it in settings.`)) return;
     void setSettings({ hiddenSites: [...hiddenSites, hostname] }).then(() => {
       hiddenSites.add(hostname);
-      icon.hide();
+      ui.resync();
     });
   },
 );
 
-const trigger = new TypingTrigger(({ field, state }) => {
-  if (state === 'ready' || state === 'ready-empty') {
-    if (!siteIsHidden()) icon.show(field, state === 'ready-empty');
-  } else if (state === 'typing') {
-    icon.hide();
-  }
-  // 'idle' is handled by the blur grace timer below.
+const ui = new FieldUiController(icon, panel, {
+  isSiteHidden: siteIsHidden,
+  getDeepActiveElement: () => getDeepActiveElement(),
 });
 
 function fieldFromEvent(event: Event): HTMLElement | null {
@@ -241,35 +237,23 @@ function fieldFromEvent(event: Event): HTMLElement | null {
 }
 
 document.addEventListener('focusin', (event) => {
-  window.clearTimeout(blurTimer);
+  // Focus moving inside our own panel (e.g. instruction input) is not a
+  // field change — ignore it entirely.
+  if (panel.handlesEvent(event)) return;
   const field = fieldFromEvent(event);
-  if (!field || siteIsHidden()) {
-    currentField = null;
-    icon.hide();
-    return;
+  if (field) {
+    ui.focusField(field);
+  } else {
+    ui.unfocusField();
   }
-  currentField = field;
-  trigger.noteFocus(field);
 });
 
-document.addEventListener('focusout', (event) => {
-  const field = fieldFromEvent(event);
-  if (field) trigger.noteBlur(field);
-  // Grace period so clicking the icon doesn't hide it (P2.5).
-  blurTimer = window.setTimeout(() => {
-    // While the panel is open the field may legitimately lose focus
-    // (e.g. typing in the instruction box) — keep it as currentField.
-    if (panel.isOpen) return;
-    const active = getDeepActiveElement();
-    if (!active || !isSupportedField(active) || active !== currentField) {
-      currentField = null;
-      icon.hide();
-    }
-  }, BLUR_GRACE_MS);
+document.addEventListener('focusout', () => {
+  ui.scheduleBlurCheck();
 });
 
 // `input` is composed, so it crosses shadow boundaries.
 document.addEventListener('input', (event) => {
   const field = fieldFromEvent(event);
-  if (field) trigger.noteInput(field);
+  if (field) ui.noteInput(field);
 });
