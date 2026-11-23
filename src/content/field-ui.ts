@@ -36,6 +36,8 @@ export interface FieldUiHooks {
   isSiteHidden: () => boolean;
   /** Called when the active field changes (for rewrite requests). */
   onFieldChange?: (field: HTMLElement | null) => void;
+  /** Called whenever the panel closes — used to invalidate in-flight requests. */
+  onPanelClosed?: () => void;
   /** Deep active element, piercing shadow roots. */
   getDeepActiveElement: () => Element | null;
 }
@@ -151,6 +153,7 @@ export class FieldUiController {
   /** Panel closed by any means — restore icon if the field is still ready. */
   closePanel() {
     this.panelOpenFlag = false;
+    this.hooks.onPanelClosed?.();
     const field = this.field;
     if (field?.isConnected && !this.suppressRefocus) {
       field.focus();

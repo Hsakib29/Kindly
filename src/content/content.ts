@@ -61,6 +61,9 @@ let rewriteInFlight = false;
 // Latest-wins queue: requests while one is in flight are queued,
 // not dropped or parallel-fired.
 let queuedRewrite: { tone: ToneId; instruction?: string; avoid?: string[] } | null = null;
+// Incremented every time the panel closes; in-flight rewrite responses
+// from an older epoch are ignored (chrome messages can't be aborted).
+let rewriteEpoch = 0;
 
 function isContextInvalid(err: unknown): boolean {
   const m = err instanceof Error ? err.message : String(err);
@@ -87,6 +90,7 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
   rewriteInFlight = true;
   panel.showLoading();
   const requestId = crypto.randomUUID();
+  const epoch = rewriteEpoch;
   try {
     const res = await sendRequest<ExtensionResponse>({
       type: 'REWRITE',
@@ -96,6 +100,7 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
       instruction,
       avoid,
     });
+    if (epoch !== rewriteEpoch) return; // panel closed mid-flight — ignore
     if (res.type === 'REWRITE_RESULT' && res.requestId === requestId) {
       lastVariants = res.variants;
       panel.showVariants(res.variants);
@@ -115,7 +120,7 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
     }
   } finally {
     rewriteInFlight = false;
-    if (queuedRewrite) {
+    if (epoch === rewriteEpoch && queuedRewrite) {
       const next = queuedRewrite;
       queuedRewrite = null;
       void requestRewrite(next.tone, next.instruction, next.avoid);
@@ -228,6 +233,9 @@ const icon = new KindlyIcon(
 const ui = new FieldUiController(icon, panel, {
   isSiteHidden: siteIsHidden,
   getDeepActiveElement: () => getDeepActiveElement(),
+  onPanelClosed: () => {
+    rewriteEpoch++;
+  },
 });
 
 function fieldFromEvent(event: Event): HTMLElement | null {

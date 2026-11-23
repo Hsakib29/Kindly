@@ -190,6 +190,25 @@ export class RewritePanel {
         @keyframes shimmer { to { background-position: -200% 0; } }
         .error-box { padding: 10px; font-size: 12px; }
         .error-box .msg { margin-bottom: 8px; }
+        .header .close {
+          border: none;
+          background: transparent;
+          color: inherit;
+          font-size: 16px;
+          line-height: 1;
+          width: 30px;
+          height: 30px;
+          border-radius: 8px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
+        }
+        .header .close:hover { background: #ffffff1f; }
+        @media (prefers-color-scheme: light) {
+          .header .close:hover { background: #0000000f; }
+        }
         .error-box button {
           border: 1px solid #ffffff2e;
           background: #2a3040;
@@ -201,7 +220,7 @@ export class RewritePanel {
         }
       </style>
       <div class="panel" role="dialog" aria-label="Kindly">
-        <div class="header"><span>${PRODUCT_NAME}</span><span class="hint-inline">Esc to close</span></div>
+        <div class="header"><span>${PRODUCT_NAME}</span><button type="button" class="close" aria-label="Close">×</button></div>
         <div class="chips" role="toolbar" aria-label="Tone"></div>
         <div class="body"></div>
         <div class="recent" hidden></div>
@@ -253,6 +272,11 @@ export class RewritePanel {
     this.useButton.addEventListener('click', () => {
       const v = this.variants[this.selectedVariant];
       if (v) this.callbacks.onUse?.(v);
+    });
+    (shadow.querySelector('.close') as HTMLButtonElement).addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.close();
     });
     this.generateButton.addEventListener('click', () => this.callbacks.onGenerate?.());
     this.copyButton.addEventListener('click', () => {
@@ -315,11 +339,7 @@ export class RewritePanel {
     document.addEventListener('click', this.onDocumentClick, true);
 
     this.onKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        this.close();
-      } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
         // Chip keyboard navigation (P3.2).
         const chips = Array.from(this.chipsEl.querySelectorAll<HTMLButtonElement>('.chip'));
         const idx = chips.findIndex((c) => c.classList.contains('selected'));
