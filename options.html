@@ -240,6 +240,7 @@
       <button data-section="tones">Tones</button>
       <button data-section="brand-voice">Brand voice</button>
       <button data-section="sites">Sites</button>
+      <button data-section="knowledge">Saved replies</button>
       <button data-section="privacy">Privacy</button>
       <button data-section="developer">Developer</button>
     </nav>
@@ -339,6 +340,20 @@
       </p>
       <textarea id="never-run" rows="8" spellcheck="false"></textarea>
       <p id="sites-status" class="status" role="status"></p>
+    </section>
+    <section id="knowledge" hidden>
+      <h2>Saved replies</h2>
+      <p>
+        Store approved wording (shipping policy, refund policy…). Attach one in Write mode so
+        drafts reuse the exact facts.
+      </p>
+      <div id="reply-list"></div>
+      <div class="tone-form">
+        <input id="reply-title" type="text" placeholder="Title (e.g. Refund policy)" />
+        <input id="reply-text" type="text" placeholder="Exact wording to reuse" />
+        <button id="reply-add" type="button">Add reply</button>
+      </div>
+      <p id="reply-status" class="status" role="status"></p>
     </section>
     <section id="privacy" hidden>
       <h2>Privacy</h2>

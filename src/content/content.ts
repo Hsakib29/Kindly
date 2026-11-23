@@ -53,6 +53,7 @@ async function refreshHiddenSites() {
     contextBySite = res.settings.usePageContextBySite ?? {};
     appSettings = res.settings;
     panel.setCustomTones(res.settings.customTones ?? []);
+    panel.setSavedReplies(res.settings.savedReplies ?? []);
   }
 }
 void refreshHiddenSites();
@@ -69,6 +70,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
     neverRunSites = (s as { neverRunSites?: string[] } | undefined)?.neverRunSites ?? neverRunSites;
     contextBySite = s?.usePageContextBySite ?? {};
     panel.setCustomTones(s?.customTones ?? []);
+    panel.setSavedReplies(
+      (s as { savedReplies?: import('../shared/messages').SavedReply[] } | undefined)
+        ?.savedReplies ?? [],
+    );
     void refreshDebugEnabled();
     ui?.resync();
   }
@@ -242,6 +247,7 @@ async function requestWrite(req: WriteGenerateRequest) {
       draft: req.draft,
       customToneInstruction: req.customToneInstruction,
       brandVoice: appSettings?.brandVoice,
+      savedReply: req.savedReply,
     });
     if (epoch !== rewriteEpoch) return;
     if (res.type === 'WRITE_RESULT' && res.requestId === requestId) {

@@ -397,3 +397,68 @@ neverRunArea.addEventListener('input', () => {
 });
 
 void initNeverRun();
+
+// ---------- Saved replies (P7.4) ----------
+
+const replyList = document.getElementById('reply-list') as HTMLElement;
+const replyTitle = document.getElementById('reply-title') as HTMLInputElement;
+const replyText = document.getElementById('reply-text') as HTMLInputElement;
+const replyAdd = document.getElementById('reply-add') as HTMLButtonElement;
+const replyStatus = document.getElementById('reply-status') as HTMLParagraphElement;
+
+let savedReplies: import('../shared/messages').SavedReply[] = [];
+
+function renderReplies() {
+  replyList.innerHTML = '';
+  for (const r of savedReplies) {
+    const row = document.createElement('div');
+    row.className = 'tone-item';
+    row.innerHTML = `<span class="name"></span><span class="instr"></span>`;
+    (row.querySelector('.name') as HTMLElement).textContent = r.title;
+    (row.querySelector('.instr') as HTMLElement).textContent = r.text;
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.textContent = 'Delete';
+    del.addEventListener('click', () => {
+      savedReplies = savedReplies.filter((x) => x.id !== r.id);
+      void saveReplies();
+    });
+    row.append(del);
+    replyList.appendChild(row);
+  }
+}
+
+async function saveReplies() {
+  const res = await sendRequest<ExtensionResponse>({
+    type: 'SET_SETTINGS',
+    patch: { savedReplies },
+  });
+  if (res.type === 'SETTINGS') {
+    savedReplies = res.settings.savedReplies;
+    renderReplies();
+    replyStatus.textContent = 'Saved.';
+    replyStatus.className = 'status ok';
+  }
+}
+
+replyAdd.addEventListener('click', () => {
+  const title = replyTitle.value.trim();
+  const text = replyText.value.trim();
+  if (!title || !text) {
+    replyStatus.textContent = 'Title and wording are required.';
+    replyStatus.className = 'status err';
+    return;
+  }
+  savedReplies = [...savedReplies, { id: crypto.randomUUID(), title, text }];
+  replyTitle.value = '';
+  replyText.value = '';
+  void saveReplies();
+});
+
+// load saved replies alongside tones/voice
+const _initReplies = async () => {
+  const settings = await getSettings();
+  savedReplies = settings.savedReplies ?? [];
+  renderReplies();
+};
+void _initReplies();

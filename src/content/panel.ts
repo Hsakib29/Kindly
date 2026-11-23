@@ -6,6 +6,7 @@ import {
   type ApiError,
   type ContextBriefData,
   type CustomTone,
+  type SavedReply,
   type ToneId,
   type Variant,
 } from '../shared/messages';
@@ -38,6 +39,8 @@ export interface WriteGenerateRequest {
   instruction?: string;
   brief?: ContextBriefData;
   customToneInstruction?: string;
+  /** Saved reply attached as knowledge (P7.4). */
+  savedReply?: SavedReply;
   /** Existing draft to revise (follow-up instructions, P6.6). */
   draft?: string;
 }
@@ -85,6 +88,8 @@ export class RewritePanel {
   private writeSelected = -1;
   private writeLastInstruction = '';
   private customTones: CustomTone[] = [];
+  private savedReplies: SavedReply[] = [];
+  private replySelectEl!: HTMLSelectElement;
   // Rewrite-tab context chip
   private ctxChipEl!: HTMLElement;
   private onDocumentClick: ((e: Event) => void) | null = null;
@@ -481,6 +486,7 @@ export class RewritePanel {
                 <option value="medium">Medium</option>
                 <option value="long">Long</option>
               </select>
+              <select class="reply-select" aria-label="Attach saved reply" hidden></select>
             </div>
           </div>
           <div class="body write-body"></div>
@@ -536,6 +542,7 @@ export class RewritePanel {
     this.writePromptEl = writePage.querySelector('.write-prompt') as HTMLTextAreaElement;
     this.writeToneEl = writePage.querySelector('.tone-select') as HTMLSelectElement;
     this.writeLenEl = writePage.querySelector('.len-select') as HTMLSelectElement;
+    this.replySelectEl = writePage.querySelector('.reply-select') as HTMLSelectElement;
     this.writeBodyEl = writePage.querySelector('.write-body') as HTMLElement;
     this.writeInstrInput = writePage.querySelector(
       '.write-instruction input',
@@ -787,6 +794,24 @@ export class RewritePanel {
     }
   }
 
+  /** Update saved replies for the Write-tab attach selector (P7.4). */
+  setSavedReplies(replies: SavedReply[]) {
+    this.savedReplies = replies;
+    this.replySelectEl.innerHTML = '';
+    this.replySelectEl.hidden = replies.length === 0;
+    if (replies.length === 0) return;
+    const none = document.createElement('option');
+    none.value = '';
+    none.textContent = 'No saved reply';
+    this.replySelectEl.appendChild(none);
+    for (const r of replies) {
+      const opt = document.createElement('option');
+      opt.value = r.id;
+      opt.textContent = r.title;
+      this.replySelectEl.appendChild(opt);
+    }
+  }
+
   /** Update custom tone presets (called when settings load/change). */
   setCustomTones(tones: CustomTone[]) {
     this.customTones = tones;
@@ -917,6 +942,7 @@ export class RewritePanel {
       | 'long'
       | undefined;
     const brief = this.callbacks.getWriteContext?.();
+    const savedReply = this.savedReplies.find((r) => r.id === this.replySelectEl.value);
     return {
       prompt,
       tone,
@@ -924,6 +950,7 @@ export class RewritePanel {
       instruction: this.writeLastInstruction || undefined,
       brief,
       customToneInstruction,
+      savedReply,
     };
   }
 
