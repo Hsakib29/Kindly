@@ -17,6 +17,9 @@
 //   field removed/re-rendered by page  *       → idle   (re-resolved on next focusin)
 //   hide-on-this-site                  *       → hidden-site
 //   storage change / sync()            hidden-site → recomputed
+//   visibilitychange/focus/pageshow/   *       → resyncFromDom: re-resolve
+//   1s consistency interval                    activeElement + re-evaluate
+//                                              (no focusin fires on tab return)
 //
 // Icon visibility is DERIVED in sync() from (field valid && readiness ready
 // && !siteHidden && !panelOpen) — never from one-shot events, so deduped or
@@ -170,6 +173,38 @@ export class FieldUiController {
   /** Recompute after external changes (storage.onChanged, etc.). */
   resync() {
     this.sync();
+  }
+
+  /**
+   * Re-resolve the active field from the DOM and re-run the visibility
+   * rules. Called on visibilitychange/focus/pageshow/interval — no
+   * focusin fires when a tab regains focus with the same field active,
+   * so events alone can't recover the icon.
+   */
+  resyncFromDom() {
+    if (this.disposed) return;
+    const active = this.hooks.getDeepActiveElement();
+    if (active instanceof HTMLElement && isSupportedField(active)) {
+      if (active !== this.field || this.state === 'idle') {
+        this.focusField(active);
+      } else {
+        // Same field, possibly stale readiness after a throttled timer.
+        this.trigger.refresh(active);
+        this.sync();
+      }
+      return;
+    }
+    // Active element isn't a supported field — if we still think we have
+    // one and the panel isn't open, drop it (focus truly moved on).
+    if (this.field && !this.panelOpenFlag) {
+      const stillConnected = this.field.isConnected;
+      const deep = this.hooks.getDeepActiveElement();
+      if (!stillConnected || deep !== this.field) {
+        // Only clear if the field really lost focus; blur check owns this
+        // normally, but a throttled blur timer may not have run.
+        this.scheduleBlurCheck();
+      }
+    }
   }
 
   fieldText(): string {

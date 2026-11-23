@@ -144,6 +144,8 @@ let lastInstruction = '';
 const recentInstructions: string[] = [];
 let pendingSelection: FieldSelection | undefined;
 let rewriteInFlight = false;
+let rewriteRequestStartedAt = 0;
+let writeRequestStartedAt = 0;
 // Latest-wins queue: requests while one is in flight are queued,
 // not dropped or parallel-fired.
 let queuedRewrite: { tone: ToneId; instruction?: string; avoid?: string[] } | null = null;
@@ -194,6 +196,7 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
   }
 
   rewriteInFlight = true;
+  rewriteRequestStartedAt = Date.now();
   panel.showLoading();
   const requestId = crypto.randomUUID();
   activeRequestIds.add(requestId);
@@ -252,6 +255,7 @@ async function requestWrite(req: WriteGenerateRequest) {
     return;
   }
   writeInFlight = true;
+  writeRequestStartedAt = Date.now();
   panel.showWriteLoading();
   const requestId = crypto.randomUUID();
   activeRequestIds.add(requestId);
@@ -512,6 +516,59 @@ document.addEventListener('keydown', (e) => {
     }
   }
 });
+
+// ---------- Resync on tab return / visibility (icon-loss fix) ----------
+// focusin does NOT refire when a tab regains focus with the same field
+// still active — without these listeners the icon stays hidden until the
+// next keystroke. All paths funnel into ui.resyncFromDom().
+
+const STALE_REQUEST_MS = 90_000;
+
+function checkStaleRequests() {
+  const now = Date.now();
+  const rewriteStale = rewriteInFlight && now - rewriteRequestStartedAt > STALE_REQUEST_MS;
+  const writeStale = writeInFlight && now - writeRequestStartedAt > STALE_REQUEST_MS;
+  if (!rewriteStale && !writeStale) return;
+  debugLog('resync: stale in-flight request(s) — cancelling');
+  rewriteEpoch++; // late responses are ignored
+  for (const requestId of activeRequestIds) {
+    void sendRequest<ExtensionResponse>({ type: 'CANCEL', requestId }).catch(() => {});
+  }
+  rewriteInFlight = false;
+  writeInFlight = false;
+  panel.showError(
+    { code: 'NETWORK', message: 'Connection lost — try again.' },
+    [{ label: 'Retry', onClick: () => void requestRewrite(selectedTone, lastInstruction || undefined) }],
+  );
+}
+
+function resyncUi(reason: string) {
+  debugLog(`resync: ${reason} (state=${ui.state} field=${ui.activeField ? 'set' : 'none'})`);
+  ui.resyncFromDom();
+  checkStaleRequests();
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') resyncUi('visibilitychange→visible');
+});
+window.addEventListener('focus', () => resyncUi('window focus'));
+window.addEventListener('pageshow', () => resyncUi('pageshow'));
+
+// Light consistency check: 1s interval, only while the page is visible.
+// Corrects any state where the icon should show but doesn't (e.g. a
+// throttled timer fired late). Cost: one textContent read per second.
+window.setInterval(() => {
+  if (document.visibilityState !== 'visible') return;
+  // Only correct states that could be wrongly hidden — 'icon'/'panel' are
+  // already correct, 'hidden-site' only changes via storage events.
+  if (ui.state === 'icon' || ui.state === 'panel' || ui.state === 'hidden-site') return;
+  const field = ui.activeField;
+  if (!field || !field.isConnected) return;
+  const before = ui.state;
+  ui.trigger.refresh(field);
+  ui.resync();
+  if (ui.state !== before) debugLog(`resync: interval corrected ${before}→${ui.state}`);
+}, 1000);
 
 // Toolbar popup query (P7.6): reports this site's hostname + hidden state.
 chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {

@@ -52,6 +52,11 @@ export class TypingTrigger {
   private timers = new Map<HTMLElement, number>();
   private graceTimers = new Map<HTMLElement, number>();
   private states = new Map<HTMLElement, FieldReadiness>();
+  // Timestamp of the first below-threshold read — setTimeout alone is
+  // throttled in background tabs, so correctness uses performance.now().
+  private belowSince = new Map<HTMLElement, number>();
+  // Consecutive below-threshold reads required before hiding (anti-flicker).
+  private belowReads = new Map<HTMLElement, number>();
 
   constructor(private onChange: (event: ReadinessEvent) => void) {}
 
@@ -102,6 +107,8 @@ export class TypingTrigger {
       window.clearTimeout(t);
       this.graceTimers.delete(field);
     }
+    this.belowSince.delete(field);
+    this.belowReads.delete(field);
   }
 
   private evaluate(field: HTMLElement) {
@@ -123,19 +130,37 @@ export class TypingTrigger {
       return;
     }
 
-    // Below threshold but has some text: if we were showing the icon,
-    // grace-period the hide so quick delete/retype doesn't flicker.
+    // Below threshold with some text: hide only after the grace period
+    // AND two consecutive below-threshold reads — timers may be throttled
+    // while hidden, so decide by elapsed time, not the timer alone.
     const prev = this.states.get(field);
-    if ((prev === 'ready' || prev === 'ready-empty') && !this.graceTimers.has(field)) {
-      this.graceTimers.set(
-        field,
-        window.setTimeout(() => {
-          this.graceTimers.delete(field);
-          this.evaluate(field);
-        }, ICON_VISIBILITY.belowThresholdGraceMs),
-      );
+    const now = performance.now();
+    const reads = (this.belowReads.get(field) ?? 0) + 1;
+    this.belowReads.set(field, reads);
+    const since = this.belowSince.get(field) ?? now;
+    this.belowSince.set(field, since);
+    const elapsed = now - since;
+
+    if (reads < 2 || elapsed < ICON_VISIBILITY.belowThresholdGraceMs) {
+      if ((prev === 'ready' || prev === 'ready-empty') && !this.graceTimers.has(field)) {
+        // Re-check at the remaining grace boundary (best effort — the
+        // timestamp check above is the real guard if this is throttled).
+        const remaining = Math.max(
+          ICON_VISIBILITY.belowThresholdGraceMs - elapsed,
+          50,
+        );
+        this.graceTimers.set(
+          field,
+          window.setTimeout(() => {
+            this.graceTimers.delete(field);
+            this.evaluate(field);
+          }, remaining),
+        );
+      }
       return;
     }
+
+    this.clearGrace(field);
     this.emit(field, 'typing');
   }
 }
