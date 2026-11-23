@@ -2,8 +2,8 @@ import './spike';
 import { getDeepActiveElement, isSupportedField } from './fields';
 import {
   getFieldSelection,
+  insertText,
   readFieldText,
-  replaceFieldText,
   type FieldSelection,
 } from './inserter';
 import { UndoToast } from './toast';
@@ -163,17 +163,23 @@ const panel = new RewritePanel({
     const field = currentField;
     if (!field) return;
     const originalText = readFieldText(field);
-    const ok = replaceFieldText(field, variant.text, pendingSelection);
-    if (!ok) {
-      panel.showError({ code: 'NETWORK', message: 'Could not insert text on this site.' });
-      return;
-    }
-    pendingSelection = undefined;
-    panel.close();
-    toast.onUndo = () => {
-      replaceFieldText(field, originalText);
-    };
-    toast.show();
+    void (async () => {
+      const result = await insertText(field, variant.text, pendingSelection);
+      if (!result.ok) {
+        panel.showHint(
+          result.copiedToClipboard
+            ? 'Could not insert on this site — text copied. Press Ctrl+V to paste.'
+            : 'Could not insert text on this site.',
+        );
+        return;
+      }
+      pendingSelection = undefined;
+      panel.close();
+      toast.onUndo = () => {
+        void insertText(field, originalText);
+      };
+      toast.show();
+    })();
   },
   onGenerate: () => {
     // Generate doubles as Regenerate: existing variants are passed as
