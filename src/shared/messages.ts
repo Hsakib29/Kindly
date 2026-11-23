@@ -157,6 +157,21 @@ export interface Settings {
   debug: boolean;
 }
 
+/** Default never-run hostnames (banking/health) — editable in options. */
+export const DEFAULT_NEVER_RUN_SITES = [
+  'chase.com',
+  'bankofamerica.com',
+  'wellsfargo.com',
+  'citibank.com',
+  'capitalone.com',
+  'americanexpress.com',
+  'paypal.com',
+  'venmo.com',
+  'mychart.com',
+  'mychart.org',
+  'followmyhealth.com',
+];
+
 export const SETTINGS_DEFAULTS: Settings = {
   schemaVersion: 1,
   hiddenSites: [],

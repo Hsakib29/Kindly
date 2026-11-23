@@ -8,7 +8,7 @@ import {
   type FieldSelection,
 } from './inserter';
 import { buildContextBrief } from './context';
-import type { ContextBriefData } from '../shared/messages';
+import { DEFAULT_NEVER_RUN_SITES, type ContextBriefData } from '../shared/messages';
 import { debugLog, refreshDebugEnabled } from '../shared/debug';
 import { UndoToast } from './toast';
 import { KindlyIcon } from './icon';
@@ -35,13 +35,21 @@ chrome.runtime.sendMessage({ type: 'PING' }, (response) => {
 
 const hostname = window.location.hostname;
 let hiddenSites = new Set<string>();
+let neverRunSites: string[] = [];
 let contextBySite: Record<string, boolean> = {};
 let appSettings: import('../shared/messages').Settings | null = null;
+
+/** Hostname suffix match: 'chase.com' blocks 'secure.chase.com'. */
+function hostBlocked(patterns: string[]): boolean {
+  const host = window.location.hostname;
+  return patterns.some((p) => host === p || host.endsWith('.' + p));
+}
 
 async function refreshHiddenSites() {
   const res = await sendRequest<SettingsResponse>({ type: 'GET_SETTINGS' });
   if (res.type === 'SETTINGS') {
     hiddenSites = new Set(res.settings.hiddenSites);
+    neverRunSites = res.settings.neverRunSites ?? [];
     contextBySite = res.settings.usePageContextBySite ?? {};
     appSettings = res.settings;
     panel.setCustomTones(res.settings.customTones ?? []);
@@ -58,6 +66,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
         }
       | undefined;
     hiddenSites = new Set(s?.hiddenSites ?? []);
+    neverRunSites = (s as { neverRunSites?: string[] } | undefined)?.neverRunSites ?? neverRunSites;
     contextBySite = s?.usePageContextBySite ?? {};
     panel.setCustomTones(s?.customTones ?? []);
     void refreshDebugEnabled();
@@ -66,7 +75,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 function siteIsHidden(): boolean {
-  return hiddenSites.has(hostname) || hiddenSites.has(window.location.host);
+  if (hiddenSites.has(hostname) || hiddenSites.has(window.location.host)) return true;
+  // Never-run list (P7.3): user-edited, falling back to the defaults.
+  const list = neverRunSites.length ? neverRunSites : DEFAULT_NEVER_RUN_SITES;
+  return hostBlocked(list);
 }
 
 // Page context defaults ON for both tabs; per-site override persists.

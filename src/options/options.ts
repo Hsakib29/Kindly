@@ -355,3 +355,45 @@ async function initTonesAndVoice() {
 }
 
 void initTonesAndVoice();
+
+// ---------- Never-run sites (P7.3) ----------
+
+const neverRunArea = document.getElementById('never-run') as HTMLTextAreaElement;
+const sitesStatus = document.getElementById('sites-status') as HTMLParagraphElement;
+
+async function initNeverRun() {
+  const settings = await getSettings();
+  // First run: seed the editable list with the defaults so the user can
+  // remove entries — an explicitly emptied list then means "allow all".
+  if (settings.neverRunSites.length === 0) {
+    const { DEFAULT_NEVER_RUN_SITES } = await import('../shared/messages');
+    await sendRequest<ExtensionResponse>({
+      type: 'SET_SETTINGS',
+      patch: { neverRunSites: [...DEFAULT_NEVER_RUN_SITES] },
+    });
+    neverRunArea.value = DEFAULT_NEVER_RUN_SITES.join('\n');
+    return;
+  }
+  neverRunArea.value = settings.neverRunSites.join('\n');
+}
+
+let neverRunTimer: number | undefined;
+neverRunArea.addEventListener('input', () => {
+  window.clearTimeout(neverRunTimer);
+  neverRunTimer = window.setTimeout(async () => {
+    const lines = neverRunArea.value
+      .split('\n')
+      .map((l) => l.trim().toLowerCase())
+      .filter(Boolean);
+    const res = await sendRequest<ExtensionResponse>({
+      type: 'SET_SETTINGS',
+      patch: { neverRunSites: lines },
+    });
+    if (res.type === 'SETTINGS') {
+      sitesStatus.textContent = 'Saved.';
+      sitesStatus.className = 'status ok';
+    }
+  }, 600);
+});
+
+void initNeverRun();

@@ -209,6 +209,17 @@
       }
       .tone-item .name { font-weight: 600; min-width: 140px; }
       .tone-item .instr { flex: 1; color: #888; font-size: 0.9rem; }
+      #never-run {
+        width: 100%;
+        max-width: 480px;
+        padding: 0.5rem 0.6rem;
+        border: 1px solid #8886;
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+        font: 0.9rem/1.5 ui-monospace, monospace;
+        resize: vertical;
+      }
       .tone-item button {
         border: 1px solid #8886;
         background: transparent;
@@ -228,6 +239,7 @@
       <button data-section="models">Models</button>
       <button data-section="tones">Tones</button>
       <button data-section="brand-voice">Brand voice</button>
+      <button data-section="sites">Sites</button>
       <button data-section="privacy">Privacy</button>
       <button data-section="developer">Developer</button>
     </nav>
@@ -318,6 +330,15 @@
         </fieldset>
       </div>
       <p id="bv-status" class="status" role="status"></p>
+    </section>
+    <section id="sites" hidden>
+      <h2>Sites</h2>
+      <p>
+        Never run on these sites — the icon and context reading stay off. One hostname per line
+        (subdomains are covered, e.g. <code>chase.com</code> also blocks <code>secure.chase.com</code>).
+      </p>
+      <textarea id="never-run" rows="8" spellcheck="false"></textarea>
+      <p id="sites-status" class="status" role="status"></p>
     </section>
     <section id="privacy" hidden>
       <h2>Privacy</h2>
