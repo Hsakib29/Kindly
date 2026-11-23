@@ -152,7 +152,7 @@ export class RewritePanel {
         }
         .chip:hover { border-color: #4f7cff; }
         .chip.selected { background: #4f7cff; border-color: #4f7cff; color: #fff; }
-        .chip:focus-visible { outline: 2px solid #4f7cff; outline-offset: 1px; }
+        .chip:focus-visible, .card:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid #4f7cff; outline-offset: 1px; }
         .body { padding: 0 10px 10px; overflow-y: auto; flex: 1; min-height: 60px; }
         .placeholder, .hint { color: #9aa0ae; padding: 14px 4px; text-align: center; }
         .card {
@@ -882,6 +882,9 @@ export class RewritePanel {
       const card = document.createElement('div');
       card.className = 'card' + (i === 0 ? ' selected' : '');
       card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      card.setAttribute('aria-pressed', String(i === 0));
+      card.setAttribute('aria-label', `Variant ${i + 1}: ${v.label}`);
       card.innerHTML = `<div class="label">${escapeHtml(v.label)}</div><div class="text">${escapeHtml(v.text)}</div>`;
       const select = () => {
         this.selectedVariant = i;
@@ -1012,6 +1015,9 @@ export class RewritePanel {
       const card = document.createElement('div');
       card.className = 'card' + (i === 0 ? ' selected' : '');
       card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      card.setAttribute('aria-pressed', String(i === 0));
+      card.setAttribute('aria-label', `Variant ${i + 1}: ${v.label}`);
       card.innerHTML = `<div class="label">${escapeHtml(v.label)}</div><div class="text">${escapeHtml(v.text)}</div>`;
       const select = () => {
         this.writeSelected = i;
