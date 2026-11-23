@@ -225,6 +225,11 @@ export class RewritePanel {
           animation: shimmer 1.2s infinite;
         }
         @keyframes shimmer { to { background-position: -200% 0; } }
+        .result-note {
+          font-size: 11px;
+          color: #9aa0ae;
+          margin: -4px 0 8px;
+        }
         .error-box { padding: 10px; font-size: 12px; }
         .error-box .msg { margin-bottom: 8px; }
         .model-tag {
@@ -787,13 +792,15 @@ export class RewritePanel {
     this.copyButton.disabled = true;
   }
 
-  showVariants(variants: Variant[]) {
+  showVariants(variants: Variant[], note?: string) {
     this.variants = variants;
     this.selectedVariant = variants.length > 0 ? 0 : -1;
     this.useButton.disabled = this.selectedVariant === -1;
     this.copyButton.disabled = this.selectedVariant === -1;
     this.generateButton.textContent = 'Regenerate';
-    this.bodyEl.innerHTML = '';
+    this.bodyEl.innerHTML = note
+      ? `<div class="result-note">${escapeHtml(note)}</div>`
+      : '';
     variants.forEach((v, i) => {
       const card = document.createElement('div');
       card.className = 'card' + (i === 0 ? ' selected' : '');

@@ -162,11 +162,11 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
         };
       }
       const trimmed = request.text.trim();
-      if (trimmed.length < 15) {
+      if (trimmed.length === 0) {
         return {
           type: 'ERROR',
           requestId: request.requestId,
-          error: { code: 'TEXT_TOO_SHORT', message: 'Text is too short to rewrite.' },
+          error: { code: 'TEXT_TOO_SHORT', message: 'Nothing to rewrite.' },
         };
       }
       if (trimmed.length > 8000) {
@@ -232,6 +232,7 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
           requestId: request.requestId,
           variants: quality.variants,
           model: quality.model,
+          mode: built.mode,
         };
       } catch (err) {
         const apiError = toApiError(err);
@@ -323,6 +324,7 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
           requestId: request.requestId,
           variants: quality.variants,
           model: quality.model,
+          mode: built.mode,
         };
       } catch (err) {
         const apiError = toApiError(err);

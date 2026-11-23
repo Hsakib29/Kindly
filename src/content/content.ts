@@ -122,7 +122,7 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
   const selection = getFieldSelection(field) ?? undefined;
   const text = selection?.text ?? readFieldText(field);
   if (text.trim().length === 0) {
-    panel.showHint('Type a message first, then pick a tone.');
+    panel.showHint('Type a few words first, or use the Write tab.');
     return;
   }
   pendingSelection = selection;
@@ -164,7 +164,10 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
     if (res.type === 'REWRITE_RESULT' && res.requestId === requestId) {
       lastVariants = res.variants;
       panel.setModelTag(res.model);
-      panel.showVariants(res.variants);
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      const note =
+        res.mode === 'expand' && words <= 8 ? 'Expanded from your short text' : undefined;
+      panel.showVariants(res.variants, note);
     } else if (res.type === 'ERROR') {
       showRequestError((res as ErrorResponse).error);
     } else {
