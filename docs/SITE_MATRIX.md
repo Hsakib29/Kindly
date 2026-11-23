@@ -5,7 +5,8 @@ Insertion results per site. Fill in Pass/Fail + notes after testing
 
 | Site | Field type | Method that worked | Result | Notes |
 | ---- | ---------- | ------------------ | ------ | ----- |
-| Gmail compose | contenteditable | | | |
+| Gmail compose | contenteditable | execCommand | Pass | Message Body div; panel + insert verified |
+| ChatGPT composer | contenteditable (ProseMirror) | execCommand | Pass | "Ask ChatGPT" box |
 | Outlook web | contenteditable | | | |
 | Zendesk | | | | |
 | Intercom | | | | |
