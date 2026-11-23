@@ -144,6 +144,16 @@
       .status.err {
         color: #cf222e;
       }
+      .check-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0.5rem 0;
+      }
+      .warn {
+        font-size: 0.85rem;
+        color: #b58900;
+      }
     </style>
   </head>
   <body>
@@ -155,6 +165,7 @@
       <button data-section="tones">Tones</button>
       <button data-section="brand-voice">Brand voice</button>
       <button data-section="privacy">Privacy</button>
+      <button data-section="developer">Developer</button>
     </nav>
     <section id="api-key">
       <h2>API key</h2>
@@ -221,6 +232,14 @@
         Kindly sends text to Google's Gemini API only when you click. Your key is stored locally in
         this browser.
       </p>
+    </section>
+    <section id="developer" hidden>
+      <h2>Developer</h2>
+      <label class="check-row">
+        <input type="checkbox" id="debug-logging" />
+        <span>Log details to the console (for testing)</span>
+      </label>
+      <p class="warn">Warning: logs may include customer text. Turn off when done testing.</p>
     </section>
     <script type="module" src="./src/options/options.ts"></script>
   </body>

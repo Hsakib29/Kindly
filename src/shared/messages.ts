@@ -102,6 +102,8 @@ export interface Settings {
   brandVoice: BrandVoice;
   routerPreference: 'auto' | 'speed' | 'quality';
   usePageContextBySite: Record<string, boolean>;
+  /** Developer: log request/context details to consoles. Default off. */
+  debug: boolean;
 }
 
 export const SETTINGS_DEFAULTS: Settings = {
@@ -111,4 +113,5 @@ export const SETTINGS_DEFAULTS: Settings = {
   brandVoice: {},
   routerPreference: 'auto',
   usePageContextBySite: {},
+  debug: false,
 };

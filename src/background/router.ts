@@ -82,6 +82,8 @@ export interface RoutedResult {
   variants: Variant[];
   model: string;
   fellBack: boolean;
+  /** Models attempted, in order (for debug logging). */
+  attempts: string[];
 }
 
 /**
@@ -102,12 +104,14 @@ export async function generateRouted(
     candidates.push(...order.filter((m) => !isCooling(m)));
   }
 
+  const attempts: string[] = [];
   let lastError: GeminiError | null = null;
   for (const model of candidates) {
+    attempts.push(model);
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const variants = await generateVariants({ ...options, model });
-        return { variants, model, fellBack: model !== candidates[0] };
+        return { variants, model, fellBack: model !== candidates[0], attempts };
       } catch (err) {
         const apiErr =
           err instanceof GeminiError

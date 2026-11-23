@@ -201,3 +201,24 @@ async function initRouter() {
 }
 
 void initRouter();
+
+// ---------- Developer section (debug logging) ----------
+
+const debugCheckbox = document.getElementById('debug-logging') as HTMLInputElement;
+
+async function initDebug() {
+  const settings = await getSettings();
+  debugCheckbox.checked = settings.debug;
+}
+
+debugCheckbox.addEventListener('change', async () => {
+  const res = await sendRequest<ExtensionResponse>({
+    type: 'SET_SETTINGS',
+    patch: { debug: debugCheckbox.checked },
+  });
+  if (res.type === 'SETTINGS') {
+    debugCheckbox.checked = res.settings.debug;
+  }
+});
+
+void initDebug();

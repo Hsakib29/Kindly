@@ -35,3 +35,18 @@ src/shared/            Shared types and helpers (added in P1.1)
 - The content script is bundled separately with esbuild (`--format=iife`) because
   `content_scripts` must be classic scripts, not ES modules.
 - Never commit API keys. Test keys go in a git-ignored file (e.g. `key.txt`).
+
+## Testing and debugging
+
+Debug logging is OFF by default. Enable it in **Options → Developer → "Log details to the console (for testing)"**.
+
+Where the logs appear:
+
+- **Page logs** (context extraction stats): open DevTools (`F12`) on the web page and check the **Console** tab. Filter for `[Kindly]`.
+- **Service worker logs** (Gemini requests: task, model attempts, prompt, timing): go to `chrome://extensions`, find Kindly, and click the **service worker** link — that opens its DevTools console.
+
+Each Gemini request is wrapped in a collapsed `console.groupCollapsed` — click it to expand the full prompt and response time. The API key is never logged.
+
+Quick toggle without opening options: there is no page-console command (content scripts run in an isolated world). Use the options checkbox, or send `{type:'SET_SETTINGS', patch:{debug:true}}` via `chrome.runtime.sendMessage` from the options page console.
+
+To strip all debug code from a build, set `STRIP_DEBUG_LOGS = true` in `src/shared/debug.ts` before building.

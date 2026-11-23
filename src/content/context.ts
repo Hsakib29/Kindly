@@ -13,6 +13,15 @@ export interface PageContext {
   nearField: string;
   /** Rough count of message-like blocks found (for the status chip). */
   messageCount: number;
+  /** Debug stats — populated always, logged only when debug is on. */
+  stats: {
+    ms: number;
+    visited: number;
+    chars: number;
+    trimmed: boolean;
+    maskedCount: number;
+    empty: boolean;
+  };
 }
 
 const CONTEXT_BUDGET = 6000; // chars sent to Gemini
@@ -41,13 +50,25 @@ function isInlineHidden(el: Element): boolean {
  * hidden subtrees, within strict time/node/text budgets. Returns the
  * OLDEST-FIRST join; callers tail-budget it so recent content wins.
  */
-function collectText(root: Element, deadline: number): string {
+interface CollectResult {
+  text: string;
+  visited: number;
+  hitCap: boolean;
+}
+
+function collectText(root: Element, deadline: number): CollectResult {
   const blocks = root.querySelectorAll(TEXT_BLOCK_SELECTOR);
   const parts: string[] = [];
+  let visited = 0;
   let chars = 0;
+  let hitCap = false;
 
   for (const el of Array.from(blocks)) {
-    if (Date.now() > deadline || chars > EXTRACT_TEXT_CAP) break;
+    visited++;
+    if (Date.now() > deadline || chars > EXTRACT_TEXT_CAP) {
+      hitCap = true;
+      break;
+    }
     // Skip anything inside boilerplate/hidden containers (one closest() call).
     if (el.closest(BOILERPLATE_SELECTOR) || isInlineHidden(el)) continue;
     const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
@@ -55,7 +76,7 @@ function collectText(root: Element, deadline: number): string {
     parts.push(text);
     chars += text.length;
   }
-  return parts.join('\n');
+  return { text: parts.join('\n'), visited, hitCap };
 }
 
 /** Pick the most content-dense block as the "main" region. */
@@ -97,15 +118,23 @@ function tailBudget(text: string, budget: number): string {
   return '…' + collapsed.slice(collapsed.length - budget);
 }
 
-/** Mask card-like numbers and long opaque tokens before sending. */
-export function maskSecrets(text: string): string {
-  return (
-    text
-      // 13-19 digit card-like numbers (allow spaces/dashes between groups)
-      .replace(/\b(?:\d[ -]?){13,19}\b/g, '[card number removed]')
-      // long hex/base64-ish tokens (API keys, JWTs, session ids)
-      .replace(/\b[A-Za-z0-9_-]{32,}\b/g, '[token removed]')
-  );
+/** Mask card-like numbers and long opaque tokens; returns masked count. */
+export function maskSecrets(text: string): { text: string; masked: number } {
+  let masked = 0;
+  const cardRe = /\b(?:\d[ -]?){13,19}\b/g;
+  const tokenRe = /\b[A-Za-z0-9_-]{32,}\b/g;
+  const out = text
+    // 13-19 digit card-like numbers (allow spaces/dashes between groups)
+    .replace(cardRe, () => {
+      masked++;
+      return '[card number removed]';
+    })
+    // long hex/base64-ish tokens (API keys, JWTs, session ids)
+    .replace(tokenRe, () => {
+      masked++;
+      return '[token removed]';
+    });
+  return { text: out, masked };
 }
 
 /**
@@ -113,12 +142,13 @@ export function maskSecrets(text: string): string {
  * the PRIMARY context (the thing they're responding to).
  */
 export function extractPageContext(field: HTMLElement): PageContext {
+  const started = performance.now();
   const selection = window.getSelection();
   const selected = selection && !selection.isCollapsed ? selection.toString().trim() : '';
 
   const deadline = Date.now() + EXTRACT_TIME_BUDGET_MS;
   const mainRoot = pickMainRoot(document);
-  const mainText = collectText(mainRoot, deadline);
+  const collected = collectText(mainRoot, deadline);
   // The field's own ancestors may live outside <main>; merge near-field text.
   const near = nearFieldText(field);
 
@@ -129,18 +159,25 @@ export function extractPageContext(field: HTMLElement): PageContext {
   // then main text fills the remainder.
   let remaining = CONTEXT_BUDGET;
   const parts: string[] = [];
+  let maskedCount = 0;
+  let trimmed = false;
 
   const push = (label: string, text: string, budget: number) => {
-    const trimmed = tailBudget(maskSecrets(text), Math.min(budget, remaining));
-    if (trimmed) {
-      parts.push(`--- ${label} ---\n${trimmed}`);
-      remaining -= trimmed.length;
+    const masked = maskSecrets(text);
+    maskedCount += masked.masked;
+    const cap = Math.min(budget, remaining);
+    if (masked.text.length > cap) trimmed = true;
+    const trimmedText = tailBudget(masked.text, cap);
+    if (trimmedText) {
+      parts.push(`--- ${label} ---\n${trimmedText}`);
+      remaining -= trimmedText.length;
     }
   };
 
   if (selected) push('Selected text', selected, 2000);
   push('Near the text field', near, NEAR_FIELD_BUDGET);
-  if (remaining > 200) push('Page content', mainText, remaining);
+  if (remaining > 200) push('Page content', collected.text, remaining);
+  if (collected.hitCap || collected.text.length > EXTRACT_TEXT_CAP) trimmed = true;
 
   // Rough message count for the "Read N messages" chip: article/comment/
   // message-like blocks on the page, capped for sanity.
@@ -151,11 +188,20 @@ export function extractPageContext(field: HTMLElement): PageContext {
     999,
   );
 
+  const mainText = parts.join('\n\n');
   return {
     title,
     url,
-    mainText: parts.join('\n\n'),
+    mainText,
     nearField: near,
     messageCount,
+    stats: {
+      ms: Math.round((performance.now() - started) * 10) / 10,
+      visited: collected.visited,
+      chars: mainText.length,
+      trimmed,
+      maskedCount,
+      empty: mainText.trim().length === 0,
+    },
   };
 }

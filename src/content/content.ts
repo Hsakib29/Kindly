@@ -7,7 +7,8 @@ import {
   readFieldText,
   type FieldSelection,
 } from './inserter';
-import { extractPageContext } from './context';
+import { extractPageContext, type PageContext } from './context';
+import { debugLog, refreshDebugEnabled } from '../shared/debug';
 import { UndoToast } from './toast';
 import { KindlyIcon } from './icon';
 import { FieldUiController } from './field-ui';
@@ -20,6 +21,7 @@ type ErrorResponse = Extract<ExtensionResponse, { type: 'ERROR' }>;
 type SettingsResponse = Extract<ExtensionResponse, { type: 'SETTINGS' }>;
 
 console.log('[Kindly] content script loaded');
+void refreshDebugEnabled();
 
 // P0.3 plumbing check.
 chrome.runtime.sendMessage({ type: 'PING' }, (response) => {
@@ -49,6 +51,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
       | undefined;
     hiddenSites = new Set(s?.hiddenSites ?? []);
     contextBySite = s?.usePageContextBySite ?? {};
+    void refreshDebugEnabled();
     ui?.resync();
   }
 });
@@ -60,6 +63,25 @@ function siteIsHidden(): boolean {
 // Page context defaults ON for both tabs; per-site override persists.
 function contextEnabled(): boolean {
   return contextBySite[hostname] ?? contextBySite[window.location.host] ?? true;
+}
+
+/** Extract context and, when debug is on, log what was read. */
+function collectContext(field: HTMLElement): PageContext {
+  const pc = extractPageContext(field);
+  const s = pc.stats;
+  if (s.empty) {
+    debugLog(
+      `context: none on ${hostname} — no readable text blocks (visited=${s.visited}, ms=${s.ms})`,
+    );
+  } else {
+    debugLog(
+      `context @ ${hostname}: extractor=generic ms=${s.ms} visited=${s.visited} ` +
+        `messages=${pc.messageCount} chars=${s.chars} trimmed=${s.trimmed} masked=${s.maskedCount}`,
+    );
+    debugLog('context head:', JSON.stringify(pc.mainText.slice(0, 200)));
+    debugLog('context tail:', JSON.stringify(pc.mainText.slice(-200)));
+  }
+  return pc;
 }
 
 // ---------- Rewrite state ----------
@@ -105,7 +127,7 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
   // per-site toggle is on; the chip reports exactly what was read.
   let context: string | undefined;
   if (contextEnabled()) {
-    const pc = extractPageContext(field);
+    const pc = collectContext(field);
     context = pc.mainText.trim() ? pc.mainText : undefined;
     panel.setContextChip(
       context
@@ -333,7 +355,7 @@ const panel: RewritePanel = new RewritePanel({
   getWriteContext: (): string | undefined => {
     const field: HTMLElement | null | undefined = ui?.activeField;
     if (!field) return undefined;
-    const pc = extractPageContext(field);
+    const pc = collectContext(field);
     return pc.mainText.trim() ? pc.mainText : undefined;
   },
   getContextEnabled: () => contextEnabled(),

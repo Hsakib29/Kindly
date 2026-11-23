@@ -70,7 +70,6 @@ export class RewritePanel {
   private writeToneEl!: HTMLSelectElement;
   private writeLenEl!: HTMLSelectElement;
   private ctxToggleEl!: HTMLInputElement;
-  private ctxPreviewEl!: HTMLPreElement;
   private writeBodyEl!: HTMLElement;
   private writeInstrInput!: HTMLInputElement;
   private writeUseBtn!: HTMLButtonElement;
@@ -82,7 +81,6 @@ export class RewritePanel {
   private writeLastInstruction = '';
   // Rewrite-tab context row
   private ctxRewriteToggle!: HTMLInputElement;
-  private ctxPreviewPreR!: HTMLPreElement;
   private ctxChipEl!: HTMLElement;
   private onDocumentClick: ((e: Event) => void) | null = null;
   private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
@@ -449,10 +447,8 @@ export class RewritePanel {
           <div class="chips" role="toolbar" aria-label="Tone"></div>
           <div class="ctx-row">
             <label class="ctx-toggle"><input type="checkbox" class="ctx-rewrite" checked /> Page context</label>
-            <button type="button" class="preview-btn ctx-rw-preview">Preview context</button>
             <span class="ctx-chip"></span>
           </div>
-          <pre class="ctx-preview ctx-rw-pre" hidden></pre>
           <div class="body"></div>
           <div class="recent" hidden></div>
           <div class="instruction">
@@ -478,8 +474,6 @@ export class RewritePanel {
               </select>
               <label class="ctx-toggle"><input type="checkbox" checked /> Page context</label>
             </div>
-            <button type="button" class="preview-btn">Preview context</button>
-            <pre class="ctx-preview" hidden></pre>
           </div>
           <div class="body write-body"></div>
           <div class="write-instruction">
@@ -539,7 +533,6 @@ export class RewritePanel {
     this.ctxToggleEl.addEventListener('change', () =>
       this.callbacks.onContextToggle?.(this.ctxToggleEl.checked),
     );
-    this.ctxPreviewEl = writePage.querySelector('.ctx-preview') as HTMLPreElement;
     this.writeBodyEl = writePage.querySelector('.write-body') as HTMLElement;
     this.writeInstrInput = writePage.querySelector(
       '.write-instruction input',
@@ -564,39 +557,15 @@ export class RewritePanel {
     // ---------- Rewrite-tab context row ----------
     const rewritePage = shadow.querySelector('#page-rewrite') as HTMLElement;
     this.ctxRewriteToggle = rewritePage.querySelector('.ctx-rewrite') as HTMLInputElement;
-    this.ctxPreviewPreR = rewritePage.querySelector('.ctx-rw-pre') as HTMLPreElement;
     this.ctxChipEl = rewritePage.querySelector('.ctx-chip') as HTMLElement;
     this.ctxRewriteToggle.addEventListener('change', () =>
       this.callbacks.onContextToggle?.(this.ctxRewriteToggle.checked),
-    );
-    (rewritePage.querySelector('.ctx-rw-preview') as HTMLButtonElement).addEventListener(
-      'click',
-      () => {
-        const ctx = this.callbacks.getWriteContext?.();
-        this.ctxPreviewPreR.textContent = ctx?.trim()
-          ? ctx
-          : '(no page context could be extracted)';
-        this.ctxPreviewPreR.hidden = !this.ctxPreviewPreR.hidden;
-      },
     );
 
     // Tab switching.
     for (const btn of Array.from(shadow.querySelectorAll<HTMLButtonElement>('.tab-btn'))) {
       btn.addEventListener('click', () => this.setTab(btn.dataset.tab === 'write' ? 'write' : 'rewrite'));
     }
-
-    // Preview context shows EXACTLY what will be sent (P6.4).
-    const previewBtn = writePage.querySelector('.preview-btn') as HTMLButtonElement;
-    previewBtn.addEventListener('click', () => {
-      const ctx = this.callbacks.getWriteContext?.();
-      this.ctxPreviewEl.textContent = ctx?.trim()
-        ? ctx
-        : this.ctxToggleEl.checked
-          ? '(no page context could be extracted)'
-          : '(page context is turned off)';
-      this.ctxPreviewEl.hidden = !this.ctxPreviewEl.hidden;
-      previewBtn.textContent = this.ctxPreviewEl.hidden ? 'Preview context' : 'Hide context';
-    });
 
     this.writeGenBtn.addEventListener('click', () => {
       const req = this.buildWriteRequest();

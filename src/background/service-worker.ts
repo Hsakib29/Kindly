@@ -8,6 +8,7 @@ import {
   buildWritePrompt,
 } from '../shared/prompts';
 import type { ApiError, ExtensionRequest, ExtensionResponse } from '../shared/messages';
+import { debugEnabled, debugGroup, debugGroupEnd, debugLog, setDebugEnabled } from '../shared/debug';
 
 console.log('[Kindly] service worker started');
 
@@ -78,21 +79,35 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
       }
       try {
         const settings = await getSettings();
+        setDebugEnabled(settings.debug);
+        const userPrompt = buildRewritePrompt({
+          text: trimmed,
+          tone: request.tone,
+          instruction: request.instruction,
+          avoid: request.avoid,
+          context: request.context,
+        });
         const controller = new AbortController();
         pendingRequests.set(request.requestId, controller);
-        const { variants, model } = await generateRouted({
+        const t0 = performance.now();
+        const { variants, model, fellBack, attempts } = await generateRouted({
           key,
           routerPreference: settings.routerPreference,
           signal: controller.signal,
           systemInstruction: SYSTEM_PROMPT,
-          userPrompt: buildRewritePrompt({
-            text: trimmed,
-            tone: request.tone,
-            instruction: request.instruction,
-            avoid: request.avoid,
-            context: request.context,
-          }),
+          userPrompt,
         });
+        const ms = Math.round(performance.now() - t0);
+        if (debugEnabled()) {
+          debugGroup(`REWRITE (${request.tone})`);
+          debugLog('task: rewrite | tone:', request.tone);
+          debugLog('model:', model, '| fellBack:', fellBack, '| attempts:', attempts.join(' → '));
+          debugLog('instruction:', request.instruction ? 'yes' : 'no');
+          debugLog('context:', request.context ? `${request.context.length} chars` : 'none');
+          debugLog('prompt:\n' + userPrompt);
+          debugLog(`response: ${variants.length} variants in ${ms}ms`);
+          debugGroupEnd();
+        }
         return { type: 'REWRITE_RESULT', requestId: request.requestId, variants, model };
       } catch (err) {
         const apiError = toApiError(err);
@@ -133,22 +148,36 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
       }
       try {
         const settings = await getSettings();
+        setDebugEnabled(settings.debug);
+        const userPrompt = buildWritePrompt({
+          prompt,
+          context: request.context,
+          tone: request.tone,
+          length: request.length,
+          instruction: request.instruction,
+          draft: request.draft,
+        });
         const controller = new AbortController();
         pendingRequests.set(request.requestId, controller);
-        const { variants, model } = await generateRouted({
+        const t0 = performance.now();
+        const { variants, model, fellBack, attempts } = await generateRouted({
           key,
           routerPreference: settings.routerPreference,
           signal: controller.signal,
           systemInstruction: WRITE_SYSTEM_PROMPT,
-          userPrompt: buildWritePrompt({
-            prompt,
-            context: request.context,
-            tone: request.tone,
-            length: request.length,
-            instruction: request.instruction,
-            draft: request.draft,
-          }),
+          userPrompt,
         });
+        const ms = Math.round(performance.now() - t0);
+        if (debugEnabled()) {
+          debugGroup('WRITE');
+          debugLog('task: write | tone:', request.tone ?? 'none', '| length:', request.length ?? 'any');
+          debugLog('model:', model, '| fellBack:', fellBack, '| attempts:', attempts.join(' → '));
+          debugLog('instruction:', request.instruction ? 'yes' : 'no', '| draft:', request.draft ? 'yes' : 'no');
+          debugLog('context:', request.context ? `${request.context.length} chars` : 'none');
+          debugLog('prompt:\n' + userPrompt);
+          debugLog(`response: ${variants.length} variants in ${ms}ms`);
+          debugGroupEnd();
+        }
         return { type: 'WRITE_RESULT', requestId: request.requestId, variants, model };
       } catch (err) {
         const apiError = toApiError(err);
