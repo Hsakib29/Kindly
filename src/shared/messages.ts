@@ -78,6 +78,10 @@ export type ExtensionRequest =
       context?: string;
       /** Structured context brief (preferred over `context`). */
       brief?: ContextBriefData;
+      /** Custom tone preset instruction (P7.2). */
+      customToneInstruction?: string;
+      /** Brand voice settings (P7.1). */
+      brandVoice?: BrandVoice;
     }
   | {
       type: 'WRITE';
@@ -92,6 +96,12 @@ export type ExtensionRequest =
       draft?: string;
       /** Structured context brief. */
       brief?: ContextBriefData;
+      /** Custom tone preset instruction (P7.2). */
+      customToneInstruction?: string;
+      /** Brand voice settings (P7.1). */
+      brandVoice?: BrandVoice;
+      /** Saved reply to attach as knowledge (P7.4). */
+      savedReply?: SavedReply;
     }
   | { type: 'CANCEL'; requestId: string }
   | { type: 'GET_SETTINGS' }
@@ -119,11 +129,28 @@ export interface BrandVoice {
   formality?: 'casual' | 'neutral' | 'formal';
 }
 
+export interface CustomTone {
+  id: string;
+  name: string;
+  /** Free-text style instruction applied when the preset is picked. */
+  instruction: string;
+  pinned: boolean;
+}
+
+export interface SavedReply {
+  id: string;
+  title: string;
+  /** The exact wording Gemini should reuse. */
+  text: string;
+}
+
 export interface Settings {
   schemaVersion: number;
   hiddenSites: string[];
   neverRunSites: string[];
   brandVoice: BrandVoice;
+  customTones: CustomTone[];
+  savedReplies: SavedReply[];
   routerPreference: 'auto' | 'speed' | 'quality';
   usePageContextBySite: Record<string, boolean>;
   /** Developer: log request/context details to consoles. Default off. */
@@ -135,6 +162,8 @@ export const SETTINGS_DEFAULTS: Settings = {
   hiddenSites: [],
   neverRunSites: [],
   brandVoice: {},
+  customTones: [],
+  savedReplies: [],
   routerPreference: 'auto',
   usePageContextBySite: {},
   debug: false,

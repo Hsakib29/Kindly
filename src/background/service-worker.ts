@@ -189,6 +189,8 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
           instruction: request.instruction,
           avoid: request.avoid,
           brief,
+          customToneInstruction: request.customToneInstruction,
+          brandVoice: settings.brandVoice,
         });
         const userPrompt = built.userPrompt;
         const controller = new AbortController();
@@ -285,6 +287,9 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
           length: request.length,
           instruction: request.instruction,
           brief,
+          customToneInstruction: request.customToneInstruction,
+          brandVoice: settings.brandVoice,
+          savedReply: request.savedReply,
         });
         const userPrompt = built.userPrompt;
         const controller = new AbortController();

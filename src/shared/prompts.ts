@@ -1,4 +1,4 @@
-import type { ContextBriefData, ToneId } from './messages';
+import type { BrandVoice, ContextBriefData, SavedReply, ToneId } from './messages';
 
 const TONE_DESCRIPTIONS: Record<ToneId, string> = {
   professional:
@@ -59,6 +59,12 @@ export interface TaskPromptInput {
   reviseDraft?: string;
   /** Force a mode; otherwise chosen by draft length / mode. */
   mode?: TaskMode;
+  /** Brand voice settings (P7.1) — applied when enabled. */
+  brandVoice?: BrandVoice;
+  /** Custom tone preset instruction (P7.2). */
+  customToneInstruction?: string;
+  /** Saved reply attached as knowledge (P7.4). */
+  savedReply?: SavedReply;
 }
 
 const EXPAND_WORD_THRESHOLD = 8;
@@ -139,11 +145,33 @@ export function buildTaskPrompt(input: TaskPromptInput): BuiltTaskPrompt {
   }
   parts.push(`<draft>\n"""\n${input.draft}\n"""\n</draft>`);
 
-  // 4. Tone / length / instruction.
+  // 4. Tone / length / instruction / brand voice / custom tone / saved reply.
   const opts: string[] = [];
-  if (input.tone) opts.push(`tone: ${TONE_DESCRIPTIONS[input.tone]}`);
+  if (input.customToneInstruction?.trim()) {
+    opts.push(`style (custom preset — follow exactly): ${input.customToneInstruction.trim()}`);
+  } else if (input.tone) {
+    opts.push(`tone: ${TONE_DESCRIPTIONS[input.tone]}`);
+  }
   if (input.length) opts.push(`length: ${LENGTH_GUIDANCE[input.length]}`);
   if (opts.length) parts.push(`<preferences>\n${opts.join('\n')}\n</preferences>`);
+
+  const bv = input.brandVoice;
+  if (bv && (bv.companyName || bv.greeting || bv.closing || bv.wordsToUse?.length || bv.wordsToAvoid?.length || bv.formality)) {
+    const lines: string[] = ['Apply this brand voice to all variants:'];
+    if (bv.companyName) lines.push(`- Company name: ${bv.companyName}`);
+    if (bv.greeting) lines.push(`- Greeting to use: "${bv.greeting}"`);
+    if (bv.closing) lines.push(`- Closing to use: "${bv.closing}"`);
+    if (bv.formality) lines.push(`- Formality: ${bv.formality}`);
+    if (bv.wordsToUse?.length) lines.push(`- Prefer these words: ${bv.wordsToUse.join(', ')}`);
+    if (bv.wordsToAvoid?.length) lines.push(`- NEVER use these words: ${bv.wordsToAvoid.join(', ')}`);
+    parts.push(`<brand_voice>\n${lines.join('\n')}\n</brand_voice>`);
+  }
+
+  if (input.savedReply) {
+    parts.push(
+      `<approved_reply name="${input.savedReply.title}">\nThe user attached this approved wording — reuse its facts and phrasing exactly, do not add details:\n"""\n${input.savedReply.text}\n"""\n</approved_reply>`,
+    );
+  }
   if (input.instruction?.trim()) {
     parts.push(`<instruction>\n${input.instruction.trim()}\n</instruction>`);
   }

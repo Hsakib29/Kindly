@@ -36,22 +36,30 @@ chrome.runtime.sendMessage({ type: 'PING' }, (response) => {
 const hostname = window.location.hostname;
 let hiddenSites = new Set<string>();
 let contextBySite: Record<string, boolean> = {};
+let appSettings: import('../shared/messages').Settings | null = null;
 
 async function refreshHiddenSites() {
   const res = await sendRequest<SettingsResponse>({ type: 'GET_SETTINGS' });
   if (res.type === 'SETTINGS') {
     hiddenSites = new Set(res.settings.hiddenSites);
     contextBySite = res.settings.usePageContextBySite ?? {};
+    appSettings = res.settings;
+    panel.setCustomTones(res.settings.customTones ?? []);
   }
 }
 void refreshHiddenSites();
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.settings) {
     const s = changes.settings.newValue as
-      | { hiddenSites?: string[]; usePageContextBySite?: Record<string, boolean> }
+      | {
+          hiddenSites?: string[];
+          usePageContextBySite?: Record<string, boolean>;
+          customTones?: import('../shared/messages').CustomTone[];
+        }
       | undefined;
     hiddenSites = new Set(s?.hiddenSites ?? []);
     contextBySite = s?.usePageContextBySite ?? {};
+    panel.setCustomTones(s?.customTones ?? []);
     void refreshDebugEnabled();
     ui?.resync();
   }
@@ -91,6 +99,7 @@ function collectBrief(field: HTMLElement, draftText: string) {
 // ---------- Rewrite state ----------
 
 let selectedTone: ToneId = 'professional';
+let customToneInstruction: string | undefined;
 let lastVariants: Variant[] = [];
 let lastInstruction = '';
 const recentInstructions: string[] = [];
@@ -159,6 +168,8 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
       instruction,
       avoid,
       brief,
+      customToneInstruction,
+      brandVoice: appSettings?.brandVoice,
     });
     if (epoch !== rewriteEpoch) return; // panel closed mid-flight — ignore
     if (res.type === 'REWRITE_RESULT' && res.requestId === requestId) {
@@ -217,6 +228,8 @@ async function requestWrite(req: WriteGenerateRequest) {
       context: req.brief?.contextText,
       brief: req.brief,
       draft: req.draft,
+      customToneInstruction: req.customToneInstruction,
+      brandVoice: appSettings?.brandVoice,
     });
     if (epoch !== rewriteEpoch) return;
     if (res.type === 'WRITE_RESULT' && res.requestId === requestId) {
@@ -290,8 +303,13 @@ function showRequestError(error: ApiError) {
 // ---------- Panel ----------
 
 const panel: RewritePanel = new RewritePanel({
-  onTone: (tone) => {
-    selectedTone = tone;
+  onTone: (tone, customInstruction) => {
+    if (tone) {
+      selectedTone = tone;
+      customToneInstruction = undefined;
+    } else if (customInstruction !== undefined) {
+      customToneInstruction = customInstruction;
+    }
   },
   onUse: (variant: Variant) => {
     const field = ui?.activeField;

@@ -222,3 +222,136 @@ debugCheckbox.addEventListener('change', async () => {
 });
 
 void initDebug();
+
+// ---------- Custom tones (P7.2) ----------
+
+const toneList = document.getElementById('tone-list') as HTMLElement;
+const toneName = document.getElementById('tone-name') as HTMLInputElement;
+const toneInstruction = document.getElementById('tone-instruction') as HTMLInputElement;
+const tonePinned = document.getElementById('tone-pinned') as HTMLInputElement;
+const toneAdd = document.getElementById('tone-add') as HTMLButtonElement;
+const toneStatus = document.getElementById('tone-status') as HTMLParagraphElement;
+
+let customTones: import('../shared/messages').CustomTone[] = [];
+
+function renderTones() {
+  toneList.innerHTML = '';
+  for (const t of customTones) {
+    const row = document.createElement('div');
+    row.className = 'tone-item';
+    row.innerHTML = `<span class="name"></span><span class="instr"></span>`;
+    (row.querySelector('.name') as HTMLElement).textContent = t.name + (t.pinned ? ' (pinned)' : '');
+    (row.querySelector('.instr') as HTMLElement).textContent = t.instruction;
+    const pin = document.createElement('button');
+    pin.type = 'button';
+    pin.textContent = t.pinned ? 'Unpin' : 'Pin';
+    pin.addEventListener('click', () => {
+      customTones = customTones.map((x) => (x.id === t.id ? { ...x, pinned: !x.pinned } : x));
+      void saveTones();
+    });
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.textContent = 'Delete';
+    del.addEventListener('click', () => {
+      customTones = customTones.filter((x) => x.id !== t.id);
+      void saveTones();
+    });
+    row.append(pin, del);
+    toneList.appendChild(row);
+  }
+}
+
+async function saveTones() {
+  const res = await sendRequest<ExtensionResponse>({
+    type: 'SET_SETTINGS',
+    patch: { customTones },
+  });
+  if (res.type === 'SETTINGS') {
+    customTones = res.settings.customTones;
+    renderTones();
+    toneStatus.textContent = 'Saved.';
+    toneStatus.className = 'status ok';
+  }
+}
+
+toneAdd.addEventListener('click', () => {
+  const name = toneName.value.trim();
+  const instruction = toneInstruction.value.trim();
+  if (!name || !instruction) {
+    toneStatus.textContent = 'Name and instruction are required.';
+    toneStatus.className = 'status err';
+    return;
+  }
+  customTones = [
+    ...customTones,
+    { id: crypto.randomUUID(), name, instruction, pinned: tonePinned.checked },
+  ];
+  toneName.value = '';
+  toneInstruction.value = '';
+  tonePinned.checked = false;
+  void saveTones();
+});
+
+// ---------- Brand voice (P7.1) ----------
+
+const bvCompany = document.getElementById('bv-company') as HTMLInputElement;
+const bvGreeting = document.getElementById('bv-greeting') as HTMLInputElement;
+const bvClosing = document.getElementById('bv-closing') as HTMLInputElement;
+const bvUse = document.getElementById('bv-use') as HTMLInputElement;
+const bvAvoid = document.getElementById('bv-avoid') as HTMLInputElement;
+const bvStatus = document.getElementById('bv-status') as HTMLParagraphElement;
+
+const splitCsv = (s: string) =>
+  s
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+async function saveBrandVoice() {
+  const formality = (
+    document.querySelector('input[name="bv-formality"]:checked') as HTMLInputElement
+  )?.value as 'casual' | 'neutral' | 'formal' | '' | undefined;
+  const res = await sendRequest<ExtensionResponse>({
+    type: 'SET_SETTINGS',
+    patch: {
+      brandVoice: {
+        companyName: bvCompany.value.trim() || undefined,
+        greeting: bvGreeting.value.trim() || undefined,
+        closing: bvClosing.value.trim() || undefined,
+        wordsToUse: splitCsv(bvUse.value),
+        wordsToAvoid: splitCsv(bvAvoid.value),
+        formality: formality || undefined,
+      },
+    },
+  });
+  if (res.type === 'SETTINGS') {
+    bvStatus.textContent = 'Saved.';
+    bvStatus.className = 'status ok';
+  }
+}
+
+for (const el of [bvCompany, bvGreeting, bvClosing, bvUse, bvAvoid]) {
+  el.addEventListener('change', () => void saveBrandVoice());
+}
+for (const radio of Array.from(document.querySelectorAll('input[name="bv-formality"]'))) {
+  radio.addEventListener('change', () => void saveBrandVoice());
+}
+
+async function initTonesAndVoice() {
+  const settings = await getSettings();
+  customTones = settings.customTones ?? [];
+  renderTones();
+  const bv = settings.brandVoice ?? {};
+  bvCompany.value = bv.companyName ?? '';
+  bvGreeting.value = bv.greeting ?? '';
+  bvClosing.value = bv.closing ?? '';
+  bvUse.value = (bv.wordsToUse ?? []).join(', ');
+  bvAvoid.value = (bv.wordsToAvoid ?? []).join(', ');
+  const f = bv.formality ?? '';
+  const radio = document.querySelector(`input[name="bv-formality"][value="${f}"]`) as
+    | HTMLInputElement
+    | null;
+  if (radio) radio.checked = true;
+}
+
+void initTonesAndVoice();

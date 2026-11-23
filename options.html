@@ -154,6 +154,70 @@
         font-size: 0.85rem;
         color: #b58900;
       }
+      .bv-grid {
+        display: grid;
+        gap: 0.6rem;
+        max-width: 480px;
+      }
+      .bv-grid label {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        font-size: 0.9rem;
+      }
+      .bv-grid input[type='text'] {
+        padding: 0.4rem 0.6rem;
+        border: 1px solid #8886;
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+      }
+      .bv-formality {
+        border: 1px solid #8886;
+        border-radius: 6px;
+        padding: 0.4rem 0.6rem;
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+      }
+      .bv-formality legend { font-size: 0.85rem; padding: 0 0.3rem; }
+      .bv-formality label { flex-direction: row; align-items: center; gap: 0.3rem; }
+      .tone-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+        margin: 0.75rem 0;
+      }
+      .tone-form input[type='text'] {
+        flex: 1;
+        min-width: 160px;
+        padding: 0.4rem 0.6rem;
+        border: 1px solid #8886;
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+      }
+      .tone-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0;
+        border-bottom: 1px solid #8883;
+      }
+      .tone-item .name { font-weight: 600; min-width: 140px; }
+      .tone-item .instr { flex: 1; color: #888; font-size: 0.9rem; }
+      .tone-item button {
+        border: 1px solid #8886;
+        background: transparent;
+        color: inherit;
+        border-radius: 6px;
+        padding: 0.2rem 0.6rem;
+        cursor: pointer;
+        font-size: 0.85rem;
+      }
     </style>
   </head>
   <body>
@@ -219,12 +283,41 @@
       <p id="router-status" class="status" role="status"></p>
     </section>
     <section id="tones" hidden>
-      <h2>Tones</h2>
-      <p>Tone presets will live here (P7.2).</p>
+      <h2>Custom tones</h2>
+      <p>
+        Create your own tone presets. Pinned presets appear first in the panel's chip row.
+      </p>
+      <div id="tone-list"></div>
+      <div class="tone-form">
+        <input id="tone-name" type="text" placeholder="Name (e.g. Empathetic support)" />
+        <input
+          id="tone-instruction"
+          type="text"
+          placeholder="Style instruction (e.g. warm, apologetic, never pushy)"
+        />
+        <label class="check-row"><input type="checkbox" id="tone-pinned" /> Pinned</label>
+        <button id="tone-add" type="button">Add tone</button>
+      </div>
+      <p id="tone-status" class="status" role="status"></p>
     </section>
     <section id="brand-voice" hidden>
       <h2>Brand voice</h2>
-      <p>Brand voice settings will live here (P7.1).</p>
+      <p>Applied to every rewrite and draft when filled in.</p>
+      <div class="bv-grid">
+        <label>Company name<input id="bv-company" type="text" placeholder="Acme Support" /></label>
+        <label>Greeting<input id="bv-greeting" type="text" placeholder="Hi there," /></label>
+        <label>Closing<input id="bv-closing" type="text" placeholder="Best regards," /></label>
+        <label>Words to prefer<input id="bv-use" type="text" placeholder="comma, separated" /></label>
+        <label>Words to avoid<input id="bv-avoid" type="text" placeholder="comma, separated" /></label>
+        <fieldset class="bv-formality">
+          <legend>Formality</legend>
+          <label><input type="radio" name="bv-formality" value="" checked /> Any</label>
+          <label><input type="radio" name="bv-formality" value="casual" /> Casual</label>
+          <label><input type="radio" name="bv-formality" value="neutral" /> Neutral</label>
+          <label><input type="radio" name="bv-formality" value="formal" /> Formal</label>
+        </fieldset>
+      </div>
+      <p id="bv-status" class="status" role="status"></p>
     </section>
     <section id="privacy" hidden>
       <h2>Privacy</h2>

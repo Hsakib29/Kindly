@@ -5,6 +5,7 @@ import {
   TONE_IDS,
   type ApiError,
   type ContextBriefData,
+  type CustomTone,
   type ToneId,
   type Variant,
 } from '../shared/messages';
@@ -36,12 +37,14 @@ export interface WriteGenerateRequest {
   length?: 'short' | 'medium' | 'long';
   instruction?: string;
   brief?: ContextBriefData;
+  customToneInstruction?: string;
   /** Existing draft to revise (follow-up instructions, P6.6). */
   draft?: string;
 }
 
 export interface PanelCallbacks {
-  onTone?: (tone: ToneId) => void;
+  /** tone=null means a custom preset was picked (customInstruction set). */
+  onTone?: (tone: ToneId | null, customInstruction?: string) => void;
   onUse?: (variant: Variant) => void;
   onGenerate?: () => void;
   onInstruction?: (instruction: string) => void;
@@ -81,6 +84,7 @@ export class RewritePanel {
   private writeVariants: Variant[] = [];
   private writeSelected = -1;
   private writeLastInstruction = '';
+  private customTones: CustomTone[] = [];
   // Rewrite-tab context chip
   private ctxChipEl!: HTMLElement;
   private onDocumentClick: ((e: Event) => void) | null = null;
@@ -760,6 +764,42 @@ export class RewritePanel {
       });
       this.chipsEl.appendChild(chip);
     }
+    // Custom tone presets (P7.2) — pinned first.
+    const sorted = [...this.customTones].sort((a, b) => Number(b.pinned) - Number(a.pinned));
+    for (const t of sorted) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip custom-tone';
+      chip.textContent = t.name;
+      chip.dataset.tone = `custom:${t.id}`;
+      chip.title = t.instruction;
+      chip.setAttribute('aria-pressed', 'false');
+      chip.addEventListener('click', () => {
+        for (const c of this.chipsEl.querySelectorAll('.chip')) {
+          c.classList.remove('selected');
+          c.setAttribute('aria-pressed', 'false');
+        }
+        chip.classList.add('selected');
+        chip.setAttribute('aria-pressed', 'true');
+        this.callbacks.onTone?.(null, t.instruction);
+      });
+      this.chipsEl.appendChild(chip);
+    }
+  }
+
+  /** Update custom tone presets (called when settings load/change). */
+  setCustomTones(tones: CustomTone[]) {
+    this.customTones = tones;
+    this.buildChips();
+    // Also offer them in the Write tab tone select.
+    for (const opt of Array.from(this.writeToneEl.querySelectorAll('.custom-opt'))) opt.remove();
+    for (const t of tones) {
+      const opt = document.createElement('option');
+      opt.className = 'custom-opt';
+      opt.value = `custom:${t.id}`;
+      opt.textContent = t.name;
+      this.writeToneEl.appendChild(opt);
+    }
   }
 
   selectTone(tone: ToneId) {
@@ -861,14 +901,30 @@ export class RewritePanel {
       this.showWriteHint('Describe what the reply should say first.');
       return null;
     }
-    const tone = (this.writeToneEl.value || undefined) as ToneId | undefined;
+    const toneRaw = this.writeToneEl.value;
+    let tone: ToneId | undefined;
+    let customToneInstruction: string | undefined;
+    if (toneRaw.startsWith('custom:')) {
+      customToneInstruction = this.customTones.find(
+        (t) => `custom:${t.id}` === toneRaw,
+      )?.instruction;
+    } else {
+      tone = (toneRaw || undefined) as ToneId | undefined;
+    }
     const length = (this.writeLenEl.value || undefined) as
       | 'short'
       | 'medium'
       | 'long'
       | undefined;
     const brief = this.callbacks.getWriteContext?.();
-    return { prompt, tone, length, instruction: this.writeLastInstruction || undefined, brief };
+    return {
+      prompt,
+      tone,
+      length,
+      instruction: this.writeLastInstruction || undefined,
+      brief,
+      customToneInstruction,
+    };
   }
 
   /** Called by content when a follow-up instruction should revise drafts. */
