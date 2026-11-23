@@ -463,3 +463,27 @@ document.addEventListener('input', (event) => {
   const field = fieldFromEvent(event);
   if (field) ui.noteInput(field);
 });
+
+// ---------- Keyboard shortcuts (P7.5) ----------
+// Alt+R opens the panel on the focused field, Alt+Shift+R re-runs the
+// last tone, Ctrl+Enter uses the selected variant, Esc closes.
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && panel.isOpen) {
+    e.preventDefault();
+    panel.close();
+    return;
+  }
+  if (panel.isOpen && e.ctrlKey && !e.altKey && !e.metaKey && e.key === 'Enter') {
+    e.preventDefault();
+    panel.useSelected();
+    return;
+  }
+  if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'r' && ui?.activeField) {
+    e.preventDefault();
+    if (e.shiftKey) {
+      void requestRewrite(selectedTone, lastInstruction || undefined);
+    } else if (!panel.isOpen) {
+      ui.openPanel();
+    }
+  }
+});

@@ -86,6 +86,7 @@ export class RewritePanel {
   private writeCursorBtn!: HTMLButtonElement;
   private writeVariants: Variant[] = [];
   private writeSelected = -1;
+  private activeTab: 'rewrite' | 'write' = 'rewrite';
   private writeLastInstruction = '';
   private customTones: CustomTone[] = [];
   private savedReplies: SavedReply[] = [];
@@ -669,6 +670,17 @@ export class RewritePanel {
     this.modelTag.textContent = model ?? '';
   }
 
+  /** Keyboard shortcut: Use the currently selected variant (P7.5). */
+  useSelected() {
+    if (this.activeTab === 'write') {
+      const v = this.writeVariants[this.writeSelected];
+      if (v) this.callbacks.onWriteUse?.(v, 'replace');
+    } else {
+      const v = this.variants[this.selectedVariant];
+      if (v) this.callbacks.onUse?.(v);
+    }
+  }
+
   /** Status chip on the Rewrite tab: what context was (or wasn't) read. */
   setContextChip(text: string) {
     this.ctxChipEl.textContent = text;
@@ -908,6 +920,7 @@ export class RewritePanel {
   // ---------- Write tab ----------
 
   private setTab(tab: 'rewrite' | 'write') {
+    this.activeTab = tab;
     const rewritePage = this.panel.querySelector('#page-rewrite') as HTMLElement;
     const writePage = this.panel.querySelector('#page-write') as HTMLElement;
     rewritePage.hidden = tab !== 'rewrite';
