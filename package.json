@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "eval": "node scripts/eval.mjs"
+    "eval": "node scripts/eval.mjs",
+    "test": "node scripts/test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
