@@ -4,6 +4,12 @@
 // update when the site changes its markup — prefer stable hooks
 // (role attributes, data-* ids) over obfuscated class names.
 
+export interface AdapterMessage {
+  from: string;
+  date: string;
+  body: string;
+}
+
 export interface SiteContext {
   /** Formatted context text ready to send to Gemini. */
   text: string;
@@ -11,6 +17,10 @@ export interface SiteContext {
   messageCount: number;
   /** Adapter name for debug logs (e.g. 'gmail'). */
   extractor: string;
+  /** Structured messages, oldest → newest (for the context brief). */
+  messages?: AdapterMessage[];
+  /** Thread/subject title when the site provides one. */
+  subject?: string;
 }
 
 // ---------- Gmail ----------
@@ -49,13 +59,19 @@ function allMatch(root: ParentNode, selectors: string[]): Element[] {
   return [];
 }
 
+const NOISE_LINE =
+  /unsubscribe|view in browser|view this email|privacy policy|all rights reserved|©\s*\d{4}|sent from my/i;
+
 function cleanBody(body: Element): string {
-  // Clone cheaply is avoided; instead read textContent after removing
-  // quote nodes from a shallow approach: quoted content sits in known
-  // containers, so cut the raw text at the quote marker as a fallback.
   let text = (body.textContent ?? '').replace(/\s+/g, ' ').trim();
   const quoteAt = text.search(/\bOn .{5,120} wrote:|-----Original Message-----/);
   if (quoteAt > 0) text = text.slice(0, quoteAt).trim();
+  // Drop noise lines (unsubscribe footers, tracking text, legal boilerplate).
+  text = text
+    .split(/(?<=[.!?])\s+|\n+/)
+    .filter((sentence) => !NOISE_LINE.test(sentence))
+    .join(' ')
+    .trim();
   if (text.length > MAX_BODY_CHARS) text = text.slice(-MAX_BODY_CHARS); // keep tail = newest content
   return text;
 }
@@ -84,7 +100,7 @@ function gmailAdapter(): SiteContext | null {
     return { text: lines.join('\n'), messageCount: 0, extractor: 'gmail-compose' };
   }
 
-  const messages: string[] = [];
+  const messages: AdapterMessage[] = [];
   let collapsed = 0;
   for (const row of rows) {
     // Collapsed older messages render minimal text — count and skip bodies.
@@ -97,19 +113,27 @@ function gmailAdapter(): SiteContext | null {
       collapsed++;
       continue;
     }
-    messages.push(
-      `Message ${messages.length + 1}\nFrom: ${sender || 'unknown'}\nDate: ${date || 'unknown'}\n${body}`,
-    );
+    messages.push({ from: sender || 'unknown', date: date || 'unknown', body });
   }
 
   const header = subject ? `Subject: ${subject}` : '';
   const note = collapsed > 0 ? `(note: ${collapsed} older message(s) were collapsed)` : '';
-  const text = [header, note, ...messages].filter(Boolean).join('\n\n');
+  const text = [
+    header,
+    note,
+    ...messages.map(
+      (m, i) => `Message ${i + 1}\nFrom: ${m.from}\nDate: ${m.date}\n${m.body}`,
+    ),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 
   return {
     text,
     messageCount: messages.length,
     extractor: 'gmail',
+    messages,
+    subject: subject || undefined,
   };
 }
 

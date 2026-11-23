@@ -5,6 +5,7 @@
 // card-like numbers and long tokens before anything is sent to Gemini.
 
 import { trySiteAdapter } from './site-adapters';
+import type { ContextBriefData } from '../shared/messages';
 
 export interface PageContext {
   title: string;
@@ -264,5 +265,122 @@ export function extractPageContext(field: HTMLElement): PageContext {
       maskedCount,
       empty: mainText.trim().length === 0,
     },
+  };
+}
+
+// ---------- Context brief (Q2) ----------
+// A structured summary built in code — the model never has to figure out
+// what it's replying to.
+
+const REPLY_TARGET_CAP = 1500;
+const EARLIER_MESSAGE_CAP = 400;
+const EARLIER_MESSAGE_COUNT = 4;
+
+function platformName(): string {
+  const h = window.location.hostname;
+  if (h.includes('mail.google')) return 'Gmail';
+  if (h.includes('chatgpt') || h.includes('openai')) return 'ChatGPT';
+  if (h.includes('grok') || h.includes('x.com')) return 'Grok';
+  return 'web';
+}
+
+/** Coarse language detection from unicode ranges (no dependencies). */
+export function detectLanguage(text: string): 'en' | 'ja' | 'bn' | 'other' {
+  if (!text) return 'en';
+  let ja = 0;
+  let bn = 0;
+  let ko = 0;
+  let letters = 0;
+  for (const ch of text) {
+    const c = ch.codePointAt(0) ?? 0;
+    if (c >= 0x3040 && c <= 0x30ff) ja++; // hiragana + katakana
+    else if (c >= 0x4e00 && c <= 0x9fff) ja++; // CJK ideographs ~ ja/zh bucket
+    else if (c >= 0x0980 && c <= 0x09ff) bn++;
+    else if (c >= 0xac00 && c <= 0xd7af) ko++;
+    else if (/[a-zA-Z]/.test(ch)) letters++;
+  }
+  const total = ja + bn + ko + letters;
+  if (total === 0) return 'en';
+  if (bn / total > 0.3) return 'bn';
+  if (ja / total > 0.3) return 'ja';
+  if (ko / total > 0.3) return 'other';
+  return 'en';
+}
+
+function capKeepEnd(text: string, cap: number): string {
+  const t = text.replace(/\s+/g, ' ').trim();
+  return t.length <= cap ? t : '…' + t.slice(t.length - cap);
+}
+
+export interface BuiltBrief {
+  brief: ContextBriefData;
+  messageCount: number;
+  extractor: string;
+}
+
+/**
+ * Build the structured context brief. With a site adapter that returns
+ * messages, reply_target = latest message (the one being replied to) and
+ * earlier_messages = the few turns before it. Generic pages fall back to
+ * the tail of the extracted text.
+ */
+export function buildContextBrief(field: HTMLElement, draftText = ''): BuiltBrief {
+  const adapted = trySiteAdapter();
+
+  if (adapted?.messages && adapted.messages.length > 0) {
+    const msgs = adapted.messages;
+    const target = msgs[msgs.length - 1];
+    const replyTarget = capKeepEnd(target.body, REPLY_TARGET_CAP);
+    const earlier = msgs
+      .slice(0, -1)
+      .slice(-EARLIER_MESSAGE_COUNT)
+      .map((m) => `${m.from}: ${capKeepEnd(m.body, EARLIER_MESSAGE_CAP)}`);
+    return {
+      brief: {
+        platform: platformName(),
+        title: adapted.subject,
+        replyTarget,
+        otherParty: target.from !== 'unknown' ? target.from : undefined,
+        replyLanguage: detectLanguage(replyTarget),
+        draftLanguage: detectLanguage(draftText),
+        earlierMessages: earlier.length ? earlier : undefined,
+        contextText: adapted.text || undefined,
+      },
+      messageCount: msgs.length,
+      extractor: adapted.extractor,
+    };
+  }
+
+  // Generic path: tail of extracted text is the reply target.
+  const pc = extractPageContext(field);
+  const text = pc.mainText.trim();
+  if (!text) {
+    return {
+      brief: {
+        platform: platformName(),
+        replyLanguage: undefined,
+        draftLanguage: detectLanguage(draftText) || undefined,
+      },
+      messageCount: 0,
+      extractor: pc.extractor,
+    };
+  }
+  const replyTarget = capKeepEnd(text, REPLY_TARGET_CAP);
+  const before = text.slice(0, Math.max(0, text.length - REPLY_TARGET_CAP));
+  const earlier = before
+    ? [capKeepEnd(before.slice(-EARLIER_MESSAGE_CAP * EARLIER_MESSAGE_COUNT), EARLIER_MESSAGE_CAP * EARLIER_MESSAGE_COUNT)]
+    : [];
+  return {
+    brief: {
+      platform: platformName(),
+      title: pc.title || undefined,
+      replyTarget,
+      replyLanguage: detectLanguage(replyTarget),
+      draftLanguage: detectLanguage(draftText) || undefined,
+      earlierMessages: earlier.length ? earlier : undefined,
+      contextText: text,
+    },
+    messageCount: pc.messageCount,
+    extractor: pc.extractor,
   };
 }

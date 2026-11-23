@@ -44,6 +44,24 @@ export interface ApiError {
 
 // ---- Requests (sent to the service worker) ----
 
+/** Structured page context built in code before the prompt (Q2). */
+export interface ContextBriefData {
+  platform: string;
+  title?: string;
+  /** The message the user is replying to (capped, keeps the end). */
+  replyTarget?: string;
+  /** Sender/other-party name when known. */
+  otherParty?: string;
+  /** Coarse language hint for reply_target ('en'|'ja'|'bn'|'other'). */
+  replyLanguage?: string;
+  /** Coarse language hint for the user's draft. */
+  draftLanguage?: string;
+  /** Short trimmed earlier turns (last few, each capped). */
+  earlierMessages?: string[];
+  /** Full cleaned context fallback when no reply_target exists. */
+  contextText?: string;
+}
+
 export type ExtensionRequest =
   | { type: 'PING' }
   | { type: 'VERIFY_KEY'; key: string }
@@ -56,6 +74,8 @@ export type ExtensionRequest =
       avoid?: string[];
       /** Extracted page context (untrusted data) when enabled. */
       context?: string;
+      /** Structured context brief (preferred over `context`). */
+      brief?: ContextBriefData;
     }
   | {
       type: 'WRITE';
@@ -68,6 +88,8 @@ export type ExtensionRequest =
       context?: string;
       /** Existing draft to revise (follow-up instructions). */
       draft?: string;
+      /** Structured context brief. */
+      brief?: ContextBriefData;
     }
   | { type: 'CANCEL'; requestId: string }
   | { type: 'GET_SETTINGS' }

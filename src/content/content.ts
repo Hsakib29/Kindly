@@ -7,7 +7,8 @@ import {
   readFieldText,
   type FieldSelection,
 } from './inserter';
-import { extractPageContext, type PageContext } from './context';
+import { buildContextBrief } from './context';
+import type { ContextBriefData } from '../shared/messages';
 import { debugLog, refreshDebugEnabled } from '../shared/debug';
 import { UndoToast } from './toast';
 import { KindlyIcon } from './icon';
@@ -65,23 +66,26 @@ function contextEnabled(): boolean {
   return contextBySite[hostname] ?? contextBySite[window.location.host] ?? true;
 }
 
-/** Extract context and, when debug is on, log what was read. */
-function collectContext(field: HTMLElement): PageContext {
-  const pc = extractPageContext(field);
-  const s = pc.stats;
-  if (s.empty) {
-    debugLog(
-      `context: none on ${hostname} — no readable text blocks (visited=${s.visited}, ms=${s.ms})`,
-    );
+/** Build the structured brief and, when debug is on, log what was read. */
+function collectBrief(field: HTMLElement, draftText: string) {
+  const built = buildContextBrief(field, draftText);
+  const b = built.brief;
+  const hasContext = Boolean(b.replyTarget || b.contextText);
+  if (!hasContext) {
+    debugLog(`context: none on ${hostname} — no readable text (extractor=${built.extractor})`);
   } else {
     debugLog(
-      `context @ ${hostname}: extractor=${pc.extractor} ms=${s.ms} visited=${s.visited} ` +
-        `messages=${pc.messageCount} chars=${s.chars} trimmed=${s.trimmed} masked=${s.maskedCount}`,
+      `brief @ ${hostname}: extractor=${built.extractor} platform=${b.platform} ` +
+        `messages=${built.messageCount} replyTarget=${(b.replyTarget ?? '').length} chars ` +
+        `otherParty=${b.otherParty ?? 'unknown'} lang=${b.replyLanguage ?? '?'} ` +
+        `earlier=${b.earlierMessages?.length ?? 0}`,
     );
-    debugLog('context head:', JSON.stringify(pc.mainText.slice(0, 200)));
-    debugLog('context tail:', JSON.stringify(pc.mainText.slice(-200)));
+    if (b.replyTarget) {
+      debugLog('reply_target head:', JSON.stringify(b.replyTarget.slice(0, 160)));
+      debugLog('reply_target tail:', JSON.stringify(b.replyTarget.slice(-160)));
+    }
   }
-  return pc;
+  return built;
 }
 
 // ---------- Rewrite state ----------
@@ -123,16 +127,17 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
   }
   pendingSelection = selection;
 
-  // Page context for rewrite (P6.x extension): extracted only when the
-  // per-site toggle is on; the chip reports exactly what was read.
-  let context: string | undefined;
+  // Structured context brief for rewrite (Q2): built only at request time.
+  let brief: ContextBriefData | undefined;
+  let messageCount = 0;
   if (contextEnabled()) {
-    const pc = collectContext(field);
-    context = pc.mainText.trim() ? pc.mainText : undefined;
+    const built = collectBrief(field, text);
+    brief = built.brief.replyTarget || built.brief.contextText ? built.brief : undefined;
+    messageCount = built.messageCount;
     panel.setContextChip(
-      context
-        ? pc.messageCount > 0
-          ? `Used ${pc.messageCount} messages from this page`
+      brief
+        ? messageCount > 0
+          ? `Used ${messageCount} message${messageCount === 1 ? '' : 's'} from this page`
           : 'Context included'
         : 'No page context found',
     );
@@ -153,7 +158,7 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
       tone,
       instruction,
       avoid,
-      context,
+      brief,
     });
     if (epoch !== rewriteEpoch) return; // panel closed mid-flight — ignore
     if (res.type === 'REWRITE_RESULT' && res.requestId === requestId) {
@@ -206,7 +211,8 @@ async function requestWrite(req: WriteGenerateRequest) {
       tone: req.tone,
       length: req.length,
       instruction: req.instruction,
-      context: req.context,
+      context: req.brief?.contextText,
+      brief: req.brief,
       draft: req.draft,
     });
     if (epoch !== rewriteEpoch) return;
@@ -354,11 +360,11 @@ const panel: RewritePanel = new RewritePanel({
     const req = panel.buildFollowUpRequest(instruction);
     if (req) void requestWrite(req);
   },
-  getWriteContext: (): string | undefined => {
+  getWriteContext: (): ContextBriefData | undefined => {
     const field: HTMLElement | null | undefined = ui?.activeField;
     if (!field) return undefined;
-    const pc = collectContext(field);
-    return pc.mainText.trim() ? pc.mainText : undefined;
+    const built = collectBrief(field, '');
+    return built.brief.replyTarget || built.brief.contextText ? built.brief : undefined;
   },
 });
 panel.selectTone(selectedTone);

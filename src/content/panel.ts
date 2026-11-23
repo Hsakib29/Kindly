@@ -1,7 +1,13 @@
 // Rewrite panel: Shadow DOM UI anchored to the active field.
 // Structure: tone chips, results body, extra-instruction row, action footer.
 
-import { TONE_IDS, type ApiError, type ToneId, type Variant } from '../shared/messages';
+import {
+  TONE_IDS,
+  type ApiError,
+  type ContextBriefData,
+  type ToneId,
+  type Variant,
+} from '../shared/messages';
 import { PRODUCT_NAME } from '../shared/brand';
 
 const PANEL_WIDTH = 360;
@@ -29,7 +35,7 @@ export interface WriteGenerateRequest {
   tone?: ToneId;
   length?: 'short' | 'medium' | 'long';
   instruction?: string;
-  context?: string;
+  brief?: ContextBriefData;
   /** Existing draft to revise (follow-up instructions, P6.6). */
   draft?: string;
 }
@@ -42,8 +48,8 @@ export interface PanelCallbacks {
   onWriteGenerate?: (req: WriteGenerateRequest) => void;
   onWriteUse?: (variant: Variant, mode: 'replace' | 'cursor') => void;
   onWriteInstruction?: (instruction: string) => void;
-  /** Returns the extracted page context to send (or undefined if none). */
-  getWriteContext?: () => string | undefined;
+  /** Returns the structured context brief to send (or undefined if none). */
+  getWriteContext?: () => ContextBriefData | undefined;
 }
 
 export class RewritePanel {
@@ -854,8 +860,8 @@ export class RewritePanel {
       | 'medium'
       | 'long'
       | undefined;
-    const context = this.callbacks.getWriteContext?.();
-    return { prompt, tone, length, instruction: this.writeLastInstruction || undefined, context };
+    const brief = this.callbacks.getWriteContext?.();
+    return { prompt, tone, length, instruction: this.writeLastInstruction || undefined, brief };
   }
 
   /** Called by content when a follow-up instruction should revise drafts. */
@@ -865,7 +871,7 @@ export class RewritePanel {
     this.writeLastInstruction = instruction;
     return {
       prompt: instruction,
-      context: this.callbacks.getWriteContext?.(),
+      brief: this.callbacks.getWriteContext?.(),
       draft: draft.text,
     };
   }

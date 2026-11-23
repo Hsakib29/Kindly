@@ -7,7 +7,12 @@ import {
   buildRewritePrompt,
   buildWritePrompt,
 } from '../shared/prompts';
-import type { ApiError, ExtensionRequest, ExtensionResponse } from '../shared/messages';
+import type {
+  ApiError,
+  ContextBriefData,
+  ExtensionRequest,
+  ExtensionResponse,
+} from '../shared/messages';
 import { debugEnabled, debugGroup, debugGroupEnd, debugLog, setDebugEnabled } from '../shared/debug';
 
 console.log('[Kindly] service worker started');
@@ -15,6 +20,26 @@ console.log('[Kindly] service worker started');
 // In-flight REWRITE abort controllers, keyed by requestId, so the panel
 // can cancel a running request by closing (CANCEL message).
 const pendingRequests = new Map<string, AbortController>();
+
+/** Flatten a structured brief into prompt context (Q3 will use fields directly). */
+function briefToContext(brief?: ContextBriefData): string | undefined {
+  if (!brief) return undefined;
+  const parts: string[] = [];
+  const head = [brief.platform, brief.title].filter(Boolean).join(' — ');
+  if (head) parts.push(`Page: ${head}`);
+  if (brief.replyTarget) {
+    parts.push(
+      `Message being replied to${brief.otherParty ? ` (from ${brief.otherParty})` : ''}:\n"""\n${brief.replyTarget}\n"""`,
+    );
+  }
+  if (brief.earlierMessages?.length) {
+    parts.push(`Earlier messages:\n${brief.earlierMessages.map((m) => `- ${m}`).join('\n')}`);
+  }
+  if (!brief.replyTarget && brief.contextText) {
+    parts.push(`Page content:\n"""\n${brief.contextText}\n"""`);
+  }
+  return parts.length ? parts.join('\n\n') : undefined;
+}
 
 function toApiError(err: unknown): ApiError {
   if (err instanceof Error && 'code' in err) {
@@ -80,12 +105,13 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
       try {
         const settings = await getSettings();
         setDebugEnabled(settings.debug);
+        const context = request.context ?? briefToContext(request.brief);
         const userPrompt = buildRewritePrompt({
           text: trimmed,
           tone: request.tone,
           instruction: request.instruction,
           avoid: request.avoid,
-          context: request.context,
+          context,
         });
         const controller = new AbortController();
         pendingRequests.set(request.requestId, controller);
@@ -103,7 +129,10 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
           debugLog('task: rewrite | tone:', request.tone);
           debugLog('model:', model, '| fellBack:', fellBack, '| attempts:', attempts.join(' → '));
           debugLog('instruction:', request.instruction ? 'yes' : 'no');
-          debugLog('context:', request.context ? `${request.context.length} chars` : 'none');
+          debugLog('context:', context ? `${context.length} chars` : 'none');
+          if (request.brief) {
+            debugLog('brief:', JSON.stringify({ ...request.brief, replyTarget: undefined, contextText: undefined }));
+          }
           debugLog('prompt:\n' + userPrompt);
           debugLog(`response: ${variants.length} variants in ${ms}ms`);
           debugGroupEnd();
@@ -151,7 +180,7 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
         setDebugEnabled(settings.debug);
         const userPrompt = buildWritePrompt({
           prompt,
-          context: request.context,
+          context: request.context ?? briefToContext(request.brief),
           tone: request.tone,
           length: request.length,
           instruction: request.instruction,
