@@ -1,0 +1,142 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Welcome to Kindly</title>
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body {
+        max-width: 560px;
+        margin: 0 auto;
+        padding: 32px 20px 48px;
+        font: 15px/1.55 system-ui, sans-serif;
+        color: CanvasText;
+        background: Canvas;
+      }
+      h1 { font-size: 22px; margin: 0 0 4px; }
+      .sub { color: color-mix(in srgb, CanvasText 65%, transparent); margin-bottom: 24px; }
+      .steps { display: flex; gap: 8px; margin-bottom: 24px; }
+      .step-dot {
+        flex: 1; height: 4px; border-radius: 2px;
+        background: color-mix(in srgb, CanvasText 20%, transparent);
+      }
+      .step-dot.on { background: LinkText; }
+      .card {
+        border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+        border-radius: 10px;
+        padding: 20px;
+      }
+      label { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 4px; }
+      input[type='text'], input[type='password'], textarea {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid color-mix(in srgb, CanvasText 30%, transparent);
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+      }
+      textarea { min-height: 90px; resize: vertical; }
+      .row { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
+      button {
+        padding: 8px 16px;
+        border: 1px solid color-mix(in srgb, CanvasText 30%, transparent);
+        border-radius: 6px;
+        background: Canvas;
+        color: inherit;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.primary { background: LinkText; border-color: LinkText; color: Canvas; }
+      button:disabled { opacity: 0.5; cursor: default; }
+      .status { font-size: 13px; margin-top: 10px; min-height: 18px; }
+      .status.ok { color: #2e7d32; }
+      .status.err { color: #c62828; }
+      .variants { margin-top: 14px; display: grid; gap: 8px; }
+      .variant {
+        border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 14px;
+      }
+      .variant .vlabel { font-size: 11px; color: color-mix(in srgb, CanvasText 60%, transparent); }
+      .hidden { display: none; }
+      .tip {
+        margin-top: 20px; padding: 12px 14px;
+        border-radius: 8px;
+        background: color-mix(in srgb, LinkText 10%, transparent);
+        font-size: 14px;
+      }
+      .tone-pick { display: flex; flex-wrap: wrap; gap: 8px; }
+      .tone-pick label {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-weight: 400; margin: 0; padding: 6px 10px;
+        border: 1px solid color-mix(in srgb, CanvasText 25%, transparent);
+        border-radius: 999px; cursor: pointer;
+      }
+      .tone-pick input { margin: 0; }
+    </style>
+  </head>
+  <body>
+    <h1 id="app-title">Kindly</h1>
+    <p class="sub" id="tagline"></p>
+    <div class="steps">
+      <div class="step-dot on" data-step="1"></div>
+      <div class="step-dot" data-step="2"></div>
+      <div class="step-dot" data-step="3"></div>
+    </div>
+
+    <!-- Step 1: API key -->
+    <section class="card" id="step-1">
+      <h2 style="margin-top:0">1 · Connect Gemini</h2>
+      <p>Paste your Google Gemini API key. It's stored locally in this browser only.</p>
+      <label for="api-key">API key</label>
+      <input id="api-key" type="password" placeholder="AIza…" autocomplete="off" />
+      <div class="row">
+        <button id="verify" class="primary" type="button">Verify &amp; continue</button>
+      </div>
+      <p class="status" id="key-status" role="status"></p>
+    </section>
+
+    <!-- Step 2: style -->
+    <section class="card hidden" id="step-2">
+      <h2 style="margin-top:0">2 · Pick a style</h2>
+      <p>Your default tone for rewrites. You can change it any time in Settings.</p>
+      <div class="tone-pick" id="tone-pick"></div>
+      <label for="bv-company">Company name (optional)</label>
+      <input id="bv-company" type="text" placeholder="Acme Support" />
+      <label for="bv-greeting">Greeting (optional)</label>
+      <input id="bv-greeting" type="text" placeholder="Hi there," />
+      <label for="bv-closing">Closing (optional)</label>
+      <input id="bv-closing" type="text" placeholder="Best regards," />
+      <div class="row">
+        <button id="style-next" class="primary" type="button">Continue</button>
+      </div>
+    </section>
+
+    <!-- Step 3: demo -->
+    <section class="card hidden" id="step-3">
+      <h2 style="margin-top:0">3 · Try it</h2>
+      <p>Type something a customer might say, then rewrite it.</p>
+      <label for="demo-text">Your text</label>
+      <textarea id="demo-text">Your delivery was late and nobody told me. This is really frustrating.</textarea>
+      <div class="row">
+        <button id="demo-go" class="primary" type="button">Rewrite</button>
+      </div>
+      <div class="variants" id="demo-out"></div>
+      <p class="status" id="demo-status" role="status"></p>
+      <div class="row">
+        <button id="finish" class="primary" type="button">Done — start using Kindly</button>
+      </div>
+    </section>
+
+    <div class="tip hidden" id="finish-tip">
+      Tip: pin Kindly to your toolbar — click the puzzle icon in Chrome's toolbar, then the pin
+      next to Kindly. After that, Alt+R opens the panel in any text field.
+    </div>
+
+    <script type="module" src="./src/welcome/welcome.ts"></script>
+  </body>
+</html>

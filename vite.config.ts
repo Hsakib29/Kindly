@@ -9,6 +9,7 @@ export default defineConfig({
       input: {
         options: resolve(__dirname, 'options.html'),
         popup: resolve(__dirname, 'popup.html'),
+        welcome: resolve(__dirname, 'welcome.html'),
         'background/service-worker': resolve(
           __dirname,
           'src/background/service-worker.ts',

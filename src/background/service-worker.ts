@@ -385,3 +385,16 @@ chrome.runtime.onMessage.addListener((message: ExtensionRequest, _sender, sendRe
     );
   return true; // async response
 });
+
+// First-run onboarding (P7.7): open the wizard on install.
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason !== 'install') return;
+  void (async () => {
+    const { onboarded } = (await chrome.storage.local.get('onboarded')) as {
+      onboarded?: boolean;
+    };
+    if (!onboarded) {
+      await chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') });
+    }
+  })();
+});
