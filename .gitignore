@@ -7,4 +7,4 @@ public/manifest.json
 !.env.example
 key.txt
 *.pem
-tests/unit/.build/
+tests/*/.build/
