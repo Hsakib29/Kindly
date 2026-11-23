@@ -203,10 +203,9 @@ const panel = new RewritePanel({
 panel.selectTone(selectedTone);
 
 const icon = new KindlyIcon(
-  () => {
-    console.log('[Kindly] icon clicked, currentField =', currentField);
-    if (!currentField) return;
-    const field = currentField;
+  (field) => {
+    console.log('[Kindly] icon clicked on', field);
+    currentField = field;
     panel.open({
       getRect: () => field.getBoundingClientRect(),
       onClose: () => field.focus(),

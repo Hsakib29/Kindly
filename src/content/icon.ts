@@ -18,7 +18,7 @@ export class KindlyIcon {
   private rafId = 0;
 
   constructor(
-    private onClick: () => void,
+    private onClick: (field: HTMLElement) => void,
     private onHideSite: () => void,
   ) {
     this.host = document.createElement('div');
@@ -58,7 +58,7 @@ export class KindlyIcon {
     this.button.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      this.onClick();
+      if (this.field) this.onClick(this.field);
     });
     this.button.addEventListener('contextmenu', (e) => {
       e.preventDefault();
