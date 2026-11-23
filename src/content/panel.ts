@@ -44,9 +44,6 @@ export interface PanelCallbacks {
   onWriteInstruction?: (instruction: string) => void;
   /** Returns the extracted page context to send (or undefined if none). */
   getWriteContext?: () => string | undefined;
-  /** Persisted per-site "Page context" toggle state. */
-  getContextEnabled?: () => boolean;
-  onContextToggle?: (enabled: boolean) => void;
 }
 
 export class RewritePanel {
@@ -69,7 +66,6 @@ export class RewritePanel {
   private writePromptEl!: HTMLTextAreaElement;
   private writeToneEl!: HTMLSelectElement;
   private writeLenEl!: HTMLSelectElement;
-  private ctxToggleEl!: HTMLInputElement;
   private writeBodyEl!: HTMLElement;
   private writeInstrInput!: HTMLInputElement;
   private writeUseBtn!: HTMLButtonElement;
@@ -79,8 +75,7 @@ export class RewritePanel {
   private writeVariants: Variant[] = [];
   private writeSelected = -1;
   private writeLastInstruction = '';
-  // Rewrite-tab context row
-  private ctxRewriteToggle!: HTMLInputElement;
+  // Rewrite-tab context chip
   private ctxChipEl!: HTMLElement;
   private onDocumentClick: ((e: Event) => void) | null = null;
   private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
@@ -446,7 +441,6 @@ export class RewritePanel {
         <div class="page" id="page-rewrite">
           <div class="chips" role="toolbar" aria-label="Tone"></div>
           <div class="ctx-row">
-            <label class="ctx-toggle"><input type="checkbox" class="ctx-rewrite" checked /> Page context</label>
             <span class="ctx-chip"></span>
           </div>
           <div class="body"></div>
@@ -472,7 +466,6 @@ export class RewritePanel {
                 <option value="medium">Medium</option>
                 <option value="long">Long</option>
               </select>
-              <label class="ctx-toggle"><input type="checkbox" checked /> Page context</label>
             </div>
           </div>
           <div class="body write-body"></div>
@@ -528,11 +521,6 @@ export class RewritePanel {
     this.writePromptEl = writePage.querySelector('.write-prompt') as HTMLTextAreaElement;
     this.writeToneEl = writePage.querySelector('.tone-select') as HTMLSelectElement;
     this.writeLenEl = writePage.querySelector('.len-select') as HTMLSelectElement;
-    this.ctxToggleEl = writePage.querySelector('.ctx-toggle input') as HTMLInputElement;
-    this.ctxToggleEl.checked = callbacks.getContextEnabled?.() ?? true;
-    this.ctxToggleEl.addEventListener('change', () =>
-      this.callbacks.onContextToggle?.(this.ctxToggleEl.checked),
-    );
     this.writeBodyEl = writePage.querySelector('.write-body') as HTMLElement;
     this.writeInstrInput = writePage.querySelector(
       '.write-instruction input',
@@ -556,11 +544,7 @@ export class RewritePanel {
 
     // ---------- Rewrite-tab context row ----------
     const rewritePage = shadow.querySelector('#page-rewrite') as HTMLElement;
-    this.ctxRewriteToggle = rewritePage.querySelector('.ctx-rewrite') as HTMLInputElement;
     this.ctxChipEl = rewritePage.querySelector('.ctx-chip') as HTMLElement;
-    this.ctxRewriteToggle.addEventListener('change', () =>
-      this.callbacks.onContextToggle?.(this.ctxRewriteToggle.checked),
-    );
 
     // Tab switching.
     for (const btn of Array.from(shadow.querySelectorAll<HTMLButtonElement>('.tab-btn'))) {
@@ -688,10 +672,6 @@ export class RewritePanel {
   open(anchor: PanelAnchor) {
     this.close();
     this.anchor = anchor;
-    // Sync the per-site context toggle every open.
-    const enabled = this.callbacks.getContextEnabled?.() ?? true;
-    this.ctxRewriteToggle.checked = enabled;
-    this.ctxToggleEl.checked = enabled;
 
     this.onDocumentClick = (e) => {
       if (!e.composedPath().includes(this.host)) this.close();
@@ -874,7 +854,7 @@ export class RewritePanel {
       | 'medium'
       | 'long'
       | undefined;
-    const context = this.ctxToggleEl.checked ? this.callbacks.getWriteContext?.() : undefined;
+    const context = this.callbacks.getWriteContext?.();
     return { prompt, tone, length, instruction: this.writeLastInstruction || undefined, context };
   }
 
@@ -885,7 +865,7 @@ export class RewritePanel {
     this.writeLastInstruction = instruction;
     return {
       prompt: instruction,
-      context: this.ctxToggleEl.checked ? this.callbacks.getWriteContext?.() : undefined,
+      context: this.callbacks.getWriteContext?.(),
       draft: draft.text,
     };
   }

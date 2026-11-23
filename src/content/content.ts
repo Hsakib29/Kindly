@@ -75,7 +75,7 @@ function collectContext(field: HTMLElement): PageContext {
     );
   } else {
     debugLog(
-      `context @ ${hostname}: extractor=generic ms=${s.ms} visited=${s.visited} ` +
+      `context @ ${hostname}: extractor=${pc.extractor} ms=${s.ms} visited=${s.visited} ` +
         `messages=${pc.messageCount} chars=${s.chars} trimmed=${s.trimmed} masked=${s.maskedCount}`,
     );
     debugLog('context head:', JSON.stringify(pc.mainText.slice(0, 200)));
@@ -131,7 +131,9 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
     context = pc.mainText.trim() ? pc.mainText : undefined;
     panel.setContextChip(
       context
-        ? `Read ~${pc.messageCount} messages from this page`
+        ? pc.messageCount > 0
+          ? `Used ${pc.messageCount} messages from this page`
+          : 'Context included'
         : 'No page context found',
     );
   } else {
@@ -357,11 +359,6 @@ const panel: RewritePanel = new RewritePanel({
     if (!field) return undefined;
     const pc = collectContext(field);
     return pc.mainText.trim() ? pc.mainText : undefined;
-  },
-  getContextEnabled: () => contextEnabled(),
-  onContextToggle: (enabled) => {
-    contextBySite = { ...contextBySite, [hostname]: enabled };
-    void setSettings({ usePageContextBySite: contextBySite });
   },
 });
 panel.selectTone(selectedTone);

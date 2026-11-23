@@ -4,6 +4,8 @@
 // output, keeps the MOST RECENT text (chat tails matter most), and masks
 // card-like numbers and long tokens before anything is sent to Gemini.
 
+import { trySiteAdapter } from './site-adapters';
+
 export interface PageContext {
   title: string;
   url: string;
@@ -22,15 +24,18 @@ export interface PageContext {
     maskedCount: number;
     empty: boolean;
   };
+  /** Which extractor produced the text: 'gmail', 'generic', etc. */
+  extractor: string;
 }
 
 const CONTEXT_BUDGET = 6000; // chars sent to Gemini
 const NEAR_FIELD_BUDGET = 2000;
 
 // Hard limits so extraction can never freeze the tab (it runs on the
-// main thread inside the page).
-const EXTRACT_TIME_BUDGET_MS = 150;
-const EXTRACT_TEXT_CAP = 12000; // raw chars collected before tail-trim
+// main thread inside the page). Sized to read a normal email thread.
+const EXTRACT_TIME_BUDGET_MS = 250;
+const EXTRACT_TEXT_CAP = 20000; // raw chars collected before tail-trim
+const GENERIC_MIN_CHARS = 300; // below this, try the largest-container fallback
 
 const BOILERPLATE_SELECTOR =
   'script, style, noscript, template, svg, canvas, nav, header, footer, aside, form, [hidden], [aria-hidden="true"]';
@@ -96,6 +101,27 @@ function pickMainRoot(doc: Document): Element {
   return best ?? doc.body;
 }
 
+/** Largest text-bearing container — fallback when block selectors miss. */
+function pickLargestTextContainer(doc: Document, deadline: number): Element | null {
+  const candidates = Array.from(
+    doc.querySelectorAll('main, article, [role="main"], div, section'),
+  );
+  let best: Element | null = null;
+  let bestLen = 0;
+  const limit = Math.min(candidates.length, 600);
+  for (let i = 0; i < limit; i++) {
+    if (Date.now() > deadline) break;
+    const el = candidates[i];
+    if (el.closest(BOILERPLATE_SELECTOR)) continue;
+    const len = el.textContent?.length ?? 0;
+    if (len > bestLen) {
+      bestLen = len;
+      best = el;
+    }
+  }
+  return best;
+}
+
 /** Text of the field's nearest meaningful ancestor (the conversation tail). */
 function nearFieldText(field: HTMLElement): string {
   let el: HTMLElement | null = field.parentElement;
@@ -143,17 +169,51 @@ export function maskSecrets(text: string): { text: string; masked: number } {
  */
 export function extractPageContext(field: HTMLElement): PageContext {
   const started = performance.now();
+  const title = document.title ?? '';
+  const url = window.location.href;
+
+  // Site adapters first — they understand the tool's real structure.
+  const adapted = trySiteAdapter();
+  if (adapted && adapted.text.trim()) {
+    const masked = maskSecrets(adapted.text);
+    const mainText = tailBudget(masked.text, CONTEXT_BUDGET);
+    return {
+      title,
+      url,
+      mainText,
+      nearField: '',
+      messageCount: adapted.messageCount,
+      extractor: adapted.extractor,
+      stats: {
+        ms: Math.round((performance.now() - started) * 10) / 10,
+        visited: adapted.messageCount * 4,
+        chars: mainText.length,
+        trimmed: masked.text.length > CONTEXT_BUDGET,
+        maskedCount: masked.masked,
+        empty: mainText.trim().length === 0,
+      },
+    };
+  }
+
   const selection = window.getSelection();
   const selected = selection && !selection.isCollapsed ? selection.toString().trim() : '';
 
   const deadline = Date.now() + EXTRACT_TIME_BUDGET_MS;
   const mainRoot = pickMainRoot(document);
-  const collected = collectText(mainRoot, deadline);
+  let collected = collectText(mainRoot, deadline);
+
+  // Generic fallback: if the block pass found almost nothing, the page's
+  // text probably lives in plain <div>s — find the largest text container
+  // and collect inside it with whatever budget remains.
+  if (collected.text.trim().length < GENERIC_MIN_CHARS && Date.now() < deadline) {
+    const biggest = pickLargestTextContainer(document, deadline);
+    if (biggest && biggest !== mainRoot) {
+      const more = collectText(biggest, deadline);
+      if (more.text.length > collected.text.length) collected = more;
+    }
+  }
   // The field's own ancestors may live outside <main>; merge near-field text.
   const near = nearFieldText(field);
-
-  const title = document.title ?? '';
-  const url = window.location.href;
 
   // Budget: selection first (it's the explicit context), then near-field,
   // then main text fills the remainder.
@@ -195,6 +255,7 @@ export function extractPageContext(field: HTMLElement): PageContext {
     mainText,
     nearField: near,
     messageCount,
+    extractor: 'generic',
     stats: {
       ms: Math.round((performance.now() - started) * 10) / 10,
       visited: collected.visited,
