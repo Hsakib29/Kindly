@@ -16,6 +16,7 @@ import { KindlyIcon } from './icon';
 import { FieldUiController } from './field-ui';
 import { getSettings, setSettings } from '../shared/storage';
 import { sendRequest } from '../shared/client';
+import { sanitizeText } from '../shared/privacy';
 import { RewritePanel, type WriteGenerateRequest } from './panel';
 import type { ApiError, ExtensionResponse, ToneId, Variant } from '../shared/messages';
 
@@ -247,23 +248,32 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
   }
   pendingSelection = selection;
 
+  // K-06: mask sensitive items in the user's own draft before it is sent.
+  const draftSan = sanitizeText(text);
+  const safeText = draftSan.text;
+  let maskedTotal = draftSan.total;
+  let chipText = '';
+
   // Structured context brief for rewrite (Q2): built only at request time.
   let brief: ContextBriefData | undefined;
   let messageCount = 0;
   if (contextEnabled()) {
-    const built = collectBrief(field, text);
+    const built = collectBrief(field, safeText);
+    maskedTotal += built.maskedCount;
     brief = built.brief.replyTarget || built.brief.contextText ? built.brief : undefined;
     messageCount = built.messageCount;
-    panel.setContextChip(
-      brief
-        ? messageCount > 0
-          ? `Used ${messageCount} message${messageCount === 1 ? '' : 's'} from this page`
-          : 'Context included'
-        : 'No page context found',
-    );
+    chipText = brief
+      ? messageCount > 0
+        ? `Used ${messageCount} message${messageCount === 1 ? '' : 's'} from this page`
+        : 'Context included'
+      : 'No page context found';
   } else {
-    panel.setContextChip('Page context off');
+    chipText = 'Page context off';
   }
+  if (maskedTotal > 0) {
+    chipText += ` · Hid ${maskedTotal} sensitive item${maskedTotal === 1 ? '' : 's'}`;
+  }
+  panel.setContextChip(chipText);
 
   rewriteInFlight = true;
   rewriteRequestStartedAt = Date.now();
@@ -275,7 +285,7 @@ async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string
     const res = await sendRequest<ExtensionResponse>({
       type: 'REWRITE',
       requestId,
-      text,
+      text: safeText,
       tone,
       instruction,
       avoid,
@@ -321,6 +331,13 @@ let writeQueued: WriteGenerateRequest | null = null;
 
 async function requestWrite(req: WriteGenerateRequest) {
   if (isSiteBlocked()) return;
+  const promptSan = sanitizeText(req.prompt);
+  req = {
+    ...req,
+    prompt: promptSan.text,
+    draft: req.draft ? sanitizeText(req.draft).text : req.draft,
+    instruction: req.instruction ? sanitizeText(req.instruction).text : req.instruction,
+  };
   if (writeInFlight) {
     writeQueued = req;
     return;
