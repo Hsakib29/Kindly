@@ -3,7 +3,13 @@ import { generateRouted, isModelCooling } from './router';
 import { checkVariants } from './quality';
 import type { ContextBriefData, Variant } from '../shared/messages';
 import { getSettings, setSettings, getStoredKey, setStoredKey, isEncryptedKey } from '../shared/storage';
-import { decryptWithKey, deriveSessionKey, encryptSecret } from '../shared/crypto';
+import {
+  decryptWithKey,
+  deriveSessionKey,
+  encryptSecret,
+  exportKeyJwk,
+  importKeyJwk,
+} from '../shared/crypto';
 import {
   ROLE_LABELS,
   TASK_SYSTEM_PROMPT,
@@ -151,18 +157,33 @@ async function applyQualityChecks(args: QualityPassArgs): Promise<{
 
 // ---------- Key resolution (P8.7: optional passphrase encryption) ----------
 
-const SESSION_KEY_NAME = 'kindlySessionKey';
+// chrome.storage.session serializes as JSON — a CryptoKey does not
+// survive that, so the session cache stores the exported JWK instead.
+const SESSION_KEY_NAME = 'kindlySessionKeyJwk';
 
 async function getSessionKey(): Promise<CryptoKey | null> {
   const stored = (await chrome.storage.session.get(SESSION_KEY_NAME)) as {
-    [SESSION_KEY_NAME]?: CryptoKey;
+    [SESSION_KEY_NAME]?: JsonWebKey;
   };
-  return stored[SESSION_KEY_NAME] ?? null;
+  const jwk = stored[SESSION_KEY_NAME];
+  if (!jwk || typeof jwk !== 'object' || !('k' in jwk)) {
+    if (jwk !== undefined) await chrome.storage.session.remove(SESSION_KEY_NAME);
+    return null;
+  }
+  try {
+    return await importKeyJwk(jwk);
+  } catch {
+    await chrome.storage.session.remove(SESSION_KEY_NAME);
+    return null;
+  }
 }
 
 async function setSessionKey(key: CryptoKey | null) {
-  if (key) await chrome.storage.session.set({ [SESSION_KEY_NAME]: key });
-  else await chrome.storage.session.remove(SESSION_KEY_NAME);
+  if (key) {
+    await chrome.storage.session.set({ [SESSION_KEY_NAME]: await exportKeyJwk(key) });
+  } else {
+    await chrome.storage.session.remove(SESSION_KEY_NAME);
+  }
 }
 
 /** Returns the usable API key, or null when locked/absent. */

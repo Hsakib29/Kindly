@@ -86,6 +86,22 @@ export async function deriveSessionKey(
   return deriveKey(passphrase, fromB64(blob.salt));
 }
 
+/** Export a CryptoKey as JWK so it survives chrome.storage's JSON serialization. */
+export async function exportKeyJwk(key: CryptoKey): Promise<JsonWebKey> {
+  return crypto.subtle.exportKey('jwk', key);
+}
+
+/** Re-import a JWK exported by exportKeyJwk (AES-GCM, non-extractable). */
+export async function importKeyJwk(jwk: JsonWebKey): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    'jwk',
+    jwk,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt', 'decrypt'],
+  );
+}
+
 export async function decryptWithKey(
   blob: EncryptedKeyBlob,
   key: CryptoKey,

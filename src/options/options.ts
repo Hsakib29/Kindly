@@ -1,6 +1,7 @@
 import { PRODUCT_NAME, TAGLINE } from '../shared/brand';
 import { sendRequest } from '../shared/client';
-import { clearKey, getKey, getSettings, setKey } from '../shared/storage';
+import { clearKey, getKey, getSettings, getStoredKey, isEncryptedKey, setKey, setStoredKey } from '../shared/storage';
+import { encryptSecret } from '../shared/crypto';
 import type { ExtensionResponse } from '../shared/messages';
 
 type VerifyResult = Extract<ExtensionResponse, { type: 'VERIFY_KEY_RESULT' }>;
@@ -48,7 +49,10 @@ toggleKey.addEventListener('click', () => {
 async function initKeyField() {
   const saved = await getKey();
   if (saved) {
-    keyInput.placeholder = `Saved key: ${saved.slice(0, 6)}…${saved.slice(-4)}`;
+    keyInput.placeholder =
+      typeof saved === 'string'
+        ? `Saved key: ${saved.slice(0, 6)}…${saved.slice(-4)}`
+        : 'Saved key: encrypted';
     setStatus('A key is saved. Paste a new one to replace it.', 'ok');
   }
 }
@@ -62,11 +66,28 @@ verifyKey.addEventListener('click', async () => {
   verifyKey.disabled = true;
   setStatus('Verifying…');
   try {
+    // K-02: never overwrite an encrypted key blob with plain text.
+    const stored = await getStoredKey();
+    const wasEncrypted = isEncryptedKey(stored);
+    const passphrase = wasEncrypted ? keyPass.value : '';
+    if (wasEncrypted && passphrase.length < 8) {
+      setStatus('Enter your passphrase to keep the new key protected.', 'err');
+      return;
+    }
     const res = await sendRequest<VerifyResult>({ type: 'VERIFY_KEY', key });
     if (res.type === 'VERIFY_KEY_RESULT' && res.ok) {
-      await setKey(key);
-      keyInput.value = '';
-      setStatus(`Key works — ${res.modelCount ?? '?'} models available.`, 'ok');
+      if (wasEncrypted) {
+        await setStoredKey(await encryptSecret(key, passphrase));
+        // Drop the cached session key so the old unlocked key isn't reused.
+        await sendRequest<ExtensionResponse>({ type: 'LOCK_KEY' });
+        keyInput.value = '';
+        keyPass.value = '';
+        setStatus('Key verified and saved, still protected.', 'ok');
+      } else {
+        await setKey(key);
+        keyInput.value = '';
+        setStatus(`Key works — ${res.modelCount ?? '?'} models available.`, 'ok');
+      }
       initKeyField();
     } else if (res.type === 'VERIFY_KEY_RESULT') {
       setStatus(res.error?.message ?? 'Key verification failed.', 'err');

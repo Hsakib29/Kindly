@@ -9,15 +9,19 @@ import type { ContextBriefData } from '../../src/shared/messages';
 
 let passed = 0;
 let failed = 0;
-function test(name: string, fn: () => void) {
-  try {
-    fn();
-    passed++;
-    console.log(`PASS ${name}`);
-  } catch (err) {
-    failed++;
-    console.log(`FAIL ${name}: ${(err as Error).message}`);
-  }
+const pending: Promise<void>[] = [];
+function test(name: string, fn: () => void | Promise<void>) {
+  const run = async () => {
+    try {
+      await fn();
+      passed++;
+      console.log(`PASS ${name}`);
+    } catch (err) {
+      failed++;
+      console.log(`FAIL ${name}: ${(err as Error).message}`);
+    }
+  };
+  pending.push(run());
 }
 
 const brief: ContextBriefData = {
@@ -206,6 +210,7 @@ test('ROLE_LABELS covers all roles per mode', () => {
 
 // ---------- privacy.ts: sanitizeText ----------
 import { sanitizeText, sanitizeBrief } from '../../src/shared/privacy';
+import { encryptSecret, deriveSessionKey, decryptWithKey, exportKeyJwk, importKeyJwk } from '../../src/shared/crypto';
 
 test('privacy: credit card formats redacted', () => {
   for (const s of [
@@ -345,5 +350,25 @@ test('privacy: sanitizeBrief leaves clean brief untouched', () => {
   assert.equal(brief.replyTarget, clean.replyTarget);
 });
 
+// ---------- crypto.ts: JWK session-key round trip (K-01) ----------
+
+test('crypto: encryptSecret returns a blob object, not a string', async () => {
+  const blob = await encryptSecret('k-123', 'a-long-passphrase');
+  assert.equal(typeof blob, 'object');
+  for (const f of ['salt', 'iv', 'ct'] as const) {
+    assert.equal(typeof blob[f], 'string');
+  }
+});
+
+test('crypto: session key survives JWK export/import and decrypts', async () => {
+  const blob = await encryptSecret('test-api-key-123', 'correct horse');
+  const sessionKey = await deriveSessionKey(blob, 'correct horse');
+  const jwk = await exportKeyJwk(sessionKey);
+  // Simulate chrome.storage.session JSON round trip.
+  const restored = await importKeyJwk(JSON.parse(JSON.stringify(jwk)));
+  assert.equal(await decryptWithKey(blob, restored), 'test-api-key-123');
+});
+
+await Promise.all(pending);
 console.log('RESULT: ' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);
