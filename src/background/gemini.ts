@@ -62,10 +62,15 @@ function isNetworkFailure(err: unknown): boolean {
 }
 
 async function geminiFetch(path: string, key: string, init?: RequestInit): Promise<Response> {
-  const url = `${BASE_URL}${path}${path.includes('?') ? '&' : '?'}key=${encodeURIComponent(key)}`;
+  // K-19: key goes in the x-goog-api-key header, not the URL — keeps it
+  // out of network logs, error reports and proxy logs.
+  const url = `${BASE_URL}${path}`;
+  const headers = new Headers(init?.headers);
+  headers.set('x-goog-api-key', key);
+  const mergedInit: RequestInit = { ...init, headers };
   let res: Response;
   try {
-    res = await fetch(url, init);
+    res = await fetch(url, mergedInit);
   } catch (err) {
     if (isNetworkFailure(err)) {
       throw new GeminiError('NETWORK', 'Could not reach the Gemini API. Check your connection.');
