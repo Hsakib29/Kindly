@@ -308,6 +308,17 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
       return keyState();
 
     case 'REWRITE': {
+      // K-08: register the cancel controller BEFORE any await so a CANCEL
+      // arriving during resolveApiKey/getSettings is never dropped.
+      const controller = new AbortController();
+      pendingRequests.set(request.requestId, controller);
+      const cancelled = () =>
+        ({
+          type: 'ERROR',
+          requestId: request.requestId,
+          error: { code: 'NETWORK' as const, message: 'Request cancelled.' },
+        }) satisfies ExtensionResponse;
+      try {
       if (await senderBlocked(sender)) {
         return {
           type: 'ERROR',
@@ -316,6 +327,7 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
         };
       }
       const { key, locked } = await resolveApiKey();
+      if (controller.signal.aborted) return cancelled();
       if (locked) {
         return {
           type: 'ERROR',
@@ -350,6 +362,7 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
       }
       try {
         const settings = await getSettings();
+        if (controller.signal.aborted) return cancelled();
         setDebugEnabled(settings.debug);
         // Privacy boundary (defense in depth): the content side already
         // sanitizes, but NO request may reach the prompt builder with raw
@@ -365,8 +378,6 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
           brandVoice: settings.brandVoice,
         });
         const userPrompt = built.userPrompt;
-        const controller = new AbortController();
-        pendingRequests.set(request.requestId, controller);
         const t0 = performance.now();
         await bumpUsage();
         const { variants, model, fellBack, attempts } = await generateRouted({
@@ -420,9 +431,21 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
       } finally {
         pendingRequests.delete(request.requestId);
       }
+      } finally {
+        pendingRequests.delete(request.requestId);
+      }
     }
 
     case 'WRITE': {
+      const controller = new AbortController();
+      pendingRequests.set(request.requestId, controller);
+      const cancelled = () =>
+        ({
+          type: 'ERROR',
+          requestId: request.requestId,
+          error: { code: 'NETWORK' as const, message: 'Request cancelled.' },
+        }) satisfies ExtensionResponse;
+      try {
       if (await senderBlocked(sender)) {
         return {
           type: 'ERROR',
@@ -431,6 +454,7 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
         };
       }
       const { key, locked } = await resolveApiKey();
+      if (controller.signal.aborted) return cancelled();
       if (locked) {
         return {
           type: 'ERROR',
@@ -465,6 +489,7 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
       }
       try {
         const settings = await getSettings();
+        if (controller.signal.aborted) return cancelled();
         setDebugEnabled(settings.debug);
         const brief = sanitizeRequestContext(request.brief, request.context);
         const built = buildTaskPrompt({
@@ -480,8 +505,6 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
           savedReply: request.savedReply,
         });
         const userPrompt = built.userPrompt;
-        const controller = new AbortController();
-        pendingRequests.set(request.requestId, controller);
         const t0 = performance.now();
         await bumpUsage();
         const { variants, model, fellBack, attempts } = await generateRouted({
@@ -528,6 +551,9 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
           requestId: request.requestId,
           error: apiError,
         };
+      } finally {
+        pendingRequests.delete(request.requestId);
+      }
       } finally {
         pendingRequests.delete(request.requestId);
       }
