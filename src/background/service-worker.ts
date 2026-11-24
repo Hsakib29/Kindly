@@ -18,7 +18,7 @@ import {
 import type { ApiError, ExtensionRequest, ExtensionResponse } from '../shared/messages';
 import { debugEnabled, debugGroup, debugGroupEnd, debugLog, setDebugEnabled } from '../shared/debug';
 import { sanitizeBrief } from '../shared/privacy';
-import { hostBlocked, normalizeHost } from '../shared/siteMatch';
+import { effectiveNeverRunSites, hostBlocked, normalizeHost } from '../shared/siteMatch';
 
 /**
  * Final privacy boundary before prompt construction: sanitize any
@@ -304,7 +304,7 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
         return {
           type: 'ERROR',
           requestId: request.requestId,
-          error: { code: 'SITE_BLOCKED', message: 'Kindly is disabled on this site.' },
+          error: { code: 'SITE_BLOCKED', message: 'Kindly is turned off on this site.' },
         };
       }
       const { key, locked } = await resolveApiKey();
@@ -419,7 +419,7 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
         return {
           type: 'ERROR',
           requestId: request.requestId,
-          error: { code: 'SITE_BLOCKED', message: 'Kindly is disabled on this site.' },
+          error: { code: 'SITE_BLOCKED', message: 'Kindly is turned off on this site.' },
         };
       }
       const { key, locked } = await resolveApiKey();
@@ -533,9 +533,9 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
 
 /** Defense in depth: refuse generation from blocked sites (sender frame URL). */
 async function senderBlocked(sender: chrome.runtime.MessageSender | undefined): Promise<boolean> {
-  if (!sender) return false;
-  const url = sender.url ?? sender.tab?.url;
-  if (!url) return false;
+  if (!sender) return true; // deny by default
+  const url = sender.tab?.url ?? sender.url;
+  if (!url) return true; // deny by default
   let host = '';
   try {
     host = normalizeHost(new URL(url).hostname);
@@ -545,7 +545,7 @@ async function senderBlocked(sender: chrome.runtime.MessageSender | undefined): 
   const settings = await getSettings();
   return (
     hostBlocked(settings.hiddenSites ?? [], host) ||
-    hostBlocked(settings.neverRunSites ?? [], host)
+    hostBlocked(effectiveNeverRunSites(settings.neverRunSites ?? []), host)
   );
 }
 

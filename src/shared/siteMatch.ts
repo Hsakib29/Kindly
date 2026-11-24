@@ -21,3 +21,19 @@ export function hostBlocked(patterns: Iterable<string>, host: string): boolean {
   for (const p of patterns) if (hostMatches(p, host)) return true;
   return false;
 }
+
+import { DEFAULT_NEVER_RUN_SITES } from './messages';
+
+/**
+ * Effective never-run list: built-in defaults are ALWAYS enforced —
+ * the user can add sites but cannot remove the defaults. Used by both
+ * the content script and the service worker so they can never disagree.
+ */
+export function effectiveNeverRunSites(userSites: Iterable<string>): string[] {
+  const out = [...DEFAULT_NEVER_RUN_SITES];
+  for (const s of userSites) {
+    const n = normalizeHost(s);
+    if (n && !out.includes(n)) out.push(n);
+  }
+  return out;
+}

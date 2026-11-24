@@ -8,7 +8,7 @@ import {
 } from './inserter';
 import { buildContextBrief } from './context';
 import type { ContextBriefData } from '../shared/messages';
-import { hostBlocked, normalizeHost } from '../shared/siteMatch';
+import { effectiveNeverRunSites, hostBlocked, normalizeHost } from '../shared/siteMatch';
 import { resolveTheme, watchSystemTheme } from '../shared/theme';
 import { debugLog, refreshDebugEnabled } from '../shared/debug';
 import { UndoToast } from './toast';
@@ -48,6 +48,8 @@ let neverRunSites: string[] = [];
 let contextBySite: Record<string, boolean> = {};
 let appSettings: import('../shared/messages').Settings | null = null;
 let pageContextGlobal = false;
+let settingsLoaded = false;
+let pendingField: HTMLElement | null = null;
 let themePref: 'auto' | 'light' | 'dark' = 'auto';
 let unwatchTheme: (() => void) | null = null;
 
@@ -84,7 +86,19 @@ async function refreshHiddenSites() {
     panel.setSavedReplies(settings.savedReplies ?? []);
   }
 }
-void refreshHiddenSites().then(teardownIfBlocked);
+void refreshHiddenSites().then(() => {
+  settingsLoaded = true;
+  teardownIfBlocked();
+  // A field may have been interacted with before settings arrived.
+  if (!uiReady && pendingField) {
+    const f = pendingField;
+    pendingField = null;
+    if (f.isConnected && isSupportedField(f)) {
+      ensureUI();
+      if (uiReady) ui.focusField(f);
+    }
+  }
+});
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.settings) {
     const s = changes.settings.newValue as
@@ -135,7 +149,23 @@ function teardownIfBlocked() {
 
 /** One blocked check for everything: hidden sites + never-run list. */
 function isSiteBlocked(): boolean {
-  return siteMatches(hiddenSites) || siteMatches(neverRunSites);
+  // Top-level page blocked → this frame is blocked too (cross-origin
+  // iframe case); when window.top can't be read we rely on the SW check.
+  try {
+    if (window.top && window.top !== window) {
+      if (siteMatchesTop()) return true;
+    }
+  } catch { /* cross-origin: SW sender check covers it */ }
+  return siteMatches(hiddenSites) || siteMatches(effectiveNeverRunSites(neverRunSites));
+}
+
+function siteMatchesTop(): boolean {
+  try {
+    const topHost = normalizeHost(window.top?.location.hostname ?? '');
+    return siteMatches([topHost]) || hostBlocked(effectiveNeverRunSites(neverRunSites), topHost);
+  } catch {
+    return false;
+  }
 }
 
 // Page context defaults ON for both tabs; per-site override persists.
@@ -392,7 +422,7 @@ function showRequestError(error: ApiError) {
 // ---------- Lazy UI init ----------
 // Built on first trusted field interaction — see bootstrap listeners below.
 function ensureUI() {
-  if (uiReady || isSiteBlocked()) return;
+  if (uiReady || isSiteBlocked() || !settingsLoaded) return;
   uiReady = true;
   toast = new UndoToast();
 
@@ -529,7 +559,10 @@ if (!deadFrame) {
   const maybeField = (e: Event) => {
     if (uiReady || !e.isTrusted) return;
     const t = (e.composedPath?.()[0] ?? e.target) as Element | null;
-    if (t instanceof HTMLElement && isSupportedField(t)) ensureUI();
+    if (t instanceof HTMLElement && isSupportedField(t)) {
+      if (settingsLoaded) ensureUI();
+      else pendingField = t;
+    }
   };
   for (const type of ['pointerdown', 'keydown', 'input', 'focusin']) {
     document.addEventListener(type, maybeField, true);
