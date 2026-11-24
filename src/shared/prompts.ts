@@ -75,6 +75,9 @@ function wordCount(text: string): number {
 
 export function chooseMode(input: TaskPromptInput): TaskMode {
   if (input.mode) return input.mode;
+  // K-13: Grammar tone is a correction task, not an expansion — but Write
+  // mode is a request, not a draft to fix, so it still expands.
+  if (input.tone === 'grammar' && !input.isWrite) return 'polish';
   if (input.isWrite) return 'expand';
   if (input.reviseDraft) return 'polish';
   return wordCount(input.draft) <= EXPAND_WORD_THRESHOLD ? 'expand' : 'polish';

@@ -464,6 +464,13 @@ test('quality K-12: English anchor check unchanged', () => {
   assert.ok(r.failures.some((f) => f.includes('reply target')), r.failures.join(';'));
 });
 
+test('prompts K-13: grammar tone forces polish for short drafts', () => {
+  assert.equal(chooseMode({ draft: 'i dont think thats right', tone: 'grammar' }), 'polish');
+  assert.equal(chooseMode({ draft: 'i dont think thats right', tone: 'warm' }), 'expand');
+  assert.equal(chooseMode({ draft: 'i dont think thats right', tone: 'grammar', isWrite: true }), 'expand');
+  assert.equal(chooseMode({ draft: 'short', tone: 'grammar', mode: 'expand' }), 'expand');
+});
+
 test('crypto: encryptSecret returns a blob object, not a string', async () => {
   const blob = await encryptSecret('k-123', 'a-long-passphrase');
   assert.equal(typeof blob, 'object');
