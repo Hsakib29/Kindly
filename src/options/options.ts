@@ -47,13 +47,18 @@ toggleKey.addEventListener('click', () => {
 });
 
 async function initKeyField() {
-  const saved = await getKey();
-  if (saved) {
-    keyInput.placeholder =
-      typeof saved === 'string'
-        ? `Saved key: ${saved.slice(0, 6)}…${saved.slice(-4)}`
-        : 'Saved key: encrypted';
+  try {
+    const saved = await getStoredKey();
+    if (!saved) return;
+    if (isEncryptedKey(saved)) {
+      keyInput.placeholder = 'Saved key: encrypted';
+    } else {
+      keyInput.placeholder = `Saved key: ${saved.slice(0, 6)}…${saved.slice(-4)}`;
+    }
     setStatus('A key is saved. Paste a new one to replace it.', 'ok');
+  } catch (err) {
+    console.warn('[Kindly] could not read saved key state:', err);
+    keyInput.placeholder = '';
   }
 }
 
