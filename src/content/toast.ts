@@ -15,7 +15,7 @@ export class UndoToast {
     this.host = document.createElement('div');
     this.host.style.cssText =
       'position:fixed;bottom:16px;right:16px;z-index:2147483647;';
-    const shadow = this.host.attachShadow({ mode: 'open' });
+    const shadow = this.host.attachShadow({ mode: 'closed' });
     shadow.innerHTML = `
       <style>
         :host { color-scheme: light dark; }

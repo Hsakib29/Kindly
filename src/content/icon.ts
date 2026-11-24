@@ -24,7 +24,7 @@ export class KindlyIcon {
     this.host = document.createElement('div');
     this.host.style.cssText =
       'position:fixed;top:0;left:0;z-index:2147483647;pointer-events:none;display:none;visibility:hidden;';
-    const shadow = this.host.attachShadow({ mode: 'open' });
+    const shadow = this.host.attachShadow({ mode: 'closed' });
     shadow.innerHTML = `
       <style>
         button {

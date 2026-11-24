@@ -544,7 +544,7 @@ function fieldFromEvent(event: Event): HTMLElement | null {
 }
 
 document.addEventListener('focusin', (event) => {
-  if (!uiReady) return;
+  if (!uiReady || !event.isTrusted) return;
   // Focus moving inside our own panel (e.g. instruction input) is not a
   // field change — ignore it entirely.
   if (panel.handlesEvent(event)) return;
@@ -562,7 +562,7 @@ document.addEventListener('focusout', () => {
 
 // `input` is composed, so it crosses shadow boundaries.
 document.addEventListener('input', (event) => {
-  if (!uiReady) return;
+  if (!uiReady || !event.isTrusted) return;
   const field = fieldFromEvent(event);
   if (field) ui.noteInput(field);
 });
@@ -571,7 +571,7 @@ document.addEventListener('input', (event) => {
 // Alt+R opens the panel on the focused field, Alt+Shift+R re-runs the
 // last tone, Ctrl+Enter uses the selected variant, Esc closes.
 document.addEventListener('keydown', (e) => {
-  if (!uiReady) return;
+  if (!uiReady || !e.isTrusted) return;
   if (e.key === 'Escape' && panel.isOpen) {
     e.preventDefault();
     panel.close();

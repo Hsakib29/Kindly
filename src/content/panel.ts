@@ -113,7 +113,7 @@ export class RewritePanel {
     this.host = document.createElement('div');
     this.host.style.cssText =
       'position:fixed;top:0;left:0;z-index:2147483646;pointer-events:none;';
-    const shadow = this.host.attachShadow({ mode: 'open' });
+    const shadow = this.host.attachShadow({ mode: 'closed' });
     shadow.innerHTML = `
       <style>
         :host { color-scheme: light dark; }
