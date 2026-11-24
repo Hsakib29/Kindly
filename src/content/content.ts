@@ -140,10 +140,15 @@ function contextEnabled(): boolean {
 }
 
 /** Build the structured brief and, when debug is on, log what was read. */
+let contextReadCount = 0;
+
 function collectBrief(field: HTMLElement, draftText: string) {
   if (isSiteBlocked()) {
+    debugLog(`context reads: ${contextReadCount} (blocked — no read)`);
     return { brief: { platform: 'web' } as ContextBriefData, messageCount: 0, extractor: 'blocked', maskedCount: 0 };
   }
+  contextReadCount++;
+  debugLog(`context read #${contextReadCount} @ ${siteHost}`);
   const built = buildContextBrief(field, draftText);
   const b = built.brief;
   const hasContext = Boolean(b.replyTarget || b.contextText);
