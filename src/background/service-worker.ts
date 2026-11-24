@@ -583,7 +583,29 @@ async function senderBlocked(sender: chrome.runtime.MessageSender | undefined): 
   );
 }
 
+// K-18: key/settings mutations are extension-pages-only. Content
+// scripts (sender.tab set) can read state but never change it.
+const EXTENSION_ONLY = new Set([
+  'ENCRYPT_KEY',
+  'UNLOCK_KEY',
+  'LOCK_KEY',
+  'VERIFY_KEY',
+  'SET_SETTINGS',
+]);
+
 chrome.runtime.onMessage.addListener((message: ExtensionRequest, sender, sendResponse) => {
+  const notAllowed = {
+    type: 'ERROR',
+    error: { code: 'NOT_ALLOWED' as const, message: 'Message not allowed.' },
+  } satisfies ExtensionResponse;
+  if (sender.id !== chrome.runtime.id) {
+    sendResponse(notAllowed);
+    return false;
+  }
+  if (EXTENSION_ONLY.has((message as { type?: string }).type ?? '') && sender.tab) {
+    sendResponse(notAllowed);
+    return false;
+  }
   handle(message, sender)
     .then(sendResponse)
     .catch((err) =>

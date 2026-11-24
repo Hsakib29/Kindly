@@ -38,7 +38,8 @@ export type ErrorCode =
   | 'TEXT_TOO_LONG'
   | 'TIMEOUT'
   | 'KEY_LOCKED'
-  | 'SITE_BLOCKED';
+  | 'SITE_BLOCKED'
+  | 'NOT_ALLOWED';
 
 export interface ApiError {
   code: ErrorCode;
