@@ -4,6 +4,7 @@ import { getSettings, setSettings } from '../shared/storage';
 import type { ExtensionResponse } from '../shared/messages';
 import { PRODUCT_NAME } from '../shared/brand';
 import { resolveTheme } from '../shared/theme';
+import { normalizeHost } from '../shared/siteMatch';
 
 const titleEl = document.getElementById('app-title') as HTMLElement;
 const toggleEl = document.getElementById('site-toggle') as HTMLInputElement;
@@ -35,7 +36,7 @@ async function main() {
       const info = (await chrome.tabs.sendMessage(tabId, {
         type: 'GET_SITE_INFO',
       })) as { hostname?: string; hidden?: boolean } | undefined;
-      hostname = info?.hostname ?? '';
+      hostname = normalizeHost(info?.hostname ?? '');
       hidden = info?.hidden ?? false;
     } catch {
       // Content script not running (e.g. chrome:// page) — disable toggle.

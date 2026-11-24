@@ -371,11 +371,22 @@ async function initNeverRun() {
       type: 'SET_SETTINGS',
       patch: { neverRunSites: [...DEFAULT_NEVER_RUN_SITES] },
     });
-    neverRunArea.value = DEFAULT_NEVER_RUN_SITES.join('\n');
+  neverRunArea.value = DEFAULT_NEVER_RUN_SITES.join(String.fromCharCode(10));
     return;
   }
   neverRunArea.value = settings.neverRunSites.join('\n');
 }
+
+document.getElementById('never-run-reset')?.addEventListener('click', async () => {
+  const { DEFAULT_NEVER_RUN_SITES } = await import('../shared/messages');
+  await sendRequest<ExtensionResponse>({
+    type: 'SET_SETTINGS',
+    patch: { neverRunSites: [...DEFAULT_NEVER_RUN_SITES] },
+  });
+  neverRunArea.value = DEFAULT_NEVER_RUN_SITES.join(String.fromCharCode(10));
+  sitesStatus.textContent = 'Reset to defaults.';
+  sitesStatus.className = 'status ok';
+});
 
 let neverRunTimer: number | undefined;
 neverRunArea.addEventListener('input', () => {

@@ -7,7 +7,8 @@ import {
   type FieldSelection,
 } from './inserter';
 import { buildContextBrief } from './context';
-import { DEFAULT_NEVER_RUN_SITES, type ContextBriefData } from '../shared/messages';
+import type { ContextBriefData } from '../shared/messages';
+import { hostBlocked, normalizeHost } from '../shared/siteMatch';
 import { resolveTheme, watchSystemTheme } from '../shared/theme';
 import { debugLog, refreshDebugEnabled } from '../shared/debug';
 import { UndoToast } from './toast';
@@ -24,6 +25,8 @@ type SettingsResponse = Extract<ExtensionResponse, { type: 'SETTINGS' }>;
 void refreshDebugEnabled().then(() => debugLog('content script loaded', window.location.href));
 
 const hostname = window.location.hostname;
+/** Canonical host for matching/storing (no leading www.). */
+const siteHost = normalizeHost(hostname);
 
 // ---------- Lazy UI ----------
 // Nothing is created on page load: no hosts, no shadow roots, no styles.
@@ -61,10 +64,9 @@ function watchThemePref() {
   applyTheme();
 }
 
-/** Hostname suffix match: 'chase.com' blocks 'secure.chase.com'. */
-function hostBlocked(patterns: string[]): boolean {
-  const host = window.location.hostname;
-  return patterns.some((p) => host === p || host.endsWith('.' + p));
+/** Hostname match via the shared helper: exact host + subdomains. */
+function siteMatches(patterns: Iterable<string>): boolean {
+  return hostBlocked(patterns, siteHost);
 }
 
 async function refreshHiddenSites() {
@@ -112,16 +114,14 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
+/** One blocked check for everything: hidden sites + never-run list. */
 function siteIsHidden(): boolean {
-  if (hiddenSites.has(hostname) || hiddenSites.has(window.location.host)) return true;
-  // Never-run list (P7.3): user-edited, falling back to the defaults.
-  const list = neverRunSites.length ? neverRunSites : DEFAULT_NEVER_RUN_SITES;
-  return hostBlocked(list);
+  return siteMatches(hiddenSites) || siteMatches(neverRunSites);
 }
 
 // Page context defaults ON for both tabs; per-site override persists.
 function contextEnabled(): boolean {
-  return contextBySite[hostname] ?? contextBySite[window.location.host] ?? true;
+  return contextBySite[siteHost] ?? contextBySite[hostname] ?? true;
 }
 
 /** Build the structured brief and, when debug is on, log what was read. */
@@ -466,8 +466,8 @@ function ensureUI() {
   },
   () => {
     if (!confirm(`Hide Kindly on ${hostname}? You can re-enable it in settings.`)) return;
-    void setSettings({ hiddenSites: [...hiddenSites, hostname] }).then(() => {
-      hiddenSites.add(hostname);
+    void setSettings({ hiddenSites: [...hiddenSites, siteHost] }).then(() => {
+      hiddenSites.add(siteHost);
       ui.resync();
     });
   },
@@ -626,7 +626,7 @@ window.setInterval(() => {
 chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
   const msg = message as { type?: string };
   if (msg?.type === 'GET_SITE_INFO') {
-    sendResponse({ type: 'SITE_INFO', hostname, hidden: siteIsHidden() });
+    sendResponse({ type: 'SITE_INFO', hostname: siteHost, hidden: siteIsHidden() });
     return false;
   }
   return false;

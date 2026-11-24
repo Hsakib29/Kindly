@@ -187,7 +187,7 @@ export const DEFAULT_NEVER_RUN_SITES = [
 export const SETTINGS_DEFAULTS: Settings = {
   schemaVersion: 1,
   hiddenSites: [],
-  neverRunSites: [],
+  neverRunSites: [...DEFAULT_NEVER_RUN_SITES],
   brandVoice: {},
   customTones: [],
   savedReplies: [],
