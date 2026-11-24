@@ -47,8 +47,10 @@ Everything else stays on your device.
   network call the extension makes: Gemini API requests when you
   invoke rewrite/write.
 - **Content scripts on all URLs** — required to detect editable text
-  fields and show the floating icon; extraction happens only on user
-  action and respects the never-run list.
+  fields and show the floating icon. The extension is fully lazy: no UI,
+  listeners, timers or messages exist until you interact with a text
+  field; page text is read only when you request a rewrite/write, and
+  hidden/never-run sites are hard-blocked.
 - **No `activeTab`, no `tabs`, no `webRequest`, no remote code.**
 
 ## Single purpose statement

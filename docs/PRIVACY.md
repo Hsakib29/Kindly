@@ -26,10 +26,16 @@ webpage text fields using Google's Gemini API.
 
 - We do not collect analytics, telemetry, or usage data.
 - We do not sell or share data with anyone.
-- We do not read pages in the background — page text is extracted only
-  when you invoke a rewrite/write on a supported field, and sites on
-  your never-run list are never read.
+- We do not read pages in the background. The extension creates no UI,
+  installs no listeners and sends no messages on page load; it activates
+  only after you interact with a supported text field, and page text is
+  extracted only when you invoke a rewrite/write. Sites on your
+  hidden-sites or never-run lists are hard-blocked: no icon, no context
+  reads, and generation requests from those sites are refused.
 - We do not inject ads or track you.
+- Sensitive data in page context (emails, phone numbers, card-like
+  numbers, tokens, credentials in key=value patterns, etc.) is
+  automatically redacted before anything is sent to Gemini.
 
 ## Third parties
 
