@@ -422,7 +422,7 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
         };
       } catch (err) {
         const apiError = toApiError(err);
-        console.error('[Kindly] REWRITE failed:', apiError.code, apiError.message);
+        debugLog('REWRITE failed:', apiError.code, apiError.message);
         return {
           type: 'ERROR',
           requestId: request.requestId,
@@ -545,7 +545,7 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
         };
       } catch (err) {
         const apiError = toApiError(err);
-        console.error('[Kindly] WRITE failed:', apiError.code, apiError.message);
+        debugLog('WRITE failed:', apiError.code, apiError.message);
         return {
           type: 'ERROR',
           requestId: request.requestId,
