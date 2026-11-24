@@ -210,6 +210,7 @@ test('ROLE_LABELS covers all roles per mode', () => {
 
 // ---------- privacy.ts: sanitizeText ----------
 import { sanitizeText, sanitizeBrief } from '../../src/shared/privacy';
+import { sameTextIgnoringWhitespace } from '../../src/content/inserter';
 import { encryptSecret, deriveSessionKey, decryptWithKey, exportKeyJwk, importKeyJwk } from '../../src/shared/crypto';
 
 test('privacy: credit card formats redacted', () => {
@@ -388,6 +389,13 @@ test('privacy K-09: clean text unchanged, count matches', () => {
   const multi = sanitizeText('card 4111 1111 1111 1111 and ssn 123-45-6789');
   assert.equal(multi.total, multi.text.split('[').length - 1 > 0 ? multi.total : 0);
   assert.ok(multi.total >= 2, String(multi.total));
+});
+
+test('inserter K-10: whitespace-insensitive insert verification', () => {
+  assert.ok(sameTextIgnoringWhitespace('Hi JohnThanks', 'Hi John' + String.fromCharCode(10,10) + 'Thanks'));
+  assert.ok(sameTextIgnoringWhitespace('Hi John Thanks', 'Hi John' + String.fromCharCode(10,10) + 'Thanks'));
+  assert.ok(!sameTextIgnoringWhitespace('Hello world', 'Hi John' + String.fromCharCode(10,10) + 'Thanks'));
+  assert.ok(sameTextIgnoringWhitespace('a' + String.fromCharCode(160) + 'b c', 'ab' + String.fromCharCode(10) + ' c'));
 });
 
 test('crypto: encryptSecret returns a blob object, not a string', async () => {

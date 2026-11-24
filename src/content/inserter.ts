@@ -30,7 +30,19 @@ export function readFieldText(el: HTMLElement): string {
   if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
     return el.value;
   }
-  return el.textContent ?? '';
+  // innerText preserves paragraph/line breaks that textContent drops (K-10).
+  return el.innerText ?? el.textContent ?? '';
+}
+
+/** Strip all whitespace (incl. non-breaking spaces) for comparisons. */
+export function stripWhitespace(s: string): string {
+  return s.replace(/[\s\u00a0]+/g, '');
+}
+
+/** True when `inserted`'s first 20 chars appear in `field`, ignoring whitespace. */
+export function sameTextIgnoringWhitespace(field: string, inserted: string): boolean {
+  const needle = stripWhitespace(inserted).slice(0, 20);
+  return needle.length > 0 && stripWhitespace(field).includes(needle);
 }
 
 /** Return the current selection inside `el`, or null if there is none. */
@@ -57,7 +69,7 @@ function dispatchInput(el: HTMLElement) {
 }
 
 function fieldContains(el: HTMLElement, text: string): boolean {
-  return readFieldText(el).includes(text.slice(0, Math.min(20, text.length)));
+  return sameTextIgnoringWhitespace(readFieldText(el), text);
 }
 
 // ---------- Method 1: native value setter / setRangeText ----------
