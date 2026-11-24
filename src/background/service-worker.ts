@@ -66,6 +66,8 @@ interface QualityPassArgs {
   systemInstruction: string;
   userPrompt: string;
   signal?: AbortSignal;
+  /** K-21: overall request deadline (Date.now() ms). */
+  deadlineAt?: number;
   mode: 'expand' | 'polish';
   draft: string;
   brief?: ContextBriefData;
@@ -98,7 +100,7 @@ async function applyQualityChecks(args: QualityPassArgs): Promise<{
   if (debugEnabled()) debugLog('quality checks failed:', bestFailures.join('; '));
 
   // K-07: a cancelled request must not trigger retry/escalation calls.
-  if (args.signal?.aborted) {
+  if (args.signal?.aborted || (args.deadlineAt && Date.now() > args.deadlineAt)) {
     return { variants: best, model: bestModel, extraRequests };
   }
 
@@ -128,7 +130,7 @@ async function applyQualityChecks(args: QualityPassArgs): Promise<{
   }
 
   // Escalate once to a stronger model if checks still fail and we were lite.
-  if (args.signal?.aborted) {
+  if (args.signal?.aborted || (args.deadlineAt && Date.now() > args.deadlineAt)) {
     return { variants: best, model: bestModel, extraRequests };
   }
   if (bestFailures.length > 0 && /lite/i.test(args.model)) {
@@ -378,12 +380,14 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
           brandVoice: settings.brandVoice,
         });
         const userPrompt = built.userPrompt;
+        const deadlineAt = Date.now() + 45_000;
         const t0 = performance.now();
         await bumpUsage();
         const { variants, model, fellBack, attempts } = await generateRouted({
           key,
           routerPreference: settings.routerPreference,
           signal: controller.signal,
+          deadlineAt,
           systemInstruction: TASK_SYSTEM_PROMPT,
           userPrompt,
         });
@@ -405,6 +409,7 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
         const quality = await applyQualityChecks({
           key,
           model,
+          deadlineAt,
           systemInstruction: TASK_SYSTEM_PROMPT,
           userPrompt,
           signal: controller.signal,
@@ -505,12 +510,14 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
           savedReply: request.savedReply,
         });
         const userPrompt = built.userPrompt;
+        const deadlineAt = Date.now() + 45_000;
         const t0 = performance.now();
         await bumpUsage();
         const { variants, model, fellBack, attempts } = await generateRouted({
           key,
           routerPreference: settings.routerPreference,
           signal: controller.signal,
+          deadlineAt,
           systemInstruction: TASK_SYSTEM_PROMPT,
           userPrompt,
         });
@@ -528,6 +535,7 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
         const quality = await applyQualityChecks({
           key,
           model,
+          deadlineAt,
           systemInstruction: TASK_SYSTEM_PROMPT,
           userPrompt,
           signal: controller.signal,

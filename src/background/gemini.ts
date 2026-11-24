@@ -180,6 +180,8 @@ export interface GenerateVariantsOptions {
   signal?: AbortSignal;
   /** Sampling temperature (default 0.5 — tuned for small models). */
   temperature?: number;
+  /** K-21: absolute deadline (Date.now() ms) for the whole request. */
+  deadlineAt?: number;
 }
 
 const REQUEST_TIMEOUT_MS = 25_000;
@@ -209,19 +211,26 @@ export async function generateVariants(
   if (options.signal?.aborted) {
     throw new GeminiError('NETWORK', 'Request cancelled.');
   }
-  // Per-attempt timeout (25s) linked to the caller's abort signal.
+  // Per-attempt timeout (25s, capped by the overall deadline) linked to
+  // the caller's abort signal. K-21: the timer also covers res.json() —
+  // a stalled body can no longer hang the request forever.
+  const remaining = options.deadlineAt ? options.deadlineAt - Date.now() : REQUEST_TIMEOUT_MS;
+  if (remaining <= 0) {
+    throw new GeminiError('TIMEOUT', 'Request took too long. Try again.');
+  }
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), Math.min(REQUEST_TIMEOUT_MS, remaining));
   options.signal?.addEventListener('abort', () => controller.abort(), { once: true });
 
-  let res: Response;
+  let data: GenerateContentResponse;
   try {
-    res = await geminiFetch(`/models/${model}:generateContent`, options.key, {
+    const res = await geminiFetch(`/models/${model}:generateContent`, options.key, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       signal: controller.signal,
     });
+    data = (await res.json()) as GenerateContentResponse;
   } catch (err) {
     if (controller.signal.aborted) {
       throw options.signal?.aborted
@@ -232,7 +241,6 @@ export async function generateVariants(
   } finally {
     clearTimeout(timer);
   }
-  const data = (await res.json()) as GenerateContentResponse;
 
   if (data.promptFeedback?.blockReason) {
     throw new GeminiError(

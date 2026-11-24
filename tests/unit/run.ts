@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { buildTaskPrompt, chooseMode, ROLE_LABELS } from '../../src/shared/prompts';
 import { checkVariants } from '../../src/background/quality';
 import { pickReplyTargetIndex } from '../../src/content/site-adapters';
-import { mapHttpError, isTextGenerationModel } from '../../src/background/gemini';
+import { mapHttpError, isTextGenerationModel, generateVariants } from '../../src/background/gemini';
+import { generateRouted } from '../../src/background/router';
 import { detectLanguage } from '../../src/shared/lang';
 import type { ContextBriefData } from '../../src/shared/messages';
 
@@ -216,7 +217,8 @@ import { sameTextIgnoringWhitespace } from '../../src/content/inserter';
 import { buildTaskPrompt, escapeUntrusted } from '../../src/shared/prompts';
 import { checkVariants } from '../../src/background/quality';
 import { pickReplyTargetIndex } from '../../src/content/site-adapters';
-import { mapHttpError, isTextGenerationModel } from '../../src/background/gemini';
+import { mapHttpError, isTextGenerationModel, generateVariants } from '../../src/background/gemini';
+import { generateRouted } from '../../src/background/router';
 import { encryptSecret, decryptSecret, deriveSessionKey, decryptWithKey, exportKeyJwk, importKeyJwk } from '../../src/shared/crypto';
 
 test('privacy: credit card formats redacted', () => {
@@ -510,6 +512,62 @@ test('router K-16: only text-generation models routable', () => {
   assert.ok(!isTextGenerationModel({ id: 'gemini-2.5-flash-preview-tts', methods: ['generateContent'] }));
   assert.ok(isTextGenerationModel({ id: 'gemini-3.5-flash', methods: ['generateContent', 'countTokens'] }));
   assert.ok(!isTextGenerationModel({ id: 'imagen-4', methods: ['predict'] }));
+});
+
+test('gemini K-21: stalled body read hits TIMEOUT via deadline', async () => {
+  const orig = globalThis.fetch;
+  // Headers resolve, body never does.
+  globalThis.fetch = (async (_url: RequestInfo | URL, init?: RequestInit) => ({
+    ok: true,
+    // Body never resolves on its own; rejects when the attempt aborts,
+    // like a real stalled fetch.
+    json: () =>
+      new Promise((_res, rej) => {
+        init?.signal?.addEventListener('abort', () =>
+          rej(new DOMException('The operation was aborted.', 'AbortError')),
+        );
+      }),
+  })) as typeof fetch;
+  try {
+    let code = '';
+    try {
+      await generateVariants({
+        key: 'k',
+        userPrompt: 'x',
+        deadlineAt: Date.now() + 60, // test-only short cap
+      });
+    } catch (e) { code = (e as { code?: string }).code ?? ''; }
+    assert.equal(code, 'TIMEOUT');
+  } finally {
+    globalThis.fetch = orig;
+  }
+});
+
+test('router K-21: past deadline rejects fast, empty catalog errors', async () => {
+  const orig = globalThis.fetch;
+  globalThis.fetch = (async (url: RequestInfo | URL) => {
+    const u = String(url);
+    if (u.includes('/models')) {
+      return { ok: true, json: async () => ({ models: [] }) } as Response;
+    }
+    return { ok: true, json: async () => ({}) } as Response;
+  }) as typeof fetch;
+  try {
+    let code = '';
+    try {
+      await generateRouted({ key: 'k', userPrompt: 'x', deadlineAt: Date.now() - 1 });
+    } catch (e) { code = (e as { code?: string }).code ?? ''; }
+    assert.equal(code, 'TIMEOUT');
+    // Empty catalog -> NETWORK, no hang.
+    let code2 = '';
+    try {
+      // catalogCache may hold prior state; empty models -> empty order
+      await generateRouted({ key: 'other-key-xyz', userPrompt: 'x' });
+    } catch (e) { code2 = (e as { code?: string }).code ?? ''; }
+    assert.equal(code2, 'NETWORK');
+  } finally {
+    globalThis.fetch = orig;
+  }
 });
 
 test('crypto: encryptSecret returns a blob object, not a string', async () => {

@@ -103,18 +103,36 @@ export async function generateRouted(
   options: GenerateVariantsOptions & { routerPreference?: RouterPreference },
 ): Promise<RoutedResult> {
   const order = await buildOrder(options.key, options.routerPreference ?? 'auto');
+  if (options.deadlineAt && Date.now() > options.deadlineAt) {
+    throw new GeminiError('TIMEOUT', 'Request took too long. Try again.');
+  }
   const candidates = order.filter((m) => !isCooling(m));
   if (candidates.length === 0) {
+    // K-21: empty candidate list is an error, not an Infinity wait.
+    if (order.length === 0) {
+      throw new GeminiError('NETWORK', 'No text model is available for this key right now.');
+    }
     // Everything is cooling — wait for the soonest one rather than failing.
     const soonest = Math.min(...[...cooldowns.values()].filter((t) => t > Date.now()));
-    const wait = Math.max(soonest - Date.now(), 1000);
+    const remaining = options.deadlineAt ? options.deadlineAt - Date.now() : Infinity;
+    if (remaining <= 0) {
+      throw new GeminiError('TIMEOUT', 'Request took too long. Try again.');
+    }
+    const wait = Math.min(Math.max(soonest - Date.now(), 1000), remaining);
     await new Promise((r) => setTimeout(r, wait));
     candidates.push(...order.filter((m) => !isCooling(m)));
+    if (candidates.length === 0) {
+      throw new GeminiError('NETWORK', 'No text model is available for this key right now.');
+    }
   }
 
   const attempts: string[] = [];
   let lastError: GeminiError | null = null;
   for (const model of candidates) {
+    // K-21: stop starting attempts once the overall deadline has passed.
+    if (options.deadlineAt && Date.now() > options.deadlineAt) {
+      throw new GeminiError('TIMEOUT', 'Request took too long. Try again.');
+    }
     attempts.push(model);
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
