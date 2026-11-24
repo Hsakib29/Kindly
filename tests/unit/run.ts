@@ -580,6 +580,20 @@ test('usage K-22: day key uses local date parts', () => {
   assert.equal(new Date(2025, 0, 5, 23, 30).getDate(), 5);
 });
 
+test('quality K-23: placeholders checked in all variants', () => {
+  const spam = '[a] [b] [c] [d]';
+  const r = checkVariants(
+    [
+      { role: 'short', text: 'fine reply here' },
+      { role: 'closest', text: 'another fine reply' },
+      { role: 'warmer', text: `hello ${spam} bye` },
+    ],
+    { draft: 'hi' },
+  );
+  assert.ok(r.failures.includes('placeholder spam'), r.failures.join(';'));
+  assert.equal(r.failures.filter((f) => f === 'placeholder spam').length, 1);
+});
+
 test('crypto: encryptSecret returns a blob object, not a string', async () => {
   const blob = await encryptSecret('k-123', 'a-long-passphrase');
   assert.equal(typeof blob, 'object');

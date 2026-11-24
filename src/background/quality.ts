@@ -132,11 +132,13 @@ export function checkVariants(
     }
   }
 
-  // 3. Placeholder spam.
+  // 3. Placeholder spam — check every variant; flag once.
   for (const v of variants) {
     const placeholders = (v.text.match(/\[[^\]]{1,30}\]/g) ?? []).length;
-    if (placeholders > 3) failures.push('placeholder spam');
-    break; // one is enough to flag
+    if (placeholders > 3) {
+      failures.push('placeholder spam');
+      break; // one flag is enough
+    }
   }
 
   // 4. AI-speak.
