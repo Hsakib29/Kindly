@@ -84,7 +84,7 @@ async function refreshHiddenSites() {
     }
   }
 }
-void refreshHiddenSites();
+void refreshHiddenSites().then(teardownIfBlocked);
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.settings) {
     const s = changes.settings.newValue as
@@ -111,11 +111,28 @@ chrome.storage.onChanged.addListener((changes, area) => {
     }
     void refreshDebugEnabled();
     if (uiReady) ui.resync();
+    teardownIfBlocked();
   }
 });
 
+/** Site became blocked (or was blocked all along): tear the UI down.
+ *  Unblocking works without reload — the next field interaction rebuilds. */
+function teardownIfBlocked() {
+  if (!isSiteBlocked() || !uiReady) return;
+  debugLog('blocked: tearing down UI on', siteHost);
+  rewriteEpoch++;
+  for (const requestId of activeRequestIds) {
+    void sendRequest<ExtensionResponse>({ type: 'CANCEL', requestId }).catch(() => {});
+  }
+  try { panel.destroy(); } catch { /* already gone */ }
+  try { icon.destroy(); } catch { /* already gone */ }
+  try { toast.destroy(); } catch { /* already gone */ }
+  try { ui.dispose(); } catch { /* already gone */ }
+  uiReady = false;
+}
+
 /** One blocked check for everything: hidden sites + never-run list. */
-function siteIsHidden(): boolean {
+function isSiteBlocked(): boolean {
   return siteMatches(hiddenSites) || siteMatches(neverRunSites);
 }
 
@@ -126,6 +143,9 @@ function contextEnabled(): boolean {
 
 /** Build the structured brief and, when debug is on, log what was read. */
 function collectBrief(field: HTMLElement, draftText: string) {
+  if (isSiteBlocked()) {
+    return { brief: { platform: 'web' } as ContextBriefData, messageCount: 0, extractor: 'blocked', maskedCount: 0 };
+  }
   const built = buildContextBrief(field, draftText);
   const b = built.brief;
   const hasContext = Boolean(b.replyTarget || b.contextText);
@@ -172,6 +192,7 @@ function isContextInvalid(err: unknown): boolean {
 }
 
 async function requestRewrite(tone: ToneId, instruction?: string, avoid?: string[]) {
+  if (isSiteBlocked()) return;
   if (rewriteInFlight) {
     queuedRewrite = { tone, instruction, avoid };
     return;
@@ -261,6 +282,7 @@ let writeInFlight = false;
 let writeQueued: WriteGenerateRequest | null = null;
 
 async function requestWrite(req: WriteGenerateRequest) {
+  if (isSiteBlocked()) return;
   if (writeInFlight) {
     writeQueued = req;
     return;
@@ -351,6 +373,7 @@ function showRequestError(error: ApiError) {
       );
       break;
     case 'KEY_LOCKED':
+    case 'SITE_BLOCKED':
       panel.showError({ code: error.code, message: detail });
       break;
   }
@@ -361,7 +384,7 @@ function showRequestError(error: ApiError) {
 // ---------- Lazy UI init ----------
 // Built on first trusted field interaction — see bootstrap listeners below.
 function ensureUI() {
-  if (uiReady || siteIsHidden()) return;
+  if (uiReady || isSiteBlocked()) return;
   uiReady = true;
   toast = new UndoToast();
 
@@ -445,6 +468,7 @@ function ensureUI() {
     if (req) void requestWrite(req);
   },
   getWriteContext: (): ContextBriefData | undefined => {
+    if (isSiteBlocked()) return undefined;
     const field: HTMLElement | null | undefined = ui?.activeField;
     if (!field) return undefined;
     const built = collectBrief(field, '');
@@ -474,7 +498,7 @@ function ensureUI() {
 );
 
   ui = new FieldUiController(icon, panel, {
-  isSiteHidden: siteIsHidden,
+  isSiteHidden: isSiteBlocked,
   getDeepActiveElement: () => getDeepActiveElement(),
   onPanelClosed: () => {
     rewriteEpoch++;
@@ -558,7 +582,7 @@ document.addEventListener('keydown', (e) => {
     panel.useSelected();
     return;
   }
-  if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'r' && ui?.activeField) {
+  if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'r' && ui?.activeField && !isSiteBlocked()) {
     e.preventDefault();
     if (e.shiftKey) {
       void requestRewrite(selectedTone, lastInstruction || undefined);
@@ -626,7 +650,7 @@ window.setInterval(() => {
 chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
   const msg = message as { type?: string };
   if (msg?.type === 'GET_SITE_INFO') {
-    sendResponse({ type: 'SITE_INFO', hostname: siteHost, hidden: siteIsHidden() });
+    sendResponse({ type: 'SITE_INFO', hostname: siteHost, hidden: isSiteBlocked() });
     return false;
   }
   return false;

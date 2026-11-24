@@ -77,6 +77,8 @@ export class FieldUiController {
 
   /** focusin on a supported field. */
   focusField(el: HTMLElement) {
+    // Hard stop: never track a field on a blocked site.
+    if (this.hooks.isSiteHidden()) return;
     window.clearTimeout(this.blurTimer);
     if (el === this.field && this.state !== 'idle') {
       // Same field re-focused (e.g. page re-render kept the node): just sync.
@@ -140,6 +142,7 @@ export class FieldUiController {
 
   /** Icon clicked — open the panel anchored to the icon's field. */
   openPanel() {
+    if (this.hooks.isSiteHidden()) return;
     const field = this.field;
     if (!field || !field.isConnected) {
       this.unfocusField();

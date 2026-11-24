@@ -12,6 +12,7 @@ import {
 import type { ApiError, ExtensionRequest, ExtensionResponse } from '../shared/messages';
 import { debugEnabled, debugGroup, debugGroupEnd, debugLog, setDebugEnabled } from '../shared/debug';
 import { sanitizeBrief } from '../shared/privacy';
+import { hostBlocked, normalizeHost } from '../shared/siteMatch';
 
 /**
  * Final privacy boundary before prompt construction: sanitize any
@@ -194,7 +195,7 @@ function toApiError(err: unknown): ApiError {
   return { code: 'NETWORK', message: err instanceof Error ? err.message : String(err) };
 }
 
-async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
+async function handle(request: ExtensionRequest, sender?: chrome.runtime.MessageSender): Promise<ExtensionResponse> {
   switch (request.type) {
     case 'PING':
       return { type: 'PONG' };
@@ -278,6 +279,13 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
       return keyState();
 
     case 'REWRITE': {
+      if (await senderBlocked(sender)) {
+        return {
+          type: 'ERROR',
+          requestId: request.requestId,
+          error: { code: 'SITE_BLOCKED', message: 'Kindly is disabled on this site.' },
+        };
+      }
       const { key, locked } = await resolveApiKey();
       if (locked) {
         return {
@@ -386,6 +394,13 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
     }
 
     case 'WRITE': {
+      if (await senderBlocked(sender)) {
+        return {
+          type: 'ERROR',
+          requestId: request.requestId,
+          error: { code: 'SITE_BLOCKED', message: 'Kindly is disabled on this site.' },
+        };
+      }
       const { key, locked } = await resolveApiKey();
       if (locked) {
         return {
@@ -495,8 +510,26 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
   }
 }
 
-chrome.runtime.onMessage.addListener((message: ExtensionRequest, _sender, sendResponse) => {
-  handle(message)
+/** Defense in depth: refuse generation from blocked sites (sender frame URL). */
+async function senderBlocked(sender: chrome.runtime.MessageSender | undefined): Promise<boolean> {
+  if (!sender) return false;
+  const url = sender.url ?? sender.tab?.url;
+  if (!url) return false;
+  let host = '';
+  try {
+    host = normalizeHost(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+  const settings = await getSettings();
+  return (
+    hostBlocked(settings.hiddenSites ?? [], host) ||
+    hostBlocked(settings.neverRunSites ?? [], host)
+  );
+}
+
+chrome.runtime.onMessage.addListener((message: ExtensionRequest, sender, sendResponse) => {
+  handle(message, sender)
     .then(sendResponse)
     .catch((err) =>
       sendResponse({
