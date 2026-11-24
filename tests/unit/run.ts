@@ -7,7 +7,7 @@ import { checkVariants } from '../../src/background/quality';
 import { pickReplyTargetIndex } from '../../src/content/site-adapters';
 import { hostMatches } from '../../src/content/context';
 import { mapHttpError, isTextGenerationModel, generateVariants } from '../../src/background/gemini';
-import { generateRouted } from '../../src/background/router';
+import { generateRouted, pickEscalationModel } from '../../src/background/router';
 import { detectLanguage } from '../../src/shared/lang';
 import type { ContextBriefData } from '../../src/shared/messages';
 
@@ -220,7 +220,7 @@ import { checkVariants } from '../../src/background/quality';
 import { pickReplyTargetIndex } from '../../src/content/site-adapters';
 import { hostMatches } from '../../src/content/context';
 import { mapHttpError, isTextGenerationModel, generateVariants } from '../../src/background/gemini';
-import { generateRouted } from '../../src/background/router';
+import { generateRouted, pickEscalationModel } from '../../src/background/router';
 import { encryptSecret, decryptSecret, deriveSessionKey, decryptWithKey, exportKeyJwk, importKeyJwk } from '../../src/shared/crypto';
 
 test('privacy: credit card formats redacted', () => {
@@ -603,6 +603,21 @@ test('context K-25: hostMatches is exact-domain only', () => {
   assert.ok(!hostMatches('box.com', 'x.com'));
   assert.ok(!hostMatches('notx.com', 'x.com'));
   assert.ok(hostMatches('mail.google.com', 'mail.google.com'));
+});
+
+test('router K-26: escalation skips unavailable/cooling models', () => {
+  // First escalation model not in catalog -> second is picked.
+  const catalog = ['gemini-3.7-flash', 'gemini-3.6-flash'];
+  assert.equal(pickEscalationModel(catalog, () => false), 'gemini-3.7-flash');
+  // Cooling first -> next usable.
+  assert.equal(
+    pickEscalationModel(['gemini-3.8-flash', 'gemini-3.7-flash'], (m) => m === 'gemini-3.8-flash'),
+    'gemini-3.7-flash',
+  );
+  // Catalog null -> static order.
+  assert.equal(pickEscalationModel(null, () => false), 'gemini-3.8-flash');
+  // None usable.
+  assert.equal(pickEscalationModel([], () => false), undefined);
 });
 
 test('crypto: encryptSecret returns a blob object, not a string', async () => {

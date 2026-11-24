@@ -98,6 +98,9 @@ export function isTextGenerationModel(info: { id: string; methods: string[] }): 
 }
 
 /** List models with their supported generation methods (K-16). */
+// K-26: single home for escalation models (was duplicated in SW).
+export const ESCALATION_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash'];
+
 export async function listModelInfo(key: string): Promise<ModelInfo[]> {
   const res = await geminiFetch('/models?pageSize=1000', key);
   const data = (await res.json()) as {

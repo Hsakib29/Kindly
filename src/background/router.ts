@@ -7,6 +7,7 @@ import {
   generateVariants,
   listModelInfo,
   isTextGenerationModel,
+  ESCALATION_MODELS,
   MODEL_FALLBACK_ORDER,
   type GenerateVariantsOptions,
 } from './gemini';
@@ -42,7 +43,7 @@ function tierOf(model: string): 'fast' | 'balanced' | 'quality' {
 // models can never be tried for a chat request.
 let catalogCache: { key: string; ids: string[] } | null = null;
 
-async function availableModels(key: string): Promise<string[] | null> {
+export async function availableModels(key: string): Promise<string[] | null> {
   if (catalogCache?.key === key) return catalogCache.ids;
   try {
     const infos = await listModelInfo(key);
@@ -99,6 +100,14 @@ export interface RoutedResult {
  * models that hit RATE_LIMIT, retries NETWORK failures once per model,
  * then moves to the next candidate.
  */
+/** K-26: first escalation model the key can use and isn't cooling. */
+export function pickEscalationModel(
+  catalog: string[] | null,
+  cooling: (m: string) => boolean,
+): string | undefined {
+  return ESCALATION_MODELS.find((m) => (!catalog || catalog.includes(m)) && !cooling(m));
+}
+
 export async function generateRouted(
   options: GenerateVariantsOptions & { routerPreference?: RouterPreference },
 ): Promise<RoutedResult> {

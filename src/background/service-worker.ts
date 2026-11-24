@@ -1,5 +1,5 @@
 import { listModels, generateVariants } from './gemini';
-import { generateRouted, isModelCooling } from './router';
+import { generateRouted, isModelCooling, availableModels, pickEscalationModel } from './router';
 import { checkVariants } from './quality';
 import type { ContextBriefData, Variant } from '../shared/messages';
 import { getSettings, setSettings, getStoredKey, setStoredKey, isEncryptedKey } from '../shared/storage';
@@ -71,8 +71,6 @@ async function bumpUsage() {
 }
 
 // Stronger models tried once when quality checks still fail on a lite model.
-const ESCALATION_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash'];
-
 interface QualityPassArgs {
   key: string;
   model: string;
@@ -147,8 +145,10 @@ async function applyQualityChecks(args: QualityPassArgs): Promise<{
     return { variants: best, model: bestModel, extraRequests };
   }
   if (bestFailures.length > 0 && /lite/i.test(args.model)) {
-    for (const m of ESCALATION_MODELS) {
-      if (isModelCooling(m)) continue;
+    // K-26: escalate to the first model the key can actually use.
+    const catalog = await availableModels(args.key);
+    const m = pickEscalationModel(catalog, isModelCooling);
+    if (m) {
       try {
         extraRequests++;
         const esc = await generateVariants({
@@ -168,7 +168,6 @@ async function applyQualityChecks(args: QualityPassArgs): Promise<{
       } catch {
         /* escalation failed — keep best so far */
       }
-      break; // at most one escalation attempt
     }
   }
 
