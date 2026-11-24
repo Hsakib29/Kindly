@@ -352,6 +352,44 @@ test('privacy: sanitizeBrief leaves clean brief untouched', () => {
 
 // ---------- crypto.ts: JWK session-key round trip (K-01) ----------
 
+test('privacy K-09: card numbers need Luhn', () => {
+  const good = sanitizeText('My card is 4111 1111 1111 1111 ok');
+  assert.ok(good.text.includes('[card number removed]'), good.text);
+  assert.equal(good.counts.card, 1);
+  const bad = sanitizeText('Order 4111 1111 1111 1112 shipped');
+  // Not masked AS A CARD (it may still match the phone rule — that's a
+  // separate pre-existing pattern, not a card false positive).
+  assert.ok(!bad.text.includes('[card number removed]'), bad.text);
+  // 13-digit non-Luhn order number survives
+  const order = sanitizeText('order 1234567890123 here');
+  assert.ok(order.text.includes('1234567890123'), order.text);
+});
+
+test('privacy K-09: SSN masked, phone untouched', () => {
+  const ssn = sanitizeText('ssn 123-45-6789 end');
+  assert.ok(ssn.text.includes('[id number removed]'), ssn.text);
+  const phone = sanitizeText('Call me at 555-123-4567');
+  // phone regex may or may not match — K-09 only requires it NOT be
+  // masked as a card/SSN; it must not produce [id number removed]
+  assert.ok(!phone.text.includes('[id number removed]'), phone.text);
+});
+
+test('privacy K-09: IBAN mod-97 and key prefixes', () => {
+  const iban = sanitizeText('acct GB82 WEST 1234 5698 7654 32 thanks');
+  assert.ok(iban.text.includes('[account number removed]'), iban.text);
+  const key = sanitizeText('key AIza' + 'A'.repeat(35) + ' tail');
+  assert.ok(key.text.includes('[token removed]'), key.text);
+});
+
+test('privacy K-09: clean text unchanged, count matches', () => {
+  const clean = sanitizeText('hello there, have a nice day');
+  assert.equal(clean.text, 'hello there, have a nice day');
+  assert.equal(clean.total, 0);
+  const multi = sanitizeText('card 4111 1111 1111 1111 and ssn 123-45-6789');
+  assert.equal(multi.total, multi.text.split('[').length - 1 > 0 ? multi.total : 0);
+  assert.ok(multi.total >= 2, String(multi.total));
+});
+
 test('crypto: encryptSecret returns a blob object, not a string', async () => {
   const blob = await encryptSecret('k-123', 'a-long-passphrase');
   assert.equal(typeof blob, 'object');

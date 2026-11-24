@@ -50,6 +50,37 @@ const MARKERS: Record<RedactionCategory, string> = {
 interface Rule {
   category: RedactionCategory;
   re: RegExp;
+  /** Optional checksum gate — return false to leave the match unchanged. */
+  validate?: (match: string) => boolean;
+}
+
+// Luhn checksum (K-09): only card-shaped numbers that pass are masked,
+// so order/tracking numbers survive.
+function luhnValid(digits: string): boolean {
+  let sum = 0;
+  let dbl = false;
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let d = digits.charCodeAt(i) - 48;
+    if (dbl) {
+      d *= 2;
+      if (d > 9) d -= 9;
+    }
+    sum += d;
+    dbl = !dbl;
+  }
+  return sum % 10 === 0;
+}
+
+// IBAN mod-97 check (K-09): move first 4 chars to end, letters→numbers,
+// result mod 97 must equal 1.
+function ibanValid(iban: string): boolean {
+  const rearranged = iban.slice(4) + iban.slice(0, 4);
+  let rem = 0;
+  for (const ch of rearranged) {
+    const code = ch >= '0' && ch <= '9' ? ch : String(ch.charCodeAt(0) - 55);
+    for (const c of code) rem = (rem * 10 + (c.charCodeAt(0) - 48)) % 97;
+  }
+  return rem === 1;
 }
 
 // Order matters: specific formats first, generic long-token catch-all last.
@@ -77,23 +108,30 @@ const RULES: Rule[] = [
     re: /\b(?:password|passwd|pwd|pw|passphrase|pass|secret|api[_-]?key|apikey|access[_-]?key|secret[_-]?key|private[_-]?key|client[_-]?secret|auth[_-]?token|session[_-]?token|cvv|cvc|ssn|social\s*security|passport|iban|account\s*(?:number|no|#)?|acct|routing|sort\s*code|ifsc|card\s*(?:number|no|#)?)\b\s*[:=]\s*[^\s,;"'`)\]}]+/gi,
   },
   // IBAN before card: spaced IBANs contain card-shaped digit runs.
+  // Masked only when the mod-97 checksum passes (K-09).
   {
     category: 'iban',
     re: /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]){11,30}\b/g,
+    validate: (m) => ibanValid(m.replace(/ /g, '')),
   },
   // Credit-card-shaped numbers: 13–19 digits with optional space/dash
-  // grouping. Luhn is NOT required — privacy favors over-redaction of
-  // card-shaped data (order ids rarely have this exact shape).
+  // grouping, masked only when the Luhn checksum passes (K-09) — order
+  // and tracking numbers that fail Luhn are left alone.
   {
     category: 'card',
     re: /\b(?:\d[ -]?){13,19}\b/g,
+    validate: (m) => {
+      const digits = m.replace(/[ -]/g, '');
+      return digits.length >= 13 && digits.length <= 19 && luhnValid(digits);
+    },
   },
   // US SSN shape
   {
     category: 'ssn',
     re: /\b\d{3}-\d{2}-\d{4}\b/g,
   },
-  // Email addresses
+  // Email addresses — masked (pre-existing behavior; K-09 did not
+  // ask to remove it — customer-care threads routinely contain PII).
   {
     category: 'email',
     re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
@@ -126,6 +164,7 @@ export function sanitizeText(text: string): SanitizeResult {
 
   for (const rule of RULES) {
     out = out.replace(rule.re, (match) => {
+      if (rule.validate && !rule.validate(match)) return match;
       // For URL credentials keep the scheme+host visible is complex —
       // the whole "scheme://user:pass@" prefix becomes a marker.
       if (rule.category === 'credentials-url') {
