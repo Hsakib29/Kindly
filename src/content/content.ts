@@ -1,4 +1,3 @@
-import './spike';
 import { getDeepActiveElement, isSupportedField } from './fields';
 import {
   getFieldSelection,
@@ -35,6 +34,23 @@ chrome.runtime.sendMessage({ type: 'PING' }, (response) => {
 });
 
 const hostname = window.location.hostname;
+
+// ---------- Lazy UI ----------
+// Nothing is created on page load: no hosts, no shadow roots, no styles.
+// The first trusted interaction with a supported field (or a clearly
+// active supported field at load) builds the whole UI via ensureUI().
+let icon!: KindlyIcon;
+let panel!: RewritePanel;
+let ui!: FieldUiController;
+let toast!: UndoToast;
+let uiReady = false;
+
+/** Dead frames (tiny/ad/about:blank iframes) never get UI code at all. */
+const deadFrame =
+  window !== window.top &&
+  (window.innerWidth < 100 ||
+    window.innerHeight < 100 ||
+    window.location.href === 'about:blank');
 let hiddenSites = new Set<string>();
 let neverRunSites: string[] = [];
 let contextBySite: Record<string, boolean> = {};
@@ -43,6 +59,7 @@ let themePref: 'auto' | 'light' | 'dark' = 'auto';
 let unwatchTheme: (() => void) | null = null;
 
 function applyTheme() {
+  if (!uiReady) return;
   const mode = resolveTheme(themePref);
   panel.setTheme(mode);
   toast.setTheme(mode);
@@ -69,8 +86,10 @@ async function refreshHiddenSites() {
     appSettings = res.settings;
     themePref = res.settings.theme ?? 'auto';
     watchThemePref();
-    panel.setCustomTones(res.settings.customTones ?? []);
-    panel.setSavedReplies(res.settings.savedReplies ?? []);
+    if (uiReady) {
+      panel.setCustomTones(res.settings.customTones ?? []);
+      panel.setSavedReplies(res.settings.savedReplies ?? []);
+    }
   }
 }
 void refreshHiddenSites();
@@ -91,13 +110,15 @@ chrome.storage.onChanged.addListener((changes, area) => {
     }
     neverRunSites = (s as { neverRunSites?: string[] } | undefined)?.neverRunSites ?? neverRunSites;
     contextBySite = s?.usePageContextBySite ?? {};
-    panel.setCustomTones(s?.customTones ?? []);
-    panel.setSavedReplies(
-      (s as { savedReplies?: import('../shared/messages').SavedReply[] } | undefined)
-        ?.savedReplies ?? [],
-    );
+    if (uiReady) {
+      panel.setCustomTones(s?.customTones ?? []);
+      panel.setSavedReplies(
+        (s as { savedReplies?: import('../shared/messages').SavedReply[] } | undefined)
+          ?.savedReplies ?? [],
+      );
+    }
     void refreshDebugEnabled();
-    ui?.resync();
+    if (uiReady) ui.resync();
   }
 });
 
@@ -301,8 +322,6 @@ async function requestWrite(req: WriteGenerateRequest) {
   }
 }
 
-const toast = new UndoToast();
-
 // P3.10: friendly error copy + actions per error code. The server-provided
 // message is shown when present since it carries the real cause.
 function showRequestError(error: ApiError) {
@@ -349,7 +368,14 @@ function showRequestError(error: ApiError) {
 
 // ---------- Panel ----------
 
-const panel: RewritePanel = new RewritePanel({
+// ---------- Lazy UI init ----------
+// Built on first trusted field interaction — see bootstrap listeners below.
+function ensureUI() {
+  if (uiReady || siteIsHidden()) return;
+  uiReady = true;
+  toast = new UndoToast();
+
+  panel = new RewritePanel({
   onTone: (tone, customInstruction) => {
     if (tone) {
       selectedTone = tone;
@@ -435,11 +461,15 @@ const panel: RewritePanel = new RewritePanel({
     return built.brief.replyTarget || built.brief.contextText ? built.brief : undefined;
   },
 });
-panel.selectTone(selectedTone);
+  panel.selectTone(selectedTone);
+  if (appSettings) {
+    panel.setCustomTones(appSettings.customTones ?? []);
+    panel.setSavedReplies(appSettings.savedReplies ?? []);
+  }
 
 // ---------- Icon + field UI state machine ----------
 
-const icon = new KindlyIcon(
+  icon = new KindlyIcon(
   (field) => {
     if (field !== ui.activeField) ui.focusField(field);
     ui.openPanel();
@@ -453,7 +483,7 @@ const icon = new KindlyIcon(
   },
 );
 
-const ui: FieldUiController = new FieldUiController(icon, panel, {
+  ui = new FieldUiController(icon, panel, {
   isSiteHidden: siteIsHidden,
   getDeepActiveElement: () => getDeepActiveElement(),
   onPanelClosed: () => {
@@ -465,6 +495,34 @@ const ui: FieldUiController = new FieldUiController(icon, panel, {
   },
 });
 
+  applyTheme();
+  debugLog('ui: initialized on first field interaction');
+}
+
+// Bootstrap: first trusted interaction with a supported field builds the UI.
+// Runs before the regular listeners; dead frames (tiny/ad/about:blank
+// iframes) never register anything.
+if (!deadFrame) {
+  const maybeField = (e: Event) => {
+    if (uiReady || !e.isTrusted) return;
+    const t = (e.composedPath?.()[0] ?? e.target) as Element | null;
+    if (t instanceof HTMLElement && isSupportedField(t)) ensureUI();
+  };
+  for (const type of ['pointerdown', 'keydown', 'input', 'focusin']) {
+    document.addEventListener(type, maybeField, true);
+  }
+  // Autofocused supported field on a focused page — no DOM footprint
+  // otherwise; background tabs wait for real interaction.
+  const active = getDeepActiveElement();
+  if (
+    document.hasFocus() &&
+    active instanceof HTMLElement &&
+    isSupportedField(active)
+  ) {
+    ensureUI();
+  }
+}
+
 function fieldFromEvent(event: Event): HTMLElement | null {
   // composedPath pierces shadow roots so fields inside them are seen (P2.6).
   const target = (event.composedPath?.()[0] ?? event.target) as Element | null;
@@ -472,6 +530,7 @@ function fieldFromEvent(event: Event): HTMLElement | null {
 }
 
 document.addEventListener('focusin', (event) => {
+  if (!uiReady) return;
   // Focus moving inside our own panel (e.g. instruction input) is not a
   // field change — ignore it entirely.
   if (panel.handlesEvent(event)) return;
@@ -484,11 +543,12 @@ document.addEventListener('focusin', (event) => {
 });
 
 document.addEventListener('focusout', () => {
-  ui.scheduleBlurCheck();
+  if (uiReady) ui.scheduleBlurCheck();
 });
 
 // `input` is composed, so it crosses shadow boundaries.
 document.addEventListener('input', (event) => {
+  if (!uiReady) return;
   const field = fieldFromEvent(event);
   if (field) ui.noteInput(field);
 });
@@ -497,6 +557,7 @@ document.addEventListener('input', (event) => {
 // Alt+R opens the panel on the focused field, Alt+Shift+R re-runs the
 // last tone, Ctrl+Enter uses the selected variant, Esc closes.
 document.addEventListener('keydown', (e) => {
+  if (!uiReady) return;
   if (e.key === 'Escape' && panel.isOpen) {
     e.preventDefault();
     panel.close();
@@ -543,6 +604,7 @@ function checkStaleRequests() {
 }
 
 function resyncUi(reason: string) {
+  if (!uiReady) return;
   debugLog(`resync: ${reason} (state=${ui.state} field=${ui.activeField ? 'set' : 'none'})`);
   ui.resyncFromDom();
   checkStaleRequests();
@@ -558,7 +620,7 @@ window.addEventListener('pageshow', () => resyncUi('pageshow'));
 // Corrects any state where the icon should show but doesn't (e.g. a
 // throttled timer fired late). Cost: one textContent read per second.
 window.setInterval(() => {
-  if (document.visibilityState !== 'visible') return;
+  if (!uiReady || document.visibilityState !== 'visible') return;
   // Only correct states that could be wrongly hidden — 'icon'/'panel' are
   // already correct, 'hidden-site' only changes via storage events.
   if (ui.state === 'icon' || ui.state === 'panel' || ui.state === 'hidden-site') return;

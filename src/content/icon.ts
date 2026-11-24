@@ -23,7 +23,7 @@ export class KindlyIcon {
   ) {
     this.host = document.createElement('div');
     this.host.style.cssText =
-      'position:fixed;top:0;left:0;z-index:2147483647;pointer-events:none;';
+      'position:fixed;top:0;left:0;z-index:2147483647;pointer-events:none;display:none;visibility:hidden;';
     const shadow = this.host.attachShadow({ mode: 'open' });
     shadow.innerHTML = `
       <style>
@@ -76,10 +76,15 @@ export class KindlyIcon {
     this.field = field;
     this.button.classList.toggle('quiet', quiet);
     this.host.style.display = 'block';
+    this.host.style.visibility = 'hidden'; // until a valid position is computed
     if (this.resizeObserver && this.field) this.resizeObserver.disconnect();
     this.resizeObserver = new ResizeObserver(() => this.scheduleUpdate());
     this.resizeObserver.observe(field);
     this.updatePosition();
+    // updatePosition() may have hidden us again (detached/zero-rect field).
+    if (this.host.style.display !== 'none') {
+      this.host.style.visibility = 'visible';
+    }
   }
 
   setQuiet(quiet: boolean) {
@@ -88,6 +93,7 @@ export class KindlyIcon {
 
   hide() {
     this.host.style.display = 'none';
+    this.host.style.visibility = 'hidden';
     this.field = null;
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
@@ -134,5 +140,6 @@ export class KindlyIcon {
     top = Math.min(Math.max(top, VIEWPORT_MARGIN), window.innerHeight - ICON_SIZE - VIEWPORT_MARGIN);
 
     this.host.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
+    this.host.style.visibility = 'visible';
   }
 }
