@@ -5,7 +5,8 @@
 import {
   GeminiError,
   generateVariants,
-  listModelIds,
+  listModelInfo,
+  isTextGenerationModel,
   MODEL_FALLBACK_ORDER,
   type GenerateVariantsOptions,
 } from './gemini';
@@ -37,12 +38,15 @@ function tierOf(model: string): 'fast' | 'balanced' | 'quality' {
 }
 
 // Catalog cache: one /models fetch per service worker lifetime per key.
+// K-16: only text-generation models are routable — embedding/TTS/image
+// models can never be tried for a chat request.
 let catalogCache: { key: string; ids: string[] } | null = null;
 
 async function availableModels(key: string): Promise<string[] | null> {
   if (catalogCache?.key === key) return catalogCache.ids;
   try {
-    const ids = await listModelIds(key);
+    const infos = await listModelInfo(key);
+    const ids = infos.filter(isTextGenerationModel).map((m) => m.id);
     catalogCache = { key, ids };
     return ids;
   } catch {

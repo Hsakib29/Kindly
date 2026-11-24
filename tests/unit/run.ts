@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { buildTaskPrompt, chooseMode, ROLE_LABELS } from '../../src/shared/prompts';
 import { checkVariants } from '../../src/background/quality';
 import { pickReplyTargetIndex } from '../../src/content/site-adapters';
-import { mapHttpError } from '../../src/background/gemini';
+import { mapHttpError, isTextGenerationModel } from '../../src/background/gemini';
 import { detectLanguage } from '../../src/shared/lang';
 import type { ContextBriefData } from '../../src/shared/messages';
 
@@ -216,7 +216,7 @@ import { sameTextIgnoringWhitespace } from '../../src/content/inserter';
 import { buildTaskPrompt, escapeUntrusted } from '../../src/shared/prompts';
 import { checkVariants } from '../../src/background/quality';
 import { pickReplyTargetIndex } from '../../src/content/site-adapters';
-import { mapHttpError } from '../../src/background/gemini';
+import { mapHttpError, isTextGenerationModel } from '../../src/background/gemini';
 import { encryptSecret, deriveSessionKey, decryptWithKey, exportKeyJwk, importKeyJwk } from '../../src/shared/crypto';
 
 test('privacy: credit card formats redacted', () => {
@@ -502,6 +502,14 @@ test('gemini K-15: HTTP status mapping', () => {
   assert.equal(mapHttpError(404, body('no')).code, 'NETWORK');
   assert.equal(mapHttpError(429, body('no')).code, 'RATE_LIMIT');
   assert.equal(mapHttpError(500, body('no')).code, 'NETWORK');
+});
+
+test('router K-16: only text-generation models routable', () => {
+  assert.ok(isTextGenerationModel({ id: 'gemini-3.5-flash-lite', methods: ['generateContent'] }));
+  assert.ok(!isTextGenerationModel({ id: 'text-embedding-004', methods: ['embedContent'] }));
+  assert.ok(!isTextGenerationModel({ id: 'gemini-2.5-flash-preview-tts', methods: ['generateContent'] }));
+  assert.ok(isTextGenerationModel({ id: 'gemini-3.5-flash', methods: ['generateContent', 'countTokens'] }));
+  assert.ok(!isTextGenerationModel({ id: 'imagen-4', methods: ['predict'] }));
 });
 
 test('crypto: encryptSecret returns a blob object, not a string', async () => {

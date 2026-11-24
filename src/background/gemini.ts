@@ -79,6 +79,33 @@ async function geminiFetch(path: string, key: string, init?: RequestInit): Promi
   return res;
 }
 
+export interface ModelInfo {
+  id: string;
+  methods: string[];
+}
+
+/** K-16: only models that can generate text for chat completions. */
+export function isTextGenerationModel(info: { id: string; methods: string[] }): boolean {
+  return (
+    info.methods.includes('generateContent') &&
+    !/embed|tts|image|imagen|veo|aqa|audio|live/i.test(info.id)
+  );
+}
+
+/** List models with their supported generation methods (K-16). */
+export async function listModelInfo(key: string): Promise<ModelInfo[]> {
+  const res = await geminiFetch('/models?pageSize=1000', key);
+  const data = (await res.json()) as {
+    models?: { name?: string; supportedGenerationMethods?: string[] }[];
+  };
+  return (data.models ?? [])
+    .map((m) => ({
+      id: m.name?.replace(/^models\//, '') ?? '',
+      methods: m.supportedGenerationMethods ?? [],
+    }))
+    .filter((m) => m.id);
+}
+
 /** List available models; returns the count (used by key verification). */
 export async function listModelIds(key: string): Promise<string[]> {
   const res = await geminiFetch('/models?pageSize=1000', key);
