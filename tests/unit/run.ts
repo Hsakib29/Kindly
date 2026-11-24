@@ -212,6 +212,7 @@ test('ROLE_LABELS covers all roles per mode', () => {
 import { sanitizeText, sanitizeBrief } from '../../src/shared/privacy';
 import { sameTextIgnoringWhitespace } from '../../src/content/inserter';
 import { buildTaskPrompt, escapeUntrusted } from '../../src/shared/prompts';
+import { checkVariants } from '../../src/background/quality';
 import { encryptSecret, deriveSessionKey, decryptWithKey, exportKeyJwk, importKeyJwk } from '../../src/shared/crypto';
 
 test('privacy: credit card formats redacted', () => {
@@ -425,6 +426,42 @@ test('prompts K-11: sender quote cannot break attribute', () => {
   }).userPrompt;
   assert.ok(prompt.includes('&quot;'), 'quote escaped in attribute');
   assert.ok(!prompt.includes('from="Evil "'), 'attribute not broken: ' + prompt.slice(0, 500));
+});
+
+test('quality K-12: anchor check skipped for unspaced languages', () => {
+  const jaTarget = '明日の会議の件ですが、資料を確認してご連絡ください';
+  const r1 = checkVariants(
+    [
+      { role: 'short', text: '確認します。' },
+      { role: 'closest', text: '資料を拝見いたします。' },
+      { role: 'warmer', text: '承知いたしました。' },
+    ],
+    { draft: 'hi', brief: { platform: 'web', replyTarget: jaTarget, replyLanguage: 'ja' } as never },
+  );
+  assert.ok(!r1.failures.some((f) => f.includes('reply target')), r1.failures.join(';'));
+
+  const koTarget = '내일회의자료를꼼꼼히확인해서빠른시일내에회신부탁드립니다';
+  const r2 = checkVariants(
+    [
+      { role: 'short', text: '네, 확인하겠습니다.' },
+      { role: 'closest', text: '자료를 보겠습니다.' },
+      { role: 'warmer', text: '알겠습니다.' },
+    ],
+    { draft: 'hi', brief: { platform: 'web', replyTarget: koTarget } as never },
+  );
+  assert.ok(!r2.failures.some((f) => f.includes('reply target')), r2.failures.join(';'));
+});
+
+test('quality K-12: English anchor check unchanged', () => {
+  const r = checkVariants(
+    [
+      { role: 'short', text: 'ok' },
+      { role: 'closest', text: 'sure' },
+      { role: 'warmer', text: 'great' },
+    ],
+    { draft: 'hi', brief: { platform: 'web', replyTarget: 'Please review the quarterly budget report carefully' } as never },
+  );
+  assert.ok(r.failures.some((f) => f.includes('reply target')), r.failures.join(';'));
 });
 
 test('crypto: encryptSecret returns a blob object, not a string', async () => {

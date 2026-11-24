@@ -74,6 +74,17 @@ function targetTerms(text: string): string[] {
   return out;
 }
 
+/**
+ * K-12: does this reply target need the anchor check? Space-separated
+ * languages do; CJK/kana ('ja') and long unspaced text (Korean, Thai —
+ * detectLanguage returns 'other' for them) cannot produce usable terms.
+ */
+export function needsAnchorCheck(target: string): boolean {
+  if (detectLanguage(target) === 'ja') return false;
+  if (!/\s/.test(target) && target.length > 20) return false;
+  return true;
+}
+
 function containsAnchor(variantText: string, anchors: string[]): boolean {
   const v = variantText.toLowerCase();
   return anchors.some((a) => a && v.includes(a.toLowerCase()));
@@ -140,8 +151,11 @@ export function checkVariants(
   }
 
   // 5. Context anchoring: with a reply target, >=2 variants must reference it.
+  // K-12: skip for languages without word spaces — targetTerms() can't
+  // split CJK/Korean/Thai text, so the whole target becomes one "term"
+  // no variant will ever contain, causing spurious failures + retries.
   const target = opts.skipAnchor ? undefined : opts.brief?.replyTarget;
-  if (target) {
+  if (target && needsAnchorCheck(target)) {
     const anchors = [
       ...(opts.brief?.otherParty ? [opts.brief.otherParty.split(/\s+/)[0]] : []),
       ...targetTerms(target),
