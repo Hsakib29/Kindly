@@ -97,6 +97,11 @@ async function applyQualityChecks(args: QualityPassArgs): Promise<{
   }
   if (debugEnabled()) debugLog('quality checks failed:', bestFailures.join('; '));
 
+  // K-07: a cancelled request must not trigger retry/escalation calls.
+  if (args.signal?.aborted) {
+    return { variants: best, model: bestModel, extraRequests };
+  }
+
   // Retry once on the same model with the failures named.
   try {
     extraRequests++;
@@ -123,6 +128,9 @@ async function applyQualityChecks(args: QualityPassArgs): Promise<{
   }
 
   // Escalate once to a stronger model if checks still fail and we were lite.
+  if (args.signal?.aborted) {
+    return { variants: best, model: bestModel, extraRequests };
+  }
   if (bestFailures.length > 0 && /lite/i.test(args.model)) {
     for (const m of ESCALATION_MODELS) {
       if (isModelCooling(m)) continue;

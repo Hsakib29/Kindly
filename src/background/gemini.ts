@@ -162,6 +162,11 @@ export async function generateVariants(
     },
   };
 
+  // K-07: already-cancelled requests must not reach Google — the abort
+  // event fired before our listener was attached and won't fire again.
+  if (options.signal?.aborted) {
+    throw new GeminiError('NETWORK', 'Request cancelled.');
+  }
   // Per-attempt timeout (25s) linked to the caller's abort signal.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
