@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { buildTaskPrompt, chooseMode, ROLE_LABELS } from '../../src/shared/prompts';
 import { checkVariants } from '../../src/background/quality';
 import { pickReplyTargetIndex } from '../../src/content/site-adapters';
+import { mapHttpError } from '../../src/background/gemini';
 import { detectLanguage } from '../../src/shared/lang';
 import type { ContextBriefData } from '../../src/shared/messages';
 
@@ -215,6 +216,7 @@ import { sameTextIgnoringWhitespace } from '../../src/content/inserter';
 import { buildTaskPrompt, escapeUntrusted } from '../../src/shared/prompts';
 import { checkVariants } from '../../src/background/quality';
 import { pickReplyTargetIndex } from '../../src/content/site-adapters';
+import { mapHttpError } from '../../src/background/gemini';
 import { encryptSecret, deriveSessionKey, decryptWithKey, exportKeyJwk, importKeyJwk } from '../../src/shared/crypto';
 
 test('privacy: credit card formats redacted', () => {
@@ -488,6 +490,18 @@ test('gmail K-14: reply target skips user messages', () => {
   assert.equal(pickReplyTargetIndex([{ isFromUser: false }, { isFromUser: false }]), 1);
   // No flags (non-Gmail adapters) -> last message wins.
   assert.equal(pickReplyTargetIndex([{ from: 'a' }, { from: 'b' }]), 1);
+});
+
+test('gemini K-15: HTTP status mapping', () => {
+  const body = (msg: string) => ({ error: { message: msg, code: 400 } });
+  const e400 = mapHttpError(400, body('bad request field'));
+  assert.equal(e400.code, 'BAD_OUTPUT');
+  assert.ok(e400.message.includes('bad request field'), e400.message);
+  assert.equal(mapHttpError(401, body('no')).code, 'INVALID_KEY');
+  assert.equal(mapHttpError(403, body('no')).code, 'INVALID_KEY');
+  assert.equal(mapHttpError(404, body('no')).code, 'NETWORK');
+  assert.equal(mapHttpError(429, body('no')).code, 'RATE_LIMIT');
+  assert.equal(mapHttpError(500, body('no')).code, 'NETWORK');
 });
 
 test('crypto: encryptSecret returns a blob object, not a string', async () => {

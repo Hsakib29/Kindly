@@ -24,7 +24,17 @@ export function mapHttpError(status: number, body: GoogleErrorBody): GeminiError
   const retryDelay = body.error?.details?.find((d) => d.retryDelay)?.retryDelay;
   const retryAfterMs = retryDelay ? parseRetryDelay(retryDelay) : undefined;
 
-  if (status === 400 || status === 401 || status === 403) {
+  // K-15: 400 is a rejected request (bad field, oversized prompt), not a
+  // key problem — surface it as BAD_OUTPUT so the UI offers Retry instead
+  // of sending the user to Settings.
+  if (status === 400) {
+    return new GeminiError(
+      'BAD_OUTPUT',
+      `Google rejected the request. Try again, or try a shorter text. (${detail})`,
+      retryAfterMs,
+    );
+  }
+  if (status === 401 || status === 403) {
     return new GeminiError('INVALID_KEY', detail, retryAfterMs);
   }
   if (status === 429) {
