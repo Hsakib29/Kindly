@@ -12,6 +12,7 @@ import {
 } from '../shared/messages';
 import { PRODUCT_NAME } from '../shared/brand';
 import { themeCssVars, type ThemeMode } from '../shared/theme';
+import { debugLog } from '../shared/debug';
 
 const LIGHT_VARS = themeCssVars('light');
 const DARK_VARS = themeCssVars('dark');
@@ -551,7 +552,7 @@ export class RewritePanel {
 
     this.host.style.display = 'block';
     this.updatePosition();
-    console.log('[Kindly] panel opened');
+    debugLog('panel opened');
   }
 
   close() {

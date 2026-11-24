@@ -1,3 +1,4 @@
+import { debugLog } from '../shared/debug';
 // Text insertion into fields with a verification + fallback chain (P4.1)
 // and a clipboard fallback (P4.2). Stage 4 hardened version.
 //
@@ -253,7 +254,7 @@ export async function insertAtCursor(
   }
 
   if (ok) {
-    console.log(`[Kindly] cursor insert succeeded via ${method}`);
+    debugLog(`cursor insert succeeded via ${method}`);
     return { ok: true, method };
   }
   const copiedToClipboard = await copyToClipboard(text);
@@ -287,12 +288,12 @@ export async function insertText(
   for (const [name, attempt] of chain) {
     try {
       if (attempt()) {
-        console.log(`[Kindly] insert succeeded via ${name}`);
+        debugLog(`insert succeeded via ${name}`);
         return { ok: true, method: name };
       }
-      console.warn(`[Kindly] insert method ${name} did not verify`);
+      debugLog(`insert method ${name} did not verify`);
     } catch (err) {
-      console.warn(`[Kindly] insert method ${name} threw:`, err);
+      debugLog(`insert method ${name} threw:`, err);
     }
   }
 

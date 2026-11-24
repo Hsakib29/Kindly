@@ -21,17 +21,7 @@ import type { ApiError, ExtensionResponse, ToneId, Variant } from '../shared/mes
 type ErrorResponse = Extract<ExtensionResponse, { type: 'ERROR' }>;
 type SettingsResponse = Extract<ExtensionResponse, { type: 'SETTINGS' }>;
 
-console.log('[Kindly] content script loaded');
-void refreshDebugEnabled();
-
-// P0.3 plumbing check.
-chrome.runtime.sendMessage({ type: 'PING' }, (response) => {
-  if (chrome.runtime.lastError) {
-    console.warn('[Kindly] ping failed:', chrome.runtime.lastError.message);
-    return;
-  }
-  console.log('[Kindly] received:', response);
-});
+void refreshDebugEnabled().then(() => debugLog('content script loaded', window.location.href));
 
 const hostname = window.location.hostname;
 

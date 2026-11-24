@@ -34,7 +34,7 @@ function sanitizeRequestContext(
   return clean;
 }
 
-console.log('[Kindly] service worker started');
+debugLog('service worker started');
 
 // In-flight REWRITE abort controllers, keyed by requestId, so the panel
 // can cancel a running request by closing (CANCEL message).
