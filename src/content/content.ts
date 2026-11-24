@@ -146,7 +146,7 @@ function collectBrief(field: HTMLElement, draftText: string) {
       `brief @ ${hostname}: extractor=${built.extractor} platform=${b.platform} ` +
         `messages=${built.messageCount} replyTarget=${(b.replyTarget ?? '').length} chars ` +
         `otherParty=${b.otherParty ?? 'unknown'} lang=${b.replyLanguage ?? '?'} ` +
-        `earlier=${b.earlierMessages?.length ?? 0}`,
+        `earlier=${b.earlierMessages?.length ?? 0} redacted=${built.maskedCount}`,
     );
     if (b.replyTarget) {
       debugLog('reply_target head:', JSON.stringify(b.replyTarget.slice(0, 160)));

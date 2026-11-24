@@ -6,6 +6,7 @@
 
 import { trySiteAdapter } from './site-adapters';
 import { detectLanguage } from '../shared/lang';
+import { sanitizeText, sanitizeBrief } from '../shared/privacy';
 import type { ContextBriefData } from '../shared/messages';
 
 export interface PageContext {
@@ -146,25 +147,6 @@ function tailBudget(text: string, budget: number): string {
   return '…' + collapsed.slice(collapsed.length - budget);
 }
 
-/** Mask card-like numbers and long opaque tokens; returns masked count. */
-export function maskSecrets(text: string): { text: string; masked: number } {
-  let masked = 0;
-  const cardRe = /\b(?:\d[ -]?){13,19}\b/g;
-  const tokenRe = /\b[A-Za-z0-9_-]{32,}\b/g;
-  const out = text
-    // 13-19 digit card-like numbers (allow spaces/dashes between groups)
-    .replace(cardRe, () => {
-      masked++;
-      return '[card number removed]';
-    })
-    // long hex/base64-ish tokens (API keys, JWTs, session ids)
-    .replace(tokenRe, () => {
-      masked++;
-      return '[token removed]';
-    });
-  return { text: out, masked };
-}
-
 /**
  * Extract page context for Write mode. A non-empty user text selection is
  * the PRIMARY context (the thing they're responding to).
@@ -177,7 +159,7 @@ export function extractPageContext(field: HTMLElement): PageContext {
   // Site adapters first — they understand the tool's real structure.
   const adapted = trySiteAdapter();
   if (adapted && adapted.text.trim()) {
-    const masked = maskSecrets(adapted.text);
+    const masked = sanitizeText(adapted.text);
     const mainText = tailBudget(masked.text, CONTEXT_BUDGET);
     return {
       title,
@@ -191,7 +173,7 @@ export function extractPageContext(field: HTMLElement): PageContext {
         visited: adapted.messageCount * 4,
         chars: mainText.length,
         trimmed: masked.text.length > CONTEXT_BUDGET,
-        maskedCount: masked.masked,
+        maskedCount: masked.total,
         empty: mainText.trim().length === 0,
       },
     };
@@ -225,8 +207,8 @@ export function extractPageContext(field: HTMLElement): PageContext {
   let trimmed = false;
 
   const push = (label: string, text: string, budget: number) => {
-    const masked = maskSecrets(text);
-    maskedCount += masked.masked;
+    const masked = sanitizeText(text);
+    maskedCount += masked.total;
     const cap = Math.min(budget, remaining);
     if (masked.text.length > cap) trimmed = true;
     const trimmedText = tailBudget(masked.text, cap);
@@ -294,6 +276,8 @@ export interface BuiltBrief {
   brief: ContextBriefData;
   messageCount: number;
   extractor: string;
+  /** Sensitive items redacted by the privacy layer (metadata only). */
+  maskedCount: number;
 }
 
 /**
@@ -313,19 +297,24 @@ export function buildContextBrief(field: HTMLElement, draftText = ''): BuiltBrie
       .slice(0, -1)
       .slice(-EARLIER_MESSAGE_COUNT)
       .map((m) => `${m.from}: ${capKeepEnd(m.body, EARLIER_MESSAGE_CAP)}`);
+    // Privacy boundary: sanitize the ASSEMBLED brief — adapter messages,
+    // subject and context text all pass through the same layer regardless
+    // of which extractor produced them.
+    const { brief, total } = sanitizeBrief({
+      platform: platformName(),
+      title: adapted.subject,
+      replyTarget,
+      otherParty: target.from !== 'unknown' ? target.from : undefined,
+      replyLanguage: detectLanguage(replyTarget),
+      draftLanguage: detectLanguage(draftText),
+      earlierMessages: earlier.length ? earlier : undefined,
+      contextText: adapted.text || undefined,
+    });
     return {
-      brief: {
-        platform: platformName(),
-        title: adapted.subject,
-        replyTarget,
-        otherParty: target.from !== 'unknown' ? target.from : undefined,
-        replyLanguage: detectLanguage(replyTarget),
-        draftLanguage: detectLanguage(draftText),
-        earlierMessages: earlier.length ? earlier : undefined,
-        contextText: adapted.text || undefined,
-      },
+      brief,
       messageCount: msgs.length,
       extractor: adapted.extractor,
+      maskedCount: total,
     };
   }
 
@@ -341,6 +330,7 @@ export function buildContextBrief(field: HTMLElement, draftText = ''): BuiltBrie
       },
       messageCount: 0,
       extractor: pc.extractor,
+      maskedCount: 0,
     };
   }
   const replyTarget = capKeepEnd(text, REPLY_TARGET_CAP);
@@ -348,17 +338,19 @@ export function buildContextBrief(field: HTMLElement, draftText = ''): BuiltBrie
   const earlier = before
     ? [capKeepEnd(before.slice(-EARLIER_MESSAGE_CAP * EARLIER_MESSAGE_COUNT), EARLIER_MESSAGE_CAP * EARLIER_MESSAGE_COUNT)]
     : [];
+  const { brief, total } = sanitizeBrief({
+    platform: platformName(),
+    title: pc.title || undefined,
+    replyTarget,
+    replyLanguage: detectLanguage(replyTarget),
+    draftLanguage: detectLanguage(draftText) || undefined,
+    earlierMessages: earlier.length ? earlier : undefined,
+    contextText: text,
+  });
   return {
-    brief: {
-      platform: platformName(),
-      title: pc.title || undefined,
-      replyTarget,
-      replyLanguage: detectLanguage(replyTarget),
-      draftLanguage: detectLanguage(draftText) || undefined,
-      earlierMessages: earlier.length ? earlier : undefined,
-      contextText: text,
-    },
+    brief,
     messageCount: pc.messageCount,
     extractor: pc.extractor,
+    maskedCount: total,
   };
 }

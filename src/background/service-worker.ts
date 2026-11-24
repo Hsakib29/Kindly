@@ -11,6 +11,28 @@ import {
 } from '../shared/prompts';
 import type { ApiError, ExtensionRequest, ExtensionResponse } from '../shared/messages';
 import { debugEnabled, debugGroup, debugGroupEnd, debugLog, setDebugEnabled } from '../shared/debug';
+import { sanitizeBrief } from '../shared/privacy';
+
+/**
+ * Final privacy boundary before prompt construction: sanitize any
+ * context brief (structured or legacy string) so no request path can
+ * send raw webpage text to Gemini. Counts are logged debug-only.
+ */
+function sanitizeRequestContext(
+  brief: ContextBriefData | undefined,
+  legacyContext: string | undefined,
+): ContextBriefData | undefined {
+  let out = brief;
+  if (!out && legacyContext) {
+    out = { platform: 'web', contextText: legacyContext };
+  }
+  if (!out) return undefined;
+  const { brief: clean, total, counts } = sanitizeBrief(out);
+  if (total > 0 && debugEnabled()) {
+    debugLog('privacy: redacted', total, 'item(s)', JSON.stringify(counts));
+  }
+  return clean;
+}
 
 console.log('[Kindly] service worker started');
 
@@ -292,10 +314,10 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
       try {
         const settings = await getSettings();
         setDebugEnabled(settings.debug);
-        // Legacy string context becomes a brief fallback.
-        const brief =
-          request.brief ??
-          (request.context ? { platform: 'web', contextText: request.context } : undefined);
+        // Privacy boundary (defense in depth): the content side already
+        // sanitizes, but NO request may reach the prompt builder with raw
+        // webpage context — sanitize here regardless of source.
+        const brief = sanitizeRequestContext(request.brief, request.context);
         const built = buildTaskPrompt({
           draft: trimmed,
           tone: request.tone,
@@ -400,9 +422,7 @@ async function handle(request: ExtensionRequest): Promise<ExtensionResponse> {
       try {
         const settings = await getSettings();
         setDebugEnabled(settings.debug);
-        const brief =
-          request.brief ??
-          (request.context ? { platform: 'web', contextText: request.context } : undefined);
+        const brief = sanitizeRequestContext(request.brief, request.context);
         const built = buildTaskPrompt({
           draft: prompt,
           isWrite: true,
