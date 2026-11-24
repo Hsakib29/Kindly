@@ -259,11 +259,23 @@ const REPLY_TARGET_CAP = 1500;
 const EARLIER_MESSAGE_CAP = 400;
 const EARLIER_MESSAGE_COUNT = 4;
 
+/** K-25: exact domain or subdomain match — 'x.com' must not match dropbox.com. */
+export function hostMatches(hostname: string, domain: string): boolean {
+  const h = hostname.toLowerCase();
+  const d = domain.toLowerCase();
+  return h === d || h.endsWith('.' + d);
+}
+
 function platformName(): string {
   const h = window.location.hostname;
-  if (h.includes('mail.google')) return 'Gmail';
-  if (h.includes('chatgpt') || h.includes('openai')) return 'ChatGPT';
-  if (h.includes('grok') || h.includes('x.com')) return 'Grok';
+  if (hostMatches(h, 'mail.google.com') || hostMatches(h, 'mail.google')) return 'Gmail';
+  if (
+    hostMatches(h, 'chatgpt.com') ||
+    hostMatches(h, 'chat.openai.com') ||
+    hostMatches(h, 'openai.com')
+  )
+    return 'ChatGPT';
+  if (hostMatches(h, 'x.com') || hostMatches(h, 'grok.com')) return 'Grok';
   return 'web';
 }
 

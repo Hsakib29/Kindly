@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { buildTaskPrompt, chooseMode, ROLE_LABELS } from '../../src/shared/prompts';
 import { checkVariants } from '../../src/background/quality';
 import { pickReplyTargetIndex } from '../../src/content/site-adapters';
+import { hostMatches } from '../../src/content/context';
 import { mapHttpError, isTextGenerationModel, generateVariants } from '../../src/background/gemini';
 import { generateRouted } from '../../src/background/router';
 import { detectLanguage } from '../../src/shared/lang';
@@ -217,6 +218,7 @@ import { sameTextIgnoringWhitespace } from '../../src/content/inserter';
 import { buildTaskPrompt, escapeUntrusted } from '../../src/shared/prompts';
 import { checkVariants } from '../../src/background/quality';
 import { pickReplyTargetIndex } from '../../src/content/site-adapters';
+import { hostMatches } from '../../src/content/context';
 import { mapHttpError, isTextGenerationModel, generateVariants } from '../../src/background/gemini';
 import { generateRouted } from '../../src/background/router';
 import { encryptSecret, decryptSecret, deriveSessionKey, decryptWithKey, exportKeyJwk, importKeyJwk } from '../../src/shared/crypto';
@@ -592,6 +594,15 @@ test('quality K-23: placeholders checked in all variants', () => {
   );
   assert.ok(r.failures.includes('placeholder spam'), r.failures.join(';'));
   assert.equal(r.failures.filter((f) => f === 'placeholder spam').length, 1);
+});
+
+test('context K-25: hostMatches is exact-domain only', () => {
+  assert.ok(!hostMatches('dropbox.com', 'x.com'));
+  assert.ok(hostMatches('x.com', 'x.com'));
+  assert.ok(hostMatches('www.x.com', 'x.com'));
+  assert.ok(!hostMatches('box.com', 'x.com'));
+  assert.ok(!hostMatches('notx.com', 'x.com'));
+  assert.ok(hostMatches('mail.google.com', 'mail.google.com'));
 });
 
 test('crypto: encryptSecret returns a blob object, not a string', async () => {
