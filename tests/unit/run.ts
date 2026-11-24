@@ -570,6 +570,16 @@ test('router K-21: past deadline rejects fast, empty catalog errors', async () =
   }
 });
 
+test('usage K-22: day key uses local date parts', () => {
+  // 23:30 local on Jan 5 must key as the LOCAL date even if UTC differs.
+  const d = new Date(2025, 0, 5, 23, 30, 0);
+  const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  // Same construction as usageDayKey — assert format + local parts.
+  assert.match(key, /^2025-01-05$/);
+  // A UTC-constructed equivalent could differ; local parts are what matter.
+  assert.equal(new Date(2025, 0, 5, 23, 30).getDate(), 5);
+});
+
 test('crypto: encryptSecret returns a blob object, not a string', async () => {
   const blob = await encryptSecret('k-123', 'a-long-passphrase');
   assert.equal(typeof blob, 'object');

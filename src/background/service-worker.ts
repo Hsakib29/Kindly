@@ -48,13 +48,26 @@ debugLog('service worker started');
 const pendingRequests = new Map<string, AbortController>();
 
 // Daily rewrite counter for the toolbar popup (P7.6).
+// K-22: local-date day key + serialized read-modify-write so
+// concurrent requests can't lose counts.
+function usageDayKey(d = new Date()): string {
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+let usageQueue: Promise<void> = Promise.resolve();
+
 async function bumpUsage() {
-  const day = new Date().toISOString().slice(0, 10);
-  const { usage } = (await chrome.storage.local.get('usage')) as {
-    usage?: { day: string; count: number };
-  };
-  const count = usage?.day === day ? usage.count + 1 : 1;
-  await chrome.storage.local.set({ usage: { day, count } });
+  usageQueue = usageQueue.then(async () => {
+    const day = usageDayKey();
+    const { usage } = (await chrome.storage.local.get('usage')) as {
+      usage?: { day: string; count: number };
+    };
+    const count = usage?.day === day ? usage.count + 1 : 1;
+    await chrome.storage.local.set({ usage: { day, count } });
+  });
+  return usageQueue;
 }
 
 // Stronger models tried once when quality checks still fail on a lite model.
@@ -259,7 +272,7 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
       const { usage } = (await chrome.storage.local.get('usage')) as {
         usage?: { day: string; count: number };
       };
-      const day = new Date().toISOString().slice(0, 10);
+      const day = usageDayKey();
       return {
         type: 'USAGE',
         day,
@@ -382,7 +395,6 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
         const userPrompt = built.userPrompt;
         const deadlineAt = Date.now() + 45_000;
         const t0 = performance.now();
-        await bumpUsage();
         const { variants, model, fellBack, attempts } = await generateRouted({
           key,
           routerPreference: settings.routerPreference,
@@ -418,6 +430,7 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
           brief,
           variants,
         });
+        await bumpUsage(); // K-22: count only successful results
         return {
           type: 'REWRITE_RESULT',
           requestId: request.requestId,
@@ -512,7 +525,6 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
         const userPrompt = built.userPrompt;
         const deadlineAt = Date.now() + 45_000;
         const t0 = performance.now();
-        await bumpUsage();
         const { variants, model, fellBack, attempts } = await generateRouted({
           key,
           routerPreference: settings.routerPreference,
@@ -544,6 +556,7 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
           brief,
           variants,
         });
+        await bumpUsage(); // K-22: count only successful results
         return {
           type: 'WRITE_RESULT',
           requestId: request.requestId,
