@@ -4,7 +4,7 @@
 // output, keeps the MOST RECENT text (chat tails matter most), and masks
 // card-like numbers and long tokens before anything is sent to Gemini.
 
-import { trySiteAdapter } from './site-adapters';
+import { pickReplyTargetIndex, trySiteAdapter } from './site-adapters';
 import { detectLanguage } from '../shared/lang';
 import { sanitizeText, sanitizeBrief } from '../shared/privacy';
 import type { ContextBriefData } from '../shared/messages';
@@ -291,12 +291,16 @@ export function buildContextBrief(field: HTMLElement, draftText = ''): BuiltBrie
 
   if (adapted?.messages && adapted.messages.length > 0) {
     const msgs = adapted.messages;
-    const target = msgs[msgs.length - 1];
-    const replyTarget = capKeepEnd(target.body, REPLY_TARGET_CAP);
+    // K-14: reply to the last message NOT sent by the user; user's own
+    // messages still appear in context labelled "Me".
+    const targetIdx = pickReplyTargetIndex(msgs);
+    const target = targetIdx >= 0 ? msgs[targetIdx] : undefined;
+    const replyTarget = target ? capKeepEnd(target.body, REPLY_TARGET_CAP) : undefined;
+    const label = (m: (typeof msgs)[number]) => (m.isFromUser ? 'Me' : m.from);
     const earlier = msgs
-      .slice(0, -1)
+      .filter((_, i) => i !== targetIdx)
       .slice(-EARLIER_MESSAGE_COUNT)
-      .map((m) => `${m.from}: ${capKeepEnd(m.body, EARLIER_MESSAGE_CAP)}`);
+      .map((m) => `${label(m)}: ${capKeepEnd(m.body, EARLIER_MESSAGE_CAP)}`);
     // Privacy boundary: sanitize the ASSEMBLED brief — adapter messages,
     // subject and context text all pass through the same layer regardless
     // of which extractor produced them.
@@ -304,8 +308,8 @@ export function buildContextBrief(field: HTMLElement, draftText = ''): BuiltBrie
       platform: platformName(),
       title: adapted.subject,
       replyTarget,
-      otherParty: target.from !== 'unknown' ? target.from : undefined,
-      replyLanguage: detectLanguage(replyTarget),
+      otherParty: target && target.from !== 'unknown' ? target.from : undefined,
+      replyLanguage: replyTarget ? detectLanguage(replyTarget) : undefined,
       draftLanguage: detectLanguage(draftText),
       earlierMessages: earlier.length ? earlier : undefined,
       contextText: adapted.text || undefined,

@@ -8,6 +8,8 @@ export interface AdapterMessage {
   from: string;
   date: string;
   body: string;
+  /** True when the message was sent by the account owner (K-14). */
+  isFromUser?: boolean;
 }
 
 export interface SiteContext {
@@ -100,6 +102,32 @@ function gmailAdapter(): SiteContext | null {
     return { text: lines.join('\n'), messageCount: 0, extractor: 'gmail-compose' };
   }
 
+  // K-14: identify the account owner's own messages. Gmail shows sent
+  // mail with the account's display name/email as sender; the account
+  // email is exposed via the Google Account link/img aria labels.
+  const selfEmails = new Set<string>();
+  for (const el of Array.from(document.querySelectorAll('a[aria-label], img[alt]'))) {
+    const label = (el.getAttribute('aria-label') ?? el.getAttribute('alt') ?? '').toLowerCase();
+    const m = label.match(/[\w.+-]+@[\w-]+\.[\w.]+/);
+    if (m) selfEmails.add(m[0]);
+  }
+  const selfNames = new Set<string>();
+  for (const el of Array.from(document.querySelectorAll('a[aria-label*="Google Account"]'))) {
+    const label = (el.getAttribute('aria-label') ?? '').toLowerCase();
+    const m = label.match(/[\w.+-]+@[\w-]+\.[\w.]+/);
+    if (m) selfEmails.add(m[0]);
+    const name = label.replace(/^[^(]*\(/, '').replace(/\)$/, '').trim();
+    if (name && !name.includes('@')) selfNames.add(name);
+  }
+  const isSelf = (sender: string): boolean => {
+    const s = sender.trim().toLowerCase();
+    if (!s || s === 'unknown') return false;
+    if (/^(me|you)$/.test(s)) return true;
+    if (selfEmails.has(s) || [...selfEmails].some((e) => s.includes(e))) return true;
+    if (selfNames.has(s)) return true;
+    return false;
+  };
+
   const messages: AdapterMessage[] = [];
   let collapsed = 0;
   for (const row of rows) {
@@ -113,7 +141,7 @@ function gmailAdapter(): SiteContext | null {
       collapsed++;
       continue;
     }
-    messages.push({ from: sender || 'unknown', date: date || 'unknown', body });
+    messages.push({ from: sender || 'unknown', date: date || 'unknown', body, isFromUser: isSelf(sender) });
   }
 
   const header = subject ? `Subject: ${subject}` : '';
@@ -141,4 +169,18 @@ function gmailAdapter(): SiteContext | null {
 
 export function trySiteAdapter(): SiteContext | null {
   return gmailAdapter();
+}
+
+/**
+ * K-14: pick the reply target = last message NOT from the user.
+ * Returns the index into `messages`, or -1 when every message is the
+ * user's own (never reply to yourself).
+ */
+export function pickReplyTargetIndex(
+  messages: { isFromUser?: boolean }[],
+): number {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (!messages[i].isFromUser) return i;
+  }
+  return -1;
 }

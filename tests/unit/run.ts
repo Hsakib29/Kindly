@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import { buildTaskPrompt, chooseMode, ROLE_LABELS } from '../../src/shared/prompts';
 import { checkVariants } from '../../src/background/quality';
+import { pickReplyTargetIndex } from '../../src/content/site-adapters';
 import { detectLanguage } from '../../src/shared/lang';
 import type { ContextBriefData } from '../../src/shared/messages';
 
@@ -213,6 +214,7 @@ import { sanitizeText, sanitizeBrief } from '../../src/shared/privacy';
 import { sameTextIgnoringWhitespace } from '../../src/content/inserter';
 import { buildTaskPrompt, escapeUntrusted } from '../../src/shared/prompts';
 import { checkVariants } from '../../src/background/quality';
+import { pickReplyTargetIndex } from '../../src/content/site-adapters';
 import { encryptSecret, deriveSessionKey, decryptWithKey, exportKeyJwk, importKeyJwk } from '../../src/shared/crypto';
 
 test('privacy: credit card formats redacted', () => {
@@ -469,6 +471,23 @@ test('prompts K-13: grammar tone forces polish for short drafts', () => {
   assert.equal(chooseMode({ draft: 'i dont think thats right', tone: 'warm' }), 'expand');
   assert.equal(chooseMode({ draft: 'i dont think thats right', tone: 'grammar', isWrite: true }), 'expand');
   assert.equal(chooseMode({ draft: 'short', tone: 'grammar', mode: 'expand' }), 'expand');
+});
+
+test('gmail K-14: reply target skips user messages', () => {
+  // Last message is the user's -> target is previous other-party msg.
+  const msgs = [
+    { from: 'Alice', isFromUser: false },
+    { from: 'Me', isFromUser: true },
+    { from: 'Bob', isFromUser: false },
+    { from: 'Me', isFromUser: true },
+  ];
+  assert.equal(pickReplyTargetIndex(msgs), 2);
+  // All user messages -> no target.
+  assert.equal(pickReplyTargetIndex([{ isFromUser: true }, { isFromUser: true }]), -1);
+  // Last from someone else -> chosen as before.
+  assert.equal(pickReplyTargetIndex([{ isFromUser: false }, { isFromUser: false }]), 1);
+  // No flags (non-Gmail adapters) -> last message wins.
+  assert.equal(pickReplyTargetIndex([{ from: 'a' }, { from: 'b' }]), 1);
 });
 
 test('crypto: encryptSecret returns a blob object, not a string', async () => {
