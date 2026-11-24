@@ -14,13 +14,12 @@ import { debugLog, refreshDebugEnabled } from '../shared/debug';
 import { UndoToast } from './toast';
 import { KindlyIcon } from './icon';
 import { FieldUiController } from './field-ui';
-import { setSettings } from '../shared/storage';
+import { getSettings, setSettings } from '../shared/storage';
 import { sendRequest } from '../shared/client';
 import { RewritePanel, type WriteGenerateRequest } from './panel';
 import type { ApiError, ExtensionResponse, ToneId, Variant } from '../shared/messages';
 
 type ErrorResponse = Extract<ExtensionResponse, { type: 'ERROR' }>;
-type SettingsResponse = Extract<ExtensionResponse, { type: 'SETTINGS' }>;
 
 void refreshDebugEnabled().then(() => debugLog('content script loaded', window.location.href));
 
@@ -70,18 +69,17 @@ function siteMatches(patterns: Iterable<string>): boolean {
 }
 
 async function refreshHiddenSites() {
-  const res = await sendRequest<SettingsResponse>({ type: 'GET_SETTINGS' });
-  if (res.type === 'SETTINGS') {
-    hiddenSites = new Set(res.settings.hiddenSites);
-    neverRunSites = res.settings.neverRunSites ?? [];
-    contextBySite = res.settings.usePageContextBySite ?? {};
-    appSettings = res.settings;
-    themePref = res.settings.theme ?? 'auto';
-    watchThemePref();
-    if (uiReady) {
-      panel.setCustomTones(res.settings.customTones ?? []);
-      panel.setSavedReplies(res.settings.savedReplies ?? []);
-    }
+  // Read chrome.storage directly — no service-worker message at page load.
+  const settings = await getSettings();
+  hiddenSites = new Set(settings.hiddenSites);
+  neverRunSites = settings.neverRunSites ?? [];
+  contextBySite = settings.usePageContextBySite ?? {};
+  appSettings = settings;
+  themePref = settings.theme ?? 'auto';
+  watchThemePref();
+  if (uiReady) {
+    panel.setCustomTones(settings.customTones ?? []);
+    panel.setSavedReplies(settings.savedReplies ?? []);
   }
 }
 void refreshHiddenSites().then(teardownIfBlocked);
@@ -510,6 +508,7 @@ function ensureUI() {
 });
 
   applyTheme();
+  installPageListeners();
   debugLog('ui: initialized on first field interaction');
 }
 
@@ -543,6 +542,7 @@ function fieldFromEvent(event: Event): HTMLElement | null {
   return isSupportedField(target) ? target : null;
 }
 
+function installPageListeners() {
 document.addEventListener('focusin', (event) => {
   if (!uiReady || !event.isTrusted) return;
   // Focus moving inside our own panel (e.g. instruction input) is not a
@@ -645,6 +645,7 @@ window.setInterval(() => {
   ui.resync();
   if (ui.state !== before) debugLog(`resync: interval corrected ${before}→${ui.state}`);
 }, 1000);
+}
 
 // Toolbar popup query (P7.6): reports this site's hostname + hidden state.
 chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
