@@ -168,6 +168,8 @@ export interface Settings {
   debug: boolean;
   /** UI theme: auto follows the system. Default 'auto'. */
   theme: 'auto' | 'light' | 'dark';
+  /** Global page-context switch — OFF by default. */
+  pageContextEnabled: boolean;
 }
 
 /** Default never-run hostnames (banking/health) — editable in options. */
@@ -196,4 +198,5 @@ export const SETTINGS_DEFAULTS: Settings = {
   usePageContextBySite: {},
   debug: false,
   theme: 'auto',
+  pageContextEnabled: false,
 };

@@ -10,6 +10,8 @@ const titleEl = document.getElementById('app-title') as HTMLElement;
 const toggleEl = document.getElementById('site-toggle') as HTMLInputElement;
 const siteNameEl = document.getElementById('site-name') as HTMLElement;
 const usageEl = document.getElementById('usage') as HTMLElement;
+const pageCtxEl = document.getElementById('page-context-site') as HTMLInputElement;
+const pageCtxNote = document.getElementById('page-context-note') as HTMLElement;
 const optionsLink = document.getElementById('open-options') as HTMLAnchorElement;
 
 titleEl.textContent = PRODUCT_NAME;
@@ -46,6 +48,20 @@ async function main() {
   }
   siteNameEl.textContent = hostname;
   toggleEl.checked = !hidden;
+
+  // Per-site page-context checkbox (K-04): checked unless explicitly off.
+  const globalOn = settings.pageContextEnabled ?? false;
+  const map = settings.usePageContextBySite ?? {};
+  pageCtxEl.checked = map[hostname] !== false;
+  pageCtxEl.disabled = !globalOn || !hostname;
+  pageCtxNote.hidden = globalOn;
+  if (hostname) {
+    pageCtxEl.addEventListener('change', async () => {
+      const st = await getSettings();
+      const next = { ...(st.usePageContextBySite ?? {}), [hostname]: pageCtxEl.checked };
+      await setSettings({ usePageContextBySite: next });
+    });
+  }
 
   toggleEl.addEventListener('change', async () => {
     const settings = await getSettings();

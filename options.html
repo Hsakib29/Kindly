@@ -387,6 +387,12 @@
         Never run on these sites — the icon and context reading stay off. One hostname per line
         (subdomains are covered, e.g. <code>chase.com</code> also blocks <code>secure.chase.com</code>).
       </p>
+      <label style="display:flex;gap:0.5rem;align-items:flex-start;margin:0.75rem 0">
+        <input type="checkbox" id="page-context-global" style="margin-top:0.2rem" />
+        <span>Read page text to give replies more context<br />
+        <small style="color:var(--text-secondary)">Off by default. Sends text from the page you are on to Google Gemini when you generate a reply. Turn it off for sites you don't want read.</small></span>
+      </label>
+      <p id="page-context-status" class="status" role="status"></p>
       <textarea id="never-run" rows="8" spellcheck="false"></textarea>
       <p><button type="button" id="never-run-reset">Reset to defaults</button></p>
       <p id="sites-status" class="status" role="status"></p>

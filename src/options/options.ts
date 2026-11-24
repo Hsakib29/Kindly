@@ -1,6 +1,6 @@
 import { PRODUCT_NAME, TAGLINE } from '../shared/brand';
 import { sendRequest } from '../shared/client';
-import { clearKey, getKey, getSettings, getStoredKey, isEncryptedKey, setKey, setStoredKey } from '../shared/storage';
+import { clearKey, getSettings, getStoredKey, isEncryptedKey, setKey, setSettings, setStoredKey } from '../shared/storage';
 import { encryptSecret } from '../shared/crypto';
 import type { ExtensionResponse } from '../shared/messages';
 
@@ -384,8 +384,20 @@ void initTonesAndVoice();
 
 // ---------- Never-run sites (P7.3) ----------
 
+const pageCtxGlobal = document.getElementById('page-context-global') as HTMLInputElement;
+const pageCtxStatus = document.getElementById('page-context-status') as HTMLElement;
 const neverRunArea = document.getElementById('never-run') as HTMLTextAreaElement;
 const sitesStatus = document.getElementById('sites-status') as HTMLParagraphElement;
+
+async function initPageContextGlobal() {
+  pageCtxGlobal.checked = (await getSettings()).pageContextEnabled ?? false;
+}
+pageCtxGlobal.addEventListener('change', async () => {
+  await setSettings({ pageContextEnabled: pageCtxGlobal.checked });
+  pageCtxStatus.textContent = 'Saved.';
+  pageCtxStatus.className = 'status ok';
+});
+void initPageContextGlobal();
 
 async function initNeverRun() {
   const settings = await getSettings();

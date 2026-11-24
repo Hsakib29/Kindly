@@ -47,6 +47,7 @@ let hiddenSites = new Set<string>();
 let neverRunSites: string[] = [];
 let contextBySite: Record<string, boolean> = {};
 let appSettings: import('../shared/messages').Settings | null = null;
+let pageContextGlobal = false;
 let themePref: 'auto' | 'light' | 'dark' = 'auto';
 let unwatchTheme: (() => void) | null = null;
 
@@ -73,6 +74,7 @@ async function refreshHiddenSites() {
   const settings = await getSettings();
   hiddenSites = new Set(settings.hiddenSites);
   neverRunSites = settings.neverRunSites ?? [];
+  pageContextGlobal = settings.pageContextEnabled ?? false;
   contextBySite = settings.usePageContextBySite ?? {};
   appSettings = settings;
   themePref = settings.theme ?? 'auto';
@@ -99,6 +101,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
       watchThemePref();
     }
     neverRunSites = (s as { neverRunSites?: string[] } | undefined)?.neverRunSites ?? neverRunSites;
+    pageContextGlobal =
+      (s as { pageContextEnabled?: boolean } | undefined)?.pageContextEnabled ?? pageContextGlobal;
     contextBySite = s?.usePageContextBySite ?? {};
     if (uiReady) {
       panel.setCustomTones(s?.customTones ?? []);
@@ -136,6 +140,7 @@ function isSiteBlocked(): boolean {
 
 // Page context defaults ON for both tabs; per-site override persists.
 function contextEnabled(): boolean {
+  if (!pageContextGlobal) return false;
   return contextBySite[siteHost] ?? contextBySite[hostname] ?? true;
 }
 
@@ -471,7 +476,7 @@ function ensureUI() {
     if (req) void requestWrite(req);
   },
   getWriteContext: (): ContextBriefData | undefined => {
-    if (isSiteBlocked()) return undefined;
+    if (isSiteBlocked() || !contextEnabled()) return undefined;
     const field: HTMLElement | null | undefined = ui?.activeField;
     if (!field) return undefined;
     const built = collectBrief(field, '');
