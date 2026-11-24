@@ -75,7 +75,7 @@ verifyKey.addEventListener('click', async () => {
     const stored = await getStoredKey();
     const wasEncrypted = isEncryptedKey(stored);
     const passphrase = wasEncrypted ? keyPass.value : '';
-    if (wasEncrypted && passphrase.length < 8) {
+    if (wasEncrypted && passphrase.length < 12) {
       setStatus('Enter your passphrase to keep the new key protected.', 'err');
       return;
     }
@@ -540,8 +540,8 @@ async function refreshKeyState() {
 
 keyEncrypt.addEventListener('click', async () => {
   const passphrase = keyPass.value;
-  if (passphrase.length < 8) {
-    keyStatusEl.textContent = 'Passphrase must be at least 8 characters.';
+  if (passphrase.length < 12) {
+    keyStatusEl.textContent = 'Passphrase must be at least 12 characters.';
     keyStatusEl.className = 'status err';
     return;
   }

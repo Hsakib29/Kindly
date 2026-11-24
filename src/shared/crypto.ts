@@ -10,9 +10,18 @@ export interface EncryptedKeyBlob {
   iv: string;
   /** Ciphertext, base64. */
   ct: string;
+  /** KDF version: absent/1 = 100k iterations, 2 = 600k. */
+  v?: number;
 }
 
-const PBKDF2_ITERATIONS = 100_000;
+// K-17: v1 blobs (no v field) keep 100k; new blobs use 600k (OWASP
+// guidance for PBKDF2-SHA256).
+const PBKDF2_ITERATIONS_V1 = 100_000;
+const PBKDF2_ITERATIONS_V2 = 600_000;
+
+function iterationsFor(blob: EncryptedKeyBlob): number {
+  return blob.v === 2 ? PBKDF2_ITERATIONS_V2 : PBKDF2_ITERATIONS_V1;
+}
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
@@ -30,7 +39,11 @@ function fromB64(b64: string): Uint8Array {
   return out;
 }
 
-async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKey> {
+async function deriveKey(
+  passphrase: string,
+  salt: Uint8Array,
+  iterations: number,
+): Promise<CryptoKey> {
   const base = await crypto.subtle.importKey(
     'raw',
     enc.encode(passphrase),
@@ -39,7 +52,7 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
     ['deriveKey'],
   );
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt: salt as BufferSource, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: salt as BufferSource, iterations, hash: 'SHA-256' },
     base,
     { name: 'AES-GCM', length: 256 },
     true, // extractable so it can be cached in chrome.storage.session
@@ -50,16 +63,24 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
 export async function encryptSecret(
   plaintext: string,
   passphrase: string,
+  /** Test hook: override iteration count (v1 blobs = 100_000). */
+  iterations: number = PBKDF2_ITERATIONS_V2,
 ): Promise<EncryptedKeyBlob> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await deriveKey(passphrase, salt);
+  const key = await deriveKey(passphrase, salt, iterations);
   const ct = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv: iv as BufferSource },
     key,
     enc.encode(plaintext),
   );
-  return { salt: toB64(salt), iv: toB64(iv), ct: toB64(ct) };
+  return {
+    salt: toB64(salt),
+    iv: toB64(iv),
+    ct: toB64(ct),
+    // v2 = 600k iterations; legacy 100k blobs are written without v.
+    ...(iterations >= PBKDF2_ITERATIONS_V2 ? { v: 2 } : {}),
+  };
 }
 
 /** Throws if the passphrase is wrong (GCM auth failure). */
@@ -67,7 +88,7 @@ export async function decryptSecret(
   blob: EncryptedKeyBlob,
   passphrase: string,
 ): Promise<string> {
-  const key = await deriveKey(passphrase, fromB64(blob.salt));
+  const key = await deriveKey(passphrase, fromB64(blob.salt), iterationsFor(blob));
   const pt = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: fromB64(blob.iv) as BufferSource },
     key,
@@ -81,9 +102,11 @@ export async function deriveSessionKey(
   blob: EncryptedKeyBlob,
   passphrase: string,
 ): Promise<CryptoKey> {
-  // Verify the passphrase by decrypting first — wrong pass throws here.
-  await decryptSecret(blob, passphrase);
-  return deriveKey(passphrase, fromB64(blob.salt));
+  // K-17: derive ONCE — verify by decrypting with that same key, then
+  // return it. (Was: decryptSecret + deriveKey = two derivations.)
+  const key = await deriveKey(passphrase, fromB64(blob.salt), iterationsFor(blob));
+  await decryptWithKey(blob, key); // throws on wrong passphrase
+  return key;
 }
 
 /** Export a CryptoKey as JWK so it survives chrome.storage's JSON serialization. */

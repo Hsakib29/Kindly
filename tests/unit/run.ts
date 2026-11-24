@@ -217,7 +217,7 @@ import { buildTaskPrompt, escapeUntrusted } from '../../src/shared/prompts';
 import { checkVariants } from '../../src/background/quality';
 import { pickReplyTargetIndex } from '../../src/content/site-adapters';
 import { mapHttpError, isTextGenerationModel } from '../../src/background/gemini';
-import { encryptSecret, deriveSessionKey, decryptWithKey, exportKeyJwk, importKeyJwk } from '../../src/shared/crypto';
+import { encryptSecret, decryptSecret, deriveSessionKey, decryptWithKey, exportKeyJwk, importKeyJwk } from '../../src/shared/crypto';
 
 test('privacy: credit card formats redacted', () => {
   for (const s of [
@@ -518,6 +518,25 @@ test('crypto: encryptSecret returns a blob object, not a string', async () => {
   for (const f of ['salt', 'iv', 'ct'] as const) {
     assert.equal(typeof blob[f], 'string');
   }
+});
+
+test('crypto K-17: v2 blob round-trips, v1 blob still decrypts', async () => {
+  const blob = await encryptSecret('secret-value', 'long-enough-pass');
+  assert.equal(blob.v, 2);
+  assert.equal(await decryptSecret(blob, 'long-enough-pass'), 'secret-value');
+  // Legacy v1 blob (100k iterations, no v field).
+  const v1 = await encryptSecret('old-value', 'old-pass-phrase', 100_000);
+  assert.equal(v1.v, undefined);
+  assert.equal(await decryptSecret(v1, 'old-pass-phrase'), 'old-value');
+});
+
+test('crypto K-17: wrong passphrase throws; session key decrypts', async () => {
+  const blob = await encryptSecret('x', 'right-passphrase');
+  let threw = false;
+  try { await decryptSecret(blob, 'wrong-passphrase'); } catch { threw = true; }
+  assert.ok(threw);
+  const sk = await deriveSessionKey(blob, 'right-passphrase');
+  assert.equal(await decryptWithKey(blob, sk), 'x');
 });
 
 test('crypto: session key survives JWK export/import and decrypts', async () => {
