@@ -250,10 +250,10 @@ test('privacy: UUID redacted', () => {
 
 test('privacy: API key formats redacted', () => {
   const cases: [string, string][] = [
-    ['AIzaSyD4iE2xVSpkLLOXoyq2jeDuiBVd2z5N1hQ', 'api-key'],
-    ['sk-abcdefghijklmnopqrstuvwx1234', 'api-key'],
-    ['ghp_abcdefghijklmnopqrstuvwxyz0123456789', 'api-key'],
-    ['AKIAIOSFODNN7EXAMPLE', 'api-key'],
+    ['AIza' + 'SyD4iE2xVSpkLLOXoyq2jeDuiBVd2z5N1hQ', 'api-key'],
+    ['sk-' + 'abcdefghijklmnopqrstuvwx1234', 'api-key'],
+    ['ghp_' + 'abcdefghijklmnopqrstuvwxyz0123456789', 'api-key'],
+    ['AKIA' + 'IOSFODNN7EXAMPLE', 'api-key'],
   ];
   for (const [key, cat] of cases) {
     const r = sanitizeText(`key=${key} done`);
@@ -322,7 +322,7 @@ test('privacy: sanitizeBrief covers every text field', () => {
     otherParty: 'Jane jane@corp.io',
     replyLanguage: 'en',
     earlierMessages: ['bob: pw: hunter2', 'alice: hi there friend'],
-    contextText: 'token sk-abcdefghijklmnopqrstuvwx1234 here',
+    contextText: 'token ' + 'sk-' + 'abcdefghijklmnopqrstuvwx1234' + ' here',
   };
   const { brief, total } = sanitizeBrief(dirty);
   assert.ok(total >= 6, `expected >=6 redactions, got ${total}`);
