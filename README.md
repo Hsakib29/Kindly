@@ -22,12 +22,20 @@ npm run lint       # eslint
 ## Project structure
 
 ```
-public/manifest.json   MV3 manifest (copied to dist/)
-options.html           Options page entry
-src/background/        Service worker
-src/content/           Content script (bundled as a classic script via esbuild)
-src/options/           Options page logic
-src/shared/            Shared types and helpers (added in P1.1)
+manifest.template.json   MV3 manifest source (placeholders filled per build)
+scripts/sync-manifest.mjs  Generates public/manifest.json at build time
+public/manifest.json     Generated manifest (copied to dist/)
+options.html             Options page entry
+popup.html               Toolbar popup entry
+welcome.html             Welcome/setup page entry
+src/background/          Service worker
+src/content/             Content script (bundled as a classic script via esbuild)
+src/options/             Options page logic
+src/popup/               Toolbar popup logic
+src/shared/              Shared types and helpers
+src/welcome/             Welcome/setup page logic
+tests/                   Unit, eval, and contrast test suites
+docs/                    Privacy policy, site matrix, store listing
 ```
 
 ## Notes

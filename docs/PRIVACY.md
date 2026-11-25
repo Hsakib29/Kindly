@@ -52,4 +52,4 @@ own policies. Uninstalling the extension removes all local settings.
 
 ## Contact
 
-[YOUR EMAIL / CONTACT]
+hsakibraven@gmail.com
