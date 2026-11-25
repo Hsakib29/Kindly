@@ -7,15 +7,20 @@ import { checkVariants } from '../../src/background/quality';
 import { pickReplyTargetIndex } from '../../src/content/site-adapters';
 import { hostMatches } from '../../src/content/context';
 import { mapHttpError, isTextGenerationModel, generateVariants } from '../../src/background/gemini';
-import { generateRouted, pickEscalationModel } from '../../src/background/router';
+import { generateRouted, pickEscalationModel, isModelCooling } from '../../src/background/router';
+import { getSettings, setSettings } from '../../src/shared/storage';
+import { SETTINGS_DEFAULTS } from '../../src/shared/messages';
 import { detectLanguage } from '../../src/shared/lang';
 import type { ContextBriefData } from '../../src/shared/messages';
 
 let passed = 0;
 let failed = 0;
+// K-30: run tests SEQUENTIALLY — fetch/chrome mocks are global and race
+// when tests run concurrently.
+let chain: Promise<void> = Promise.resolve();
 const pending: Promise<void>[] = [];
 function test(name: string, fn: () => void | Promise<void>) {
-  const run = async () => {
+  chain = chain.then(async () => {
     try {
       await fn();
       passed++;
@@ -24,8 +29,8 @@ function test(name: string, fn: () => void | Promise<void>) {
       failed++;
       console.log(`FAIL ${name}: ${(err as Error).message}`);
     }
-  };
-  pending.push(run());
+  });
+  pending.push(chain);
 }
 
 const brief: ContextBriefData = {
@@ -220,7 +225,9 @@ import { checkVariants } from '../../src/background/quality';
 import { pickReplyTargetIndex } from '../../src/content/site-adapters';
 import { hostMatches } from '../../src/content/context';
 import { mapHttpError, isTextGenerationModel, generateVariants } from '../../src/background/gemini';
-import { generateRouted, pickEscalationModel } from '../../src/background/router';
+import { generateRouted, pickEscalationModel, isModelCooling } from '../../src/background/router';
+import { getSettings, setSettings } from '../../src/shared/storage';
+import { SETTINGS_DEFAULTS } from '../../src/shared/messages';
 import { encryptSecret, decryptSecret, deriveSessionKey, decryptWithKey, exportKeyJwk, importKeyJwk } from '../../src/shared/crypto';
 
 test('privacy: credit card formats redacted', () => {
@@ -618,6 +625,138 @@ test('router K-26: escalation skips unavailable/cooling models', () => {
   assert.equal(pickEscalationModel(null, () => false), 'gemini-3.8-flash');
   // None usable.
   assert.equal(pickEscalationModel([], () => false), undefined);
+});
+
+// ---------- router K-30 ----------
+const FALLBACK = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash'];
+const okBody = JSON.stringify({
+  candidates: [{ content: { parts: [{ text: JSON.stringify({ variants: [
+    { role: 'short', text: 'ok one' }, { role: 'balanced', text: 'ok two' }, { role: 'warmer', text: 'ok three' },
+  ] }) }] } }],
+});
+function mockGemini(handlers: Record<string, () => Promise<Partial<Response> | Response>>) {
+  const orig = globalThis.fetch;
+  globalThis.fetch = (async (url: RequestInfo | URL) => {
+    const u = String(url);
+    if (u.includes(':generateContent')) {
+      const model = u.split('/models/')[1].split(':')[0];
+      const h = handlers[model];
+      if (h) return h() as Response;
+      return { ok: true, json: async () => JSON.parse(okBody) } as Response;
+    }
+    if (u.includes('/models')) {
+      return {
+        ok: true,
+        json: async () => ({
+          models: FALLBACK.map((id) => ({ name: `models/${id}`, supportedGenerationMethods: ['generateContent'] })),
+        }),
+      } as Response;
+    }
+    return { ok: true, json: async () => ({}) } as Response;
+  }) as typeof fetch;
+  return () => { globalThis.fetch = orig; };
+}
+
+test('router K-30: NETWORK retried once on same model', async () => {
+  const m1 = FALLBACK[0];
+  let calls = 0;
+  const restore = mockGemini({
+    [m1]: async () => { calls++; throw new Error('socket hangup'); },
+  });
+  try {
+    const r = await generateRouted({ key: 'k-net-1', userPrompt: 'x' });
+    assert.equal(calls, 2, 'NETWORK should retry once on same model');
+    // attempts lists each model once; calls===2 above proves the retry.
+    assert.deepEqual(r.attempts, [m1, FALLBACK[1]]);
+    assert.equal(r.model, FALLBACK[1]);
+  } finally { restore(); }
+});
+
+test('router K-30: BAD_OUTPUT does not retry, moves to next model', async () => {
+  const m1 = FALLBACK[0];
+  let calls = 0;
+  const restore = mockGemini({
+    [m1]: async () => { calls++; return { ok: true, json: async () => ({}) } as Response; },
+  });
+  try {
+    const r = await generateRouted({ key: 'k-bo-1', userPrompt: 'x' });
+    assert.equal(calls, 1, 'BAD_OUTPUT must not retry');
+    assert.deepEqual(r.attempts, [m1, FALLBACK[1]]);
+  } finally { restore(); }
+});
+
+test('router K-30: speed preference tries fast-tier first', async () => {
+  const restore = mockGemini({});
+  try {
+    const r = await generateRouted({ key: 'k-spd-1', userPrompt: 'x', routerPreference: 'speed' });
+    assert.equal(r.attempts[0], 'gemini-3.5-flash-lite');
+  } finally { restore(); }
+});
+
+test('router K-30: RATE_LIMIT cools model, next call skips it', async () => {
+  const m1 = FALLBACK[0];
+  let rlCalls = 0;
+  const restore = mockGemini({
+    [m1]: async () => {
+      rlCalls++;
+      return { ok: false, status: 429, json: async () => ({ error: { message: 'quota', code: 429 } }) } as Response;
+    },
+  });
+  try {
+    const r1 = await generateRouted({ key: 'k-rl-1', userPrompt: 'x' });
+    assert.equal(r1.model, FALLBACK[1]);
+    assert.ok(isModelCooling(m1), 'rate-limited model should be cooling');
+    const r2 = await generateRouted({ key: 'k-rl-1', userPrompt: 'x' });
+    assert.equal(r2.attempts[0], FALLBACK[1], 'cooled model skipped on next call');
+    assert.equal(rlCalls, 1, 'cooled model not retried');
+  } finally { restore(); }
+});
+
+// ---------- storage K-30 ----------
+function fakeChrome() {
+  const store: Record<string, unknown> = {};
+  const local = {
+    get: (keys: unknown, cb: (r: Record<string, unknown>) => void) => {
+      const k = keys as string | string[] | Record<string, unknown>;
+      if (typeof k === 'string') cb({ [k]: store[k] });
+      else if (Array.isArray(k)) cb(Object.fromEntries(k.map((x) => [x, store[x]])));
+      else cb({ ...store });
+    },
+    set: (items: Record<string, unknown>, cb?: () => void) => {
+      Object.assign(store, items); cb?.();
+    },
+    remove: (key: string, cb?: () => void) => { delete store[key]; cb?.(); },
+  };
+  (globalThis as { chrome?: unknown }).chrome = {
+    storage: { local },
+    runtime: { lastError: null },
+  };
+  return store;
+}
+
+test('storage K-30: defaults when nothing stored', async () => {
+  fakeChrome();
+  const s = await getSettings();
+  assert.deepEqual(s.neverRunSites, SETTINGS_DEFAULTS.neverRunSites);
+  assert.equal(s.pageContextEnabled, false);
+  assert.equal(s.theme, SETTINGS_DEFAULTS.theme);
+});
+
+test('storage K-30: partial stored merges with defaults', async () => {
+  const store = fakeChrome();
+  store['settings'] = { theme: 'dark', neverRunSites: ['example.com'] };
+  const s = await getSettings();
+  assert.equal(s.theme, 'dark');
+  assert.deepEqual(s.neverRunSites, ['example.com']);
+  assert.equal(s.pageContextEnabled, false);
+});
+
+test('storage K-30: setSettings patch keeps other fields', async () => {
+  const store = fakeChrome();
+  store['settings'] = { theme: 'light', neverRunSites: ['a.com'] };
+  const s = await setSettings({ theme: 'dark' });
+  assert.equal(s.theme, 'dark');
+  assert.deepEqual(s.neverRunSites, ['a.com']);
 });
 
 test('crypto: encryptSecret returns a blob object, not a string', async () => {
