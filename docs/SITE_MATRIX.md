@@ -1,5 +1,8 @@
 # Site Test Matrix (P4.3)
 
+Rows marked Pass were tested. Blank rows have not been tested yet. Add a
+result after testing each site.
+
 Insertion results per site. Fill in Pass/Fail + notes after testing
 "Use" on each. Update after every fix in P4.4.
 

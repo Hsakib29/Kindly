@@ -4,7 +4,7 @@
 Kindly
 
 ## Short description (max 132 chars)
-AI replies that sound right, in any text box — powered by Gemini.
+AI replies that sound right, in your text boxes — powered by Gemini.
 
 ## Category
 Productivity
@@ -12,7 +12,8 @@ Productivity
 ## Detailed description
 
 Kindly adds a quiet AI assistant to text fields across the web — Gmail,
-ChatGPT, support desks, forums, docs, anywhere you write.
+ChatGPT, support desks, forums, docs, in many everyday apps and websites,
+including Gmail and ChatGPT.
 
 **Rewrite** — select text (or just pause typing), pick a tone, and get
 three ready-to-send variants: short, balanced, and detailed. Every
