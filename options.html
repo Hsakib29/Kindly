@@ -38,7 +38,8 @@
         position: sticky; top: 0; height: 100vh; overflow-y: auto;
       }
       .brand { display:flex; align-items:center; gap:10px; padding: 0 10px 14px; }
-      .brand .mark { width:28px; height:28px; border-radius:8px; background: var(--accent); display:grid; place-items:center; color: var(--text-on-accent); font-weight:700; }
+      .brand .mark { width:28px; height:28px; border-radius:8px; background: var(--accent); display:grid; place-items:center; color: var(--text-on-accent); font-weight:700; overflow:hidden; }
+      .brand .mark img { width:100%; height:100%; display:block; }
       .brand b { font-size: 15px; }
       .brand small { display:block; color: var(--text-secondary); font-size: 11px; }
       .group { margin-top: 16px; }
@@ -190,7 +191,7 @@
   </head>
   <body>
     <aside>
-      <div class="brand"><div class="mark">K</div><div><b id="app-title">Kindly</b><small id="tagline"></small></div></div>
+      <div class="brand"><div class="mark"><img src="icons/icon-48.png" alt="Kindly logo" /></div><div><b id="app-title">Kindly</b><small id="tagline"></small></div></div>
       <nav aria-label="Settings sections">
         <div class="group">
           <h3>Setup</h3>
