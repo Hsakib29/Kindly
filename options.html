@@ -5,16 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kindly Options</title>
     <style>
-      :root {
-        color-scheme: light dark;
-      }
+      :root { color-scheme: light dark; }
       :root[data-theme='light'] {
         --bg:#F5F7FF; --surface:#FFFFFF; --text:#202B50; --accent:#5269D8; --border:#DCE3FF;
         --text-secondary:#4C5683; --placeholder:#5A6690; --text-disabled:#7C86AC;
         --control-border:#7F89BC; --accent-hover:#4356C4; --accent-active:#384DB0;
         --accent-tint:#E3E9FF; --text-on-accent:#FFFFFF; --danger:#B3261E; --danger-bg:#FDECEA;
-        --success:#1B7A3D; --warning:#8A5A00; --skeleton-base:#E6EBF8; --skeleton-shimmer:#F4F7FF;
+        --success:#1B7A3D; --warning:#8A5A00;
         --focus-ring:#5269D8; --shadow:rgba(32,43,80,0.22); --divider:#C6D0F2; --accent-text:#4756C0;
+        --nav-active:#E3E9FF;
         color-scheme: light;
       }
       :root[data-theme='dark'] {
@@ -22,420 +21,410 @@
         --text-secondary:#A9B4D8; --placeholder:#8B96BC; --text-disabled:#6B7699;
         --control-border:#6B78A3; --accent-hover:#C3D0FF; --accent-active:#D6E0FF;
         --accent-tint:#26314F; --text-on-accent:#0D1224; --danger:#FFB4AB; --danger-bg:#3A1E22;
-        --success:#8FD6A0; --warning:#E8C37A; --skeleton-base:#232C4A; --skeleton-shimmer:#2E3A5E;
+        --success:#8FD6A0; --warning:#E8C37A;
         --focus-ring:#AFC0FF; --shadow:rgba(0,0,0,0.55); --divider:#46538A; --accent-text:#AFC0FF;
+        --nav-active:#26314F;
         color-scheme: dark;
       }
-      :root:not([data-theme]) {
-        --bg:Canvas; --surface:Canvas; --text:CanvasText; --accent:#5269D8; --border:var(--control-border);
-        --text-secondary:#888; --placeholder:#888; --text-disabled:#888;
-        --control-border:var(--control-border); --accent-hover:#4356C4; --accent-active:#384DB0;
-        --accent-tint:var(--divider); --text-on-accent:#fff; --danger:#cf222e; --danger-bg:#cf222e22;
-        --success:#1a7f37; --warning:#b58900; --skeleton-base:var(--divider); --skeleton-shimmer:#8881;
-        --focus-ring:#5269D8; --shadow:rgba(0,0,0,0.22); --divider:var(--divider);
-      }
+      * { box-sizing: border-box; }
       body {
-        background: var(--bg);
-        color: var(--text);
-        font-family: system-ui, sans-serif;
-        max-width: 640px;
-        margin: 2rem auto;
-        padding: 0 1rem;
+        margin: 0; min-height: 100vh;
+        font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--bg); color: var(--text);
+        display: grid; grid-template-columns: 232px 1fr;
       }
-      nav {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 1.5rem;
+      aside {
+        border-right: 1px solid var(--divider); padding: 24px 14px; background: var(--surface);
+        position: sticky; top: 0; height: 100vh; overflow-y: auto;
       }
+      .brand { display:flex; align-items:center; gap:10px; padding: 0 10px 14px; }
+      .brand .mark { width:28px; height:28px; border-radius:8px; background: var(--accent); display:grid; place-items:center; color: var(--text-on-accent); font-weight:700; }
+      .brand b { font-size: 15px; }
+      .brand small { display:block; color: var(--text-secondary); font-size: 11px; }
+      .group { margin-top: 16px; }
+      .group h3 { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-secondary); margin: 0 10px 6px; }
       nav button {
-        padding: 0.4rem 0.9rem;
-        border: 1px solid var(--divider);
-        border-radius: 6px;
-        background: transparent;
-        cursor: pointer;
+        display: flex; width: 100%; align-items: center; gap: 10px;
+        background: none; border: 0; border-radius: 8px; padding: 8px 10px;
+        font: inherit; color: var(--text); text-align: left; cursor: pointer;
       }
-      nav button[aria-current='true'] {
-        background: var(--accent);
-        color: var(--text-on-accent);
-        border-color: var(--accent);
+      nav button:hover { background: var(--accent-tint); }
+      nav button[aria-current='true'] { background: var(--nav-active); color: var(--accent); font-weight: 600; }
+      nav button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+      nav .ico { width: 18px; text-align: center; }
+
+      main { padding: 28px 36px 60px; max-width: 760px; width: 100%; }
+      .topbar { display:flex; justify-content: space-between; align-items: center; }
+      .crumb { color: var(--text-secondary); font-size: 12px; }
+      h1 { font-size: 22px; margin: 6px 0 4px; }
+      .lead { color: var(--text-secondary); margin: 0 0 22px; }
+      section[hidden] { display: none; }
+      #app-title { font-size: 22px; margin: 0; }
+      #tagline { color: var(--text-secondary); font-size: 13px; margin: 2px 0 0; }
+
+      .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+      .card h2 { font-size: 15px; margin: 0 0 2px; }
+      .card .desc, .card > p { color: var(--text-secondary); font-size: 13px; margin: 0 0 14px; }
+      .field { margin-bottom: 14px; }
+      .field > label, .field > .flabel { display:block; font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+      .hint { color: var(--text-secondary); font-size: 12px; margin: 4px 0 0; }
+      .warn { font-size: 12px; color: var(--warning); margin: 8px 0 0; }
+
+      input[type=text], input[type=password], textarea {
+        width: 100%; font: inherit; color: var(--text); background: var(--bg);
+        border: 1px solid var(--control-border); border-radius: 8px; padding: 8px 10px;
       }
-      section {
-        border: 1px solid var(--divider);
-        border-radius: 8px;
-        padding: 1rem 1.25rem;
+      input::placeholder, textarea::placeholder { color: var(--placeholder); }
+      input:focus-visible, textarea:focus-visible, button:focus-visible {
+        outline: 2px solid var(--focus-ring); outline-offset: 1px;
       }
-      section[hidden] {
-        display: none;
+      .row { display:flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      .row > input { flex: 1; min-width: 180px; }
+
+      .btn {
+        font: inherit; font-weight: 600; font-size: 13px; cursor: pointer;
+        background: var(--accent); color: var(--text-on-accent); border: 1px solid var(--accent);
+        border-radius: 8px; padding: 7px 14px; white-space: nowrap;
       }
-      .tagline {
-        color: var(--text-secondary);
-        margin-top: -0.75rem;
+      .btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+      .btn:disabled { opacity: .45; cursor: not-allowed; }
+      .btn.ghost { background: transparent; color: var(--text); border-color: var(--control-border); font-weight: 500; }
+      .btn.danger { background: transparent; color: var(--danger); border-color: var(--danger); font-weight: 500; }
+
+      .status { font-size: 12px; color: var(--text-secondary); margin: 10px 0 0; min-height: 1em; }
+      .status.ok { color: var(--success); }
+      .status.err { color: var(--danger); }
+
+      .switch-row { display:flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 12px 0; border-top: 1px solid var(--divider); }
+      .switch-row:first-of-type { border-top: 0; padding-top: 0; }
+      .switch-row .t { font-weight: 600; font-size: 13px; }
+      .switch-row .d { color: var(--text-secondary); font-size: 12px; margin-top: 2px; }
+      .switch { position: relative; width: 38px; height: 22px; flex: none; margin-top: 2px; }
+      .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+      .switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--control-border); cursor: pointer; transition: background .15s; }
+      .switch span::after { content: ""; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: #FFFFFF; transition: transform .15s; }
+      .switch input:checked + span { background: var(--accent); }
+      .switch input:checked + span::after { transform: translateX(16px); }
+      .switch input:disabled + span { opacity: .5; cursor: not-allowed; }
+      .switch input:focus-visible + span { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+      .segmented { display:inline-flex; border: 1px solid var(--control-border); border-radius: 8px; overflow: hidden; }
+      .segmented label { position: relative; }
+      .segmented input { position:absolute; opacity:0; }
+      .segmented span { display:block; padding: 6px 14px; cursor: pointer; font-size: 13px; background: var(--surface); color: var(--text); }
+      .segmented input:checked + span { background: var(--accent); color: var(--text-on-accent); font-weight: 600; }
+      .segmented input:focus-visible + span { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+
+      .radio-list label { display:flex; gap:10px; align-items:flex-start; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
+      .radio-list label:has(input:checked) { border-color: var(--accent); background: var(--accent-tint); }
+      .radio-list input { margin-top: 3px; accent-color: var(--accent); }
+      .radio-list .d { color: var(--text-secondary); font-size: 12px; }
+
+      .list { list-style: none; padding: 0; margin: 0 0 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+      .list:empty { display:none; }
+      .list li, .tone-item, .reply-item { display:flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 12px; background: var(--surface); }
+      .list li + li, .tone-item + .tone-item, .reply-item + .reply-item { border-top: 1px solid var(--divider); }
+      .tone-item .name, .reply-item .name { font-weight: 600; min-width: 140px; }
+      .tone-item .instr, .reply-item .instr { flex: 1; color: var(--text-secondary); font-size: 12px; }
+      .tone-item button, .reply-item button {
+        border: 1px solid var(--control-border); background: transparent; color: var(--text);
+        border-radius: 6px; padding: 0.2rem 0.6rem; cursor: pointer; font-size: 12px;
       }
-      .key-row {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 0.5rem;
-      }
-      .key-row input {
-        flex: 1;
-        padding: 0.45rem 0.6rem;
-        border: 1px solid var(--control-border);
-        border-radius: 6px;
-        background: transparent;
-        color: inherit;
-        font: inherit;
-      }
-      .key-actions {
-        display: flex;
-        gap: 0.5rem;
-      }
-      button {
-        padding: 0.4rem 0.9rem;
-        border: 1px solid var(--control-border);
-        border-radius: 6px;
-        background: transparent;
-        color: inherit;
-        font: inherit;
-        cursor: pointer;
-      }
-      .dropdown {
-        position: relative;
-        display: inline-block;
-        margin: 0.25rem 0 0.5rem;
-      }
+      .tone-item button:hover, .reply-item button:hover { border-color: var(--accent); color: var(--accent); }
+      .tag { font-size: 11px; color: var(--text-secondary); border: 1px solid var(--control-border); border-radius: 999px; padding: 0 7px; margin-left: 6px; }
+      .link-btn { background: none; border: 0; color: var(--danger); cursor: pointer; font: inherit; font-size: 12px; }
+      .link-btn:disabled { color: var(--text-secondary); opacity: .5; cursor: not-allowed; }
+      .empty { color: var(--text-secondary); font-size: 13px; padding: 8px 0; }
+
+      .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      @media (max-width: 620px) { .grid2 { grid-template-columns: 1fr; } }
+
+      /* Custom router dropdown (kept from previous markup/JS hooks) */
+      .dropdown { position: relative; display: block; margin: 0 0 0.5rem; max-width: 340px; }
       .dropdown-button {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        min-width: 220px;
-        padding: 0.4rem 0.6rem;
-        border: 1px solid var(--control-border);
-        border-radius: 6px;
-        background: Canvas;
-        color: CanvasText;
-        font: inherit;
-        cursor: pointer;
-        text-align: left;
+        display: flex; align-items: center; gap: 0.5rem; width: 100%;
+        padding: 8px 10px; border: 1px solid var(--control-border); border-radius: 8px;
+        background: var(--bg); color: var(--text); font: inherit; cursor: pointer; text-align: left;
       }
       .dropdown-button:hover { border-color: var(--accent); }
-      .dropdown-button:focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 1px;
-      }
-      .dropdown-arrow { margin-left: auto; }
+      .dropdown-button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+      .dropdown-arrow { margin-left: auto; color: var(--text-secondary); }
       .dropdown-list {
-        position: absolute;
-        top: calc(100% + 4px);
-        left: 0;
-        right: 0;
-        margin: 0;
-        padding: 4px;
-        list-style: none;
-        background: Canvas;
-        color: CanvasText;
-        border: 1px solid var(--control-border);
-        border-radius: 6px;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
-        z-index: 10;
+        position: absolute; top: calc(100% + 4px); left: 0; right: 0; margin: 0; padding: 4px;
+        list-style: none; background: var(--surface); color: var(--text);
+        border: 1px solid var(--control-border); border-radius: 8px;
+        box-shadow: 0 6px 20px var(--shadow); z-index: 10;
       }
       .dropdown-list[hidden] { display: none; }
-      .dropdown-list li {
-        padding: 0.4rem 0.6rem;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-      .dropdown-list li:hover,
-      .dropdown-list li.active {
-        background: Highlight;
-        color: HighlightText;
-      }
-      .dropdown-list li[aria-selected='true'] { font-weight: 600; }
-      .dropdown-list .hint {
-        display: block;
-        font-size: 11px;
-        font-weight: 400;
-        opacity: 0.75;
-        margin-top: 1px;
-      }
-      #verify-key {
-        background: var(--accent);
-        border-color: var(--accent);
-        color: var(--text-on-accent);
-      }
-      .status {
-        min-height: 1.2em;
-        margin: 0.5rem 0 0;
-      }
-      .status.ok {
-        color: var(--success);
-      }
-      .status.err {
-        color: var(--danger);
-      }
-      .check-row {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin: 0.5rem 0;
-      }
-      .warn {
-        font-size: 0.85rem;
-        color: var(--warning);
-      }
-      .bv-grid {
-        display: grid;
-        gap: 0.6rem;
-        max-width: 480px;
-      }
-      .bv-grid label {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-        font-size: 0.9rem;
-      }
-      .bv-grid input[type='text'] {
-        padding: 0.4rem 0.6rem;
-        border: 1px solid var(--control-border);
-        border-radius: 6px;
-        background: transparent;
-        color: inherit;
-        font: inherit;
-      }
-      .bv-formality {
-        border: 1px solid var(--control-border);
-        border-radius: 6px;
-        padding: 0.4rem 0.6rem;
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-      }
-      .bv-formality legend { font-size: 0.85rem; padding: 0 0.3rem; }
-      .bv-formality label { flex-direction: row; align-items: center; gap: 0.3rem; }
-      .tone-form {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        align-items: center;
-        margin: 0.75rem 0;
-      }
-      .tone-form input[type='text'] {
-        flex: 1;
-        min-width: 160px;
-        padding: 0.4rem 0.6rem;
-        border: 1px solid var(--control-border);
-        border-radius: 6px;
-        background: transparent;
-        color: inherit;
-        font: inherit;
-      }
-      .tone-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.4rem 0;
-        border-bottom: 1px solid var(--divider);
-      }
-      .tone-item .name { font-weight: 600; min-width: 140px; }
-      .tone-item .instr { flex: 1; color: var(--text-secondary); font-size: 0.9rem; }
+      .dropdown-list li { padding: 0.4rem 0.6rem; border-radius: 6px; cursor: pointer; }
+      .dropdown-list li:hover, .dropdown-list li.active { background: var(--accent-tint); }
+      .dropdown-list li[aria-selected='true'] { font-weight: 600; color: var(--accent); }
+      .dropdown-list .hint { display: block; font-size: 11px; font-weight: 400; color: var(--text-secondary); margin-top: 1px; }
+      .flabel { display:block; font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+
       #never-run {
-        width: 100%;
-        max-width: 480px;
-        padding: 0.5rem 0.6rem;
-        border: 1px solid var(--control-border);
-        border-radius: 6px;
-        background: transparent;
-        color: inherit;
-        font: 0.9rem/1.5 ui-monospace, monospace;
-        resize: vertical;
+        font: 0.9rem/1.5 ui-monospace, monospace; resize: vertical; min-height: 180px;
       }
-      .tone-item button {
-        border: 1px solid var(--control-border);
-        background: transparent;
-        color: inherit;
-        border-radius: 6px;
-        padding: 0.2rem 0.6rem;
-        cursor: pointer;
-        font-size: 0.85rem;
+      .form-row { display:flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+      .form-row > input[type='text'] { flex: 1; min-width: 160px; }
+      .tone-form { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; margin-top: 12px; }
+      .tone-form input[type='text'] { flex: 1; min-width: 160px; }
+      .tone-form .switch-row-inline { display:flex; align-items:center; gap:8px; border:0; padding:0; }
+      .tone-form .switch-row-inline .t { font-weight:500; font-size:13px; }
+      fieldset.bv-formality {
+        border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;
+        display: flex; gap: 1rem; align-items: center; margin: 12px 0 0;
+      }
+      fieldset.bv-formality legend { font-size: 12px; font-weight: 600; color: var(--text-secondary); padding: 0 6px; }
+      fieldset.bv-formality label { display:flex; align-items:center; gap:0.35rem; font-size: 13px; cursor:pointer; }
+      fieldset.bv-formality input { accent-color: var(--accent); }
+
+      .savebar { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--divider); display:flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); }
+
+      @media (max-width: 760px) {
+        body { grid-template-columns: 1fr; }
+        aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--divider); }
+        main { padding: 20px 16px 60px; }
       }
     </style>
   </head>
   <body>
-    <h1 id="app-title">Kindly</h1>
-    <p id="tagline" class="tagline"></p>
-    <nav>
-      <button data-section="api-key" aria-current="true">API key</button>
-      <button data-section="models">Models</button>
-      <button data-section="tones">Tones</button>
-      <button data-section="brand-voice">Brand voice</button>
-      <button data-section="sites">Sites</button>
-      <button data-section="knowledge">Saved replies</button>
-      <button data-section="privacy">Privacy</button>
-      <button data-section="developer">Developer</button>
-      <button data-section="appearance">Appearance</button>
-    </nav>
-    <section id="api-key">
-      <h2>API key</h2>
-      <p>Your Google Gemini API key. Stored locally in this browser only.</p>
-      <div class="key-row">
-        <input
-          id="api-key-input"
-          type="password"
-          placeholder="Paste your Gemini API key"
-          autocomplete="off"
-          spellcheck="false"
-        />
-        <button id="toggle-key" type="button">Show</button>
-      </div>
-      <div class="key-actions">
-        <button id="verify-key" type="button">Verify</button>
-        <button id="clear-key" type="button">Clear</button>
-      </div>
-      <p id="key-status" class="status" role="status"></p>
-      <div id="key-protect" hidden>
-        <label for="key-pass" style="font-size:0.85rem">Passphrase</label>
-        <div class="key-row">
-          <input
-            id="key-pass"
-            type="password"
-            placeholder="Passphrase — never stored"
-            autocomplete="off"
-          />
-          <button id="key-unlock" type="button">Unlock</button>
-          <button id="key-lock" type="button">Lock</button>
+    <aside>
+      <div class="brand"><div class="mark">K</div><div><b id="app-title">Kindly</b><small id="tagline"></small></div></div>
+      <nav aria-label="Settings sections">
+        <div class="group">
+          <h3>Setup</h3>
+          <button type="button" data-section="api-key" aria-current="true"><span class="ico">🔑</span>API key</button>
+          <button type="button" data-section="models"><span class="ico">⚙️</span>Models</button>
         </div>
-        <div class="key-actions">
-          <button id="key-encrypt" type="button">Encrypt key</button>
+        <div class="group">
+          <h3>Writing</h3>
+          <button type="button" data-section="tones"><span class="ico">🎚️</span>Tones</button>
+          <button type="button" data-section="brand-voice"><span class="ico">🏷️</span>Brand voice</button>
+          <button type="button" data-section="knowledge"><span class="ico">📌</span>Saved replies</button>
         </div>
-        <p class="warn" style="margin-top:0.4rem">
-          Encryption uses AES-256-GCM. The passphrase is asked once per browser session and is
-          never stored.
-        </p>
-      </div>
-    </section>
-    <section id="models" hidden>
-      <h2>Models</h2>
-      <p>Choose how Kindly picks a Gemini model for each rewrite.</p>
-      <label id="router-label">Routing</label>
-      <div class="dropdown" id="router-dropdown">
-        <button
-          type="button"
-          class="dropdown-button"
-          aria-haspopup="listbox"
-          aria-expanded="false"
-          aria-labelledby="router-label"
-        >
-          <span class="dropdown-label">Auto (recommended)</span>
-          <span class="dropdown-arrow" aria-hidden="true">▾</span>
-        </button>
-        <ul class="dropdown-list" role="listbox" hidden>
-          <li role="option" aria-selected="true" data-value="auto">
-            <span class="opt">Auto (recommended)</span>
-            <span class="hint">Fast lite models first, stronger models as backup</span>
-          </li>
-          <li role="option" aria-selected="false" data-value="speed">
-            <span class="opt">Prefer speed</span>
-            <span class="hint">Always tries the fastest, cheapest model first</span>
-          </li>
-          <li role="option" aria-selected="false" data-value="quality">
-            <span class="opt">Prefer quality</span>
-            <span class="hint">Tries the strongest models first — uses daily quota faster on free tier</span>
-          </li>
-        </ul>
-      </div>
-      <p id="router-status" class="status" role="status"></p>
-    </section>
-    <section id="tones" hidden>
-      <h2>Custom tones</h2>
-      <p>
-        Create your own tone presets. Pinned presets appear first in the panel's chip row.
-      </p>
-      <div id="tone-list"></div>
-      <div class="tone-form">
-        <input id="tone-name" type="text" placeholder="Name (e.g. Empathetic support)" />
-        <input
-          id="tone-instruction"
-          type="text"
-          placeholder="Style instruction (e.g. warm, apologetic, never pushy)"
-        />
-        <label class="check-row"><input type="checkbox" id="tone-pinned" /> Pinned</label>
-        <button id="tone-add" type="button">Add tone</button>
-      </div>
-      <p id="tone-status" class="status" role="status"></p>
-    </section>
-    <section id="brand-voice" hidden>
-      <h2>Brand voice</h2>
-      <p>Applied to every rewrite and draft when filled in.</p>
-      <div class="bv-grid">
-        <label>Company name<input id="bv-company" type="text" placeholder="Acme Support" /></label>
-        <label>Greeting<input id="bv-greeting" type="text" placeholder="Hi there," /></label>
-        <label>Closing<input id="bv-closing" type="text" placeholder="Best regards," /></label>
-        <label>Words to prefer<input id="bv-use" type="text" placeholder="comma, separated" /></label>
-        <label>Words to avoid<input id="bv-avoid" type="text" placeholder="comma, separated" /></label>
-        <fieldset class="bv-formality">
-          <legend>Formality</legend>
-          <label><input type="radio" name="bv-formality" value="" checked /> Any</label>
-          <label><input type="radio" name="bv-formality" value="casual" /> Casual</label>
-          <label><input type="radio" name="bv-formality" value="neutral" /> Neutral</label>
-          <label><input type="radio" name="bv-formality" value="formal" /> Formal</label>
-        </fieldset>
-      </div>
-      <p id="bv-status" class="status" role="status"></p>
-    </section>
-    <section id="sites" hidden>
-      <h2>Sites</h2>
-      <p>
-        Never run on these sites — the icon and context reading stay off. One hostname per line
-        (subdomains are covered, e.g. <code>chase.com</code> also blocks <code>secure.chase.com</code>).
-      </p>
-      <label style="display:flex;gap:0.5rem;align-items:flex-start;margin:0.75rem 0">
-        <input type="checkbox" id="page-context-global" style="margin-top:0.2rem" />
-        <span>Read page text to give replies more context<br />
-        <small style="color:var(--text-secondary)">Off by default. Sends text from the page you are on to Google Gemini when you generate a reply. Turn it off for sites you don't want read.</small></span>
-      </label>
-      <p id="page-context-status" class="status" role="status"></p>
-      <textarea id="never-run" rows="8" spellcheck="false"></textarea>
-      <p><button type="button" id="never-run-reset">Reset to defaults</button></p>
-      <p id="sites-status" class="status" role="status"></p>
-    </section>
-    <section id="knowledge" hidden>
-      <h2>Saved replies</h2>
-      <p>
-        Store approved wording (shipping policy, refund policy…). Attach one in Write mode so
-        drafts reuse the exact facts.
-      </p>
-      <div id="reply-list"></div>
-      <div class="tone-form">
-        <input id="reply-title" type="text" placeholder="Title (e.g. Refund policy)" />
-        <input id="reply-text" type="text" placeholder="Exact wording to reuse" />
-        <button id="reply-add" type="button">Add reply</button>
-      </div>
-      <p id="reply-status" class="status" role="status"></p>
-    </section>
-    <section id="privacy" hidden>
-      <h2>Privacy</h2>
-      <p>
-        Kindly sends text to Google's Gemini API only when you click. Your key is stored locally in
-        this browser.
-      </p>
-    </section>
-    <section id="appearance" hidden>
-      <h2>Appearance</h2>
-      <p>Theme for the panel, popup and this page.</p>
-      <div class="tone-pick" style="display:flex;gap:1rem">
-        <label><input type="radio" name="app-theme" value="auto" /> Auto (system)</label>
-        <label><input type="radio" name="app-theme" value="light" /> Light</label>
-        <label><input type="radio" name="app-theme" value="dark" /> Dark</label>
-      </div>
-      <p id="theme-status" class="status" role="status"></p>
-    </section>
-    <section id="developer" hidden>
-      <h2>Developer</h2>
-      <label class="check-row">
-        <input type="checkbox" id="debug-logging" />
-        <span>Log details to the console (for testing)</span>
-      </label>
-      <p class="warn">Warning: logs may include customer text. Turn off when done testing.</p>
-    </section>
+        <div class="group">
+          <h3>Privacy &amp; safety</h3>
+          <button type="button" data-section="privacy"><span class="ico">🛡️</span>Page context</button>
+          <button type="button" data-section="sites"><span class="ico">🚫</span>Never-run sites</button>
+          <button type="button" data-section="privacy"><span class="ico">📄</span>Privacy policy</button>
+        </div>
+        <div class="group">
+          <h3>App</h3>
+          <button type="button" data-section="appearance"><span class="ico">🎨</span>Appearance</button>
+          <button type="button" data-section="developer"><span class="ico">🧪</span>Advanced</button>
+        </div>
+      </nav>
+    </aside>
+
+    <main>
+      <section id="api-key">
+        <h1>API key</h1>
+        <p class="lead">Your Google Gemini API key. Stored locally in this browser only.</p>
+        <div class="card">
+          <h2>Gemini API key</h2>
+          <p class="desc">Get a free key at aistudio.google.com.</p>
+          <div class="field">
+            <label for="api-key-input">Key</label>
+            <div class="row">
+              <input id="api-key-input" type="password" placeholder="Paste your Gemini API key" autocomplete="off" spellcheck="false" />
+              <button id="toggle-key" class="btn ghost" type="button">Show</button>
+            </div>
+          </div>
+          <div class="row">
+            <button id="verify-key" class="btn" type="button">Verify</button>
+            <button id="clear-key" class="btn danger" type="button">Clear key</button>
+          </div>
+          <p id="key-status" class="status" role="status"></p>
+        </div>
+        <div class="card" id="key-protect" hidden>
+          <h2>Protect with a passphrase</h2>
+          <p class="desc">Encrypts your key on this device. You enter the passphrase once per browser session.</p>
+          <div class="field">
+            <label for="key-pass">Passphrase</label>
+            <div class="row">
+              <input id="key-pass" type="password" placeholder="Passphrase — never stored" autocomplete="off" />
+              <button id="key-unlock" class="btn ghost" type="button">Unlock</button>
+              <button id="key-lock" class="btn ghost" type="button">Lock</button>
+            </div>
+          </div>
+          <div class="row">
+            <button id="key-encrypt" class="btn" type="button">Encrypt key</button>
+          </div>
+          <p class="warn">Encryption uses AES-256-GCM. The passphrase is asked once per browser session and is never stored.</p>
+        </div>
+      </section>
+
+      <section id="models" hidden>
+        <h1>Models</h1>
+        <p class="lead">Choose how Kindly picks a Gemini model for each rewrite.</p>
+        <div class="card">
+          <h2>Routing</h2>
+          <p class="desc">Auto is recommended. You can change this at any time.</p>
+          <span class="flabel" id="router-label">Routing</span>
+          <div class="dropdown" id="router-dropdown">
+            <button type="button" class="dropdown-button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="router-label">
+              <span class="dropdown-label">Auto (recommended)</span>
+              <span class="dropdown-arrow" aria-hidden="true">▾</span>
+            </button>
+            <ul class="dropdown-list" role="listbox" hidden>
+              <li role="option" aria-selected="true" data-value="auto">
+                <span class="opt">Auto (recommended)</span>
+                <span class="hint">Fast lite models first, stronger models as backup</span>
+              </li>
+              <li role="option" aria-selected="false" data-value="speed">
+                <span class="opt">Prefer speed</span>
+                <span class="hint">Always tries the fastest, cheapest model first</span>
+              </li>
+              <li role="option" aria-selected="false" data-value="quality">
+                <span class="opt">Prefer quality</span>
+                <span class="hint">Tries the strongest models first — uses daily quota faster on free tier</span>
+              </li>
+            </ul>
+          </div>
+          <p id="router-status" class="status" role="status"></p>
+        </div>
+      </section>
+
+      <section id="tones" hidden>
+        <h1>Tones</h1>
+        <p class="lead">Create your own tones. Pinned tones appear first in the reply panel.</p>
+        <div class="card">
+          <h2>Your tones</h2>
+          <div id="tone-list"></div>
+          <p class="empty" id="tone-empty" hidden>No custom tones yet.</p>
+          <div class="field">
+            <label for="tone-name">Name</label>
+            <input id="tone-name" type="text" placeholder="Name (e.g. Empathetic support)" />
+          </div>
+          <div class="field">
+            <label for="tone-instruction">Style instruction</label>
+            <input id="tone-instruction" type="text" placeholder="e.g. warm, apologetic, never pushy" />
+          </div>
+          <div class="form-row">
+            <label class="switch-row-inline">
+              <label class="switch"><input type="checkbox" id="tone-pinned" /><span></span></label>
+              <span class="t">Pinned</span>
+            </label>
+            <button id="tone-add" class="btn" type="button">Add tone</button>
+          </div>
+          <p id="tone-status" class="status" role="status"></p>
+        </div>
+      </section>
+
+      <section id="brand-voice" hidden>
+        <h1>Brand voice</h1>
+        <p class="lead">Applied to every rewrite and draft when filled in.</p>
+        <div class="card">
+          <div class="grid2">
+            <div class="field"><label for="bv-company">Company name</label><input id="bv-company" type="text" placeholder="Acme Support" /></div>
+            <div class="field"><label for="bv-greeting">Greeting</label><input id="bv-greeting" type="text" placeholder="Hi there," /></div>
+            <div class="field"><label for="bv-closing">Closing</label><input id="bv-closing" type="text" placeholder="Best regards," /></div>
+            <div class="field"><label for="bv-use">Words to prefer</label><input id="bv-use" type="text" placeholder="comma, separated" /></div>
+            <div class="field"><label for="bv-avoid">Words to avoid</label><input id="bv-avoid" type="text" placeholder="comma, separated" /></div>
+          </div>
+          <fieldset class="bv-formality">
+            <legend>Formality</legend>
+            <label><input type="radio" name="bv-formality" value="" checked /> Any</label>
+            <label><input type="radio" name="bv-formality" value="casual" /> Casual</label>
+            <label><input type="radio" name="bv-formality" value="neutral" /> Neutral</label>
+            <label><input type="radio" name="bv-formality" value="formal" /> Formal</label>
+          </fieldset>
+          <p id="bv-status" class="status" role="status"></p>
+        </div>
+      </section>
+
+      <section id="knowledge" hidden>
+        <h1>Saved replies</h1>
+        <p class="lead">Store approved wording (shipping policy, refund policy…). Attach one in Write mode so drafts reuse the exact facts.</p>
+        <div class="card">
+          <h2>Your saved replies</h2>
+          <div id="reply-list"></div>
+          <p class="empty" id="reply-empty" hidden>Nothing saved yet.</p>
+          <div class="grid2">
+            <div class="field"><label for="reply-title">Title</label><input id="reply-title" type="text" placeholder="Refund policy" /></div>
+            <div class="field"><label for="reply-text">Wording</label><input id="reply-text" type="text" placeholder="Exact text to reuse" /></div>
+          </div>
+          <div class="form-row"><button id="reply-add" class="btn" type="button">Add reply</button></div>
+          <p id="reply-status" class="status" role="status"></p>
+        </div>
+      </section>
+
+      <section id="sites" hidden>
+        <h1>Never-run sites</h1>
+        <p class="lead">Kindly never reads or types on these sites.</p>
+        <div class="card">
+          <h2>Sites</h2>
+          <p class="desc">One hostname per line (subdomains are covered, e.g. <code>chase.com</code> also blocks <code>secure.chase.com</code>). Built-in banking and health sites can't be removed.</p>
+          <textarea id="never-run" rows="8" spellcheck="false"></textarea>
+          <div class="form-row">
+            <button id="never-run-reset" class="btn ghost" type="button">Reset to defaults</button>
+          </div>
+          <p id="sites-status" class="status" role="status"></p>
+        </div>
+      </section>
+
+      <section id="privacy" hidden>
+        <h1>Privacy &amp; safety</h1>
+        <p class="lead">Control what Kindly reads, and what it sends.</p>
+        <div class="card">
+          <div class="switch-row">
+            <div>
+              <div class="t">Read page text for context</div>
+              <div class="d">Off by default. Sends text from the page you are on to Google Gemini when you generate a reply. Turn it off for sites you don't want read.</div>
+            </div>
+            <label class="switch"><input type="checkbox" id="page-context-global" /><span></span></label>
+          </div>
+          <div class="switch-row">
+            <div>
+              <div class="t">Mask card and token numbers</div>
+              <div class="d">Hides likely card numbers and API tokens before sending text. Always on.</div>
+            </div>
+            <label class="switch"><input type="checkbox" checked disabled /><span></span></label>
+          </div>
+          <p id="page-context-status" class="status" role="status"></p>
+        </div>
+        <div class="card">
+          <h2>What Kindly sends, and when</h2>
+          <p class="desc">Kindly has no account, no server of its own, and no analytics. Text is sent to Google Gemini only when you press Generate, using your own API key.</p>
+          <p class="desc">With page context off, only the text you typed is sent. With page context on, text from the page is sent as well, after masking card and token numbers. The full policy is in the project's docs folder.</p>
+        </div>
+      </section>
+
+      <section id="appearance" hidden>
+        <h1>Appearance</h1>
+        <p class="lead">Theme for the panel, popup and this page.</p>
+        <div class="card">
+          <div class="switch-row" style="border:0;padding-top:0">
+            <div><div class="t">Theme</div><div class="d">Auto follows your computer's setting.</div></div>
+            <div class="segmented" role="radiogroup" aria-label="Theme">
+              <label><input type="radio" name="app-theme" value="auto" /><span>Auto</span></label>
+              <label><input type="radio" name="app-theme" value="light" /><span>Light</span></label>
+              <label><input type="radio" name="app-theme" value="dark" /><span>Dark</span></label>
+            </div>
+          </div>
+          <p id="theme-status" class="status" role="status"></p>
+        </div>
+      </section>
+
+      <section id="developer" hidden>
+        <h1>Advanced</h1>
+        <p class="lead">For troubleshooting. Most people never need these.</p>
+        <div class="card">
+          <div class="switch-row" style="border:0;padding-top:0">
+            <div>
+              <div class="t">Debug logging</div>
+              <div class="d">Shows Kindly's activity in the browser console. Off by default.</div>
+            </div>
+            <label class="switch"><input type="checkbox" id="debug-logging" /><span></span></label>
+          </div>
+          <p class="warn">Warning: logs may include customer text. Turn off when done testing.</p>
+        </div>
+      </section>
+
+      <div class="savebar"><span>Changes save automatically.</span></div>
+    </main>
+
     <script type="module" src="./src/options/options.ts"></script>
   </body>
 </html>
