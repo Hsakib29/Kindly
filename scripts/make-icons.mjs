@@ -21,7 +21,7 @@ mkdirSync(OUT, { recursive: true });
 
 for (const size of MAIN_SIZES) {
   const out = resolve(OUT, `icon-${size}.png`);
-  await sharp(resolve(SRC, 'icon-main.png'))
+  await sharp(resolve(SRC, 'icon-main.svg'))
     .resize(size, size, { kernel: KERNEL })
     .png({ compressionLevel: 9 })
     .toFile(out);
@@ -30,7 +30,7 @@ for (const size of MAIN_SIZES) {
 
 const floatingDataUris = {};
 for (const size of FLOATING_SIZES) {
-  const buffer = await sharp(resolve(SRC, 'icon-floating.png'))
+  const buffer = await sharp(resolve(SRC, 'icon-floating.svg'))
     .resize(size, size, { kernel: KERNEL })
     .png({ compressionLevel: 9 })
     .toBuffer();

@@ -38,8 +38,8 @@
         position: sticky; top: 0; height: 100vh; overflow-y: auto;
       }
       .brand { display:flex; align-items:center; gap:10px; padding: 0 10px 14px; }
-      .brand .mark { width:28px; height:28px; border-radius:8px; background: var(--accent); display:grid; place-items:center; color: var(--text-on-accent); font-weight:700; overflow:hidden; }
-      .brand .mark img { width:100%; height:100%; display:block; object-fit: contain; }
+      .brand .mark { width:28px; height:28px; border-radius:7px; background: var(--accent); display:grid; place-items:center; color: var(--text-on-accent); font-weight:700; overflow:hidden; }
+      .brand .mark img { width:28px; height:28px; display:block; object-fit: contain; border-radius: 7px; }
       .brand b { font-size: 15px; }
       .brand small { display:block; color: var(--text-secondary); font-size: 11px; }
       .group { margin-top: 16px; }
@@ -180,6 +180,20 @@
       fieldset.bv-formality label { display:flex; align-items:center; gap:0.35rem; font-size: 13px; cursor:pointer; }
       fieldset.bv-formality input { accent-color: var(--accent); }
 
+      .chips { display:flex; gap:10px; flex-wrap:wrap; }
+      .swatch-chip { position:relative; display:flex; flex-direction:column; gap:6px; width:150px; padding:10px; border:1px solid var(--control-border); border-radius:10px; background:var(--surface); cursor:pointer; }
+      .swatch-chip input { position:absolute; opacity:0; width:0; height:0; }
+      .swatch-chip:has(input:checked) { border:2px solid var(--accent); padding:9px; }
+      .swatch-chip:has(input:focus-visible) { outline:2px solid var(--focus-ring); outline-offset:2px; }
+      .swatch-chip .name { font-weight:600; font-size:12px; }
+      .swatch-chip .strip { display:flex; height:18px; border-radius:6px; overflow:hidden; border:1px solid var(--divider); }
+      .swatch-chip .strip i { flex:1; }
+      .swatch-chip .strip i.pat { flex:0 0 14px; }
+      .swatch-note { font-size:11px; color:var(--text-secondary); }
+      .range-row { display:flex; align-items:center; gap:12px; margin-top:12px; }
+      .range-row input[type='range'] { accent-color:var(--accent); width:200px; }
+      .range-row input[type='range']:focus-visible { outline:2px solid var(--focus-ring); outline-offset:3px; }
+      .range-row .val { font-size:12px; color:var(--text-secondary); min-width:24px; }
       .savebar { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--divider); display:flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); }
 
       @media (max-width: 760px) {
@@ -191,7 +205,7 @@
   </head>
   <body>
     <aside>
-      <div class="brand"><div class="mark"><img src="icons/icon-48.png" alt="Kindly logo" /></div><div><b id="app-title">Kindly</b><small id="tagline"></small></div></div>
+      <div class="brand"><div class="mark"><img src="icons/logo.svg" alt="Kindly logo" width="28" height="28" /></div><div><b id="app-title">Kindly</b><small id="tagline"></small></div></div>
       <nav aria-label="Settings sections">
         <div class="group">
           <h3>Setup</h3>
@@ -219,6 +233,7 @@
     </aside>
 
     <main>
+      <div class="pattern-area" style="border-radius:12px;padding:4px;">
       <section id="api-key">
         <h1>API key</h1>
         <p class="lead">Your Google Gemini API key. Stored locally in this browser only.</p>
@@ -396,6 +411,26 @@
         <h1>Appearance</h1>
         <p class="lead">Theme for the panel, popup and this page.</p>
         <div class="card">
+          <h2>Color theme</h2>
+          <p class="desc">Classic is the standard palette. Rhododendron adds a soft botanical pattern.</p>
+          <div class="chips" role="radiogroup" aria-label="Color theme" id="color-theme">
+            <label class="swatch-chip"><input type="radio" name="color-theme" value="classic" checked />
+              <span class="name">Classic</span>
+              <span class="strip"><i data-chip="0"></i><i data-chip="1"></i><i data-chip="2"></i></span>
+              <span class="swatch-note">Standard palette</span></label>
+            <label class="swatch-chip"><input type="radio" name="color-theme" value="rhododendron" />
+              <span class="name">Rhododendron</span>
+              <span class="strip"><i data-chip="0"></i><i data-chip="1"></i><i data-chip="2"></i><i class="pat"></i></span>
+              <span class="swatch-note">Botanical pattern</span></label>
+          </div>
+          <div class="range-row" id="pattern-strength-row" hidden>
+            <label for="pattern-strength" class="d">Pattern strength</label>
+            <input id="pattern-strength" type="range" min="0" max="30" step="1" value="14" />
+            <span class="val" id="pattern-strength-value">14</span>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Mode</h2>
           <div class="switch-row" style="border:0;padding-top:0">
             <div><div class="t">Theme</div><div class="d">Auto follows your computer's setting.</div></div>
             <div class="segmented" role="radiogroup" aria-label="Theme">
@@ -423,6 +458,7 @@
         </div>
       </section>
 
+      </div>
       <div class="savebar"><span>Changes save automatically.</span></div>
     </main>
 
