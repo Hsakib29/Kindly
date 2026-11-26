@@ -1,4 +1,5 @@
 import { PRODUCT_NAME, TAGLINE } from '../shared/brand';
+import { patternBackgroundImage, PATTERN_BACKGROUND_SIZE } from '../shared/pattern';
 import { sendRequest } from '../shared/client';
 import { clearKey, getSettings, getStoredKey, isEncryptedKey, setKey, setSettings, setStoredKey } from '../shared/storage';
 import { encryptSecret } from '../shared/crypto';
@@ -592,6 +593,10 @@ const themeStatus = document.getElementById('theme-status') as HTMLElement;
 
 function applyThemeAttr(mode: 'light' | 'dark') {
   document.documentElement.dataset.theme = mode;
+  // Botanical background pattern, subtle (strength 12 of 30 max).
+  document.body.style.backgroundImage = patternBackgroundImage(mode, 12);
+  document.body.style.backgroundSize = PATTERN_BACKGROUND_SIZE;
+  document.body.style.backgroundRepeat = 'repeat';
 }
 
 async function initTheme() {

@@ -1,6 +1,7 @@
 // Rewrite panel: Shadow DOM UI anchored to the active field.
 // Structure: tone chips, results body, extra-instruction row, action footer.
 
+import { patternBackgroundImage, PATTERN_BACKGROUND_SIZE } from '../shared/pattern';
 import {
   TONE_IDS,
   type ApiError,
@@ -106,6 +107,10 @@ export class RewritePanel {
   setTheme(mode: ThemeMode) {
     this.host.dataset.theme = mode;
     this.host.style.colorScheme = mode;
+    // Subtle botanical pattern behind the panel.
+    this.host.style.backgroundImage = patternBackgroundImage(mode, 10);
+    this.host.style.backgroundSize = PATTERN_BACKGROUND_SIZE;
+    this.host.style.backgroundRepeat = 'repeat';
   }
 
   constructor(callbacks: PanelCallbacks = {}) {

@@ -5,9 +5,14 @@ import { setKey, setSettings, getSettings } from '../shared/storage';
 import { TONE_IDS, type ExtensionResponse, type ToneId } from '../shared/messages';
 import { sendRequest } from '../shared/client';
 import { resolveTheme } from '../shared/theme';
+import { patternBackgroundImage, PATTERN_BACKGROUND_SIZE } from '../shared/pattern';
 
 void getSettings().then((st) => {
-  document.documentElement.dataset.theme = resolveTheme(st.theme ?? 'auto');
+  const mode = resolveTheme(st.theme ?? 'auto');
+  document.documentElement.dataset.theme = mode;
+  document.body.style.backgroundImage = patternBackgroundImage(mode, 12);
+  document.body.style.backgroundSize = PATTERN_BACKGROUND_SIZE;
+  document.body.style.backgroundRepeat = 'repeat';
 });
 document.getElementById('app-title')!.textContent = PRODUCT_NAME;
 document.getElementById('tagline')!.textContent = TAGLINE;

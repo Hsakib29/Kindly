@@ -4,6 +4,7 @@ import { getSettings, setSettings } from '../shared/storage';
 import type { ExtensionResponse } from '../shared/messages';
 import { PRODUCT_NAME } from '../shared/brand';
 import { resolveTheme } from '../shared/theme';
+import { patternBackgroundImage, PATTERN_BACKGROUND_SIZE } from '../shared/pattern';
 import { normalizeHost } from '../shared/siteMatch';
 
 const titleEl = document.getElementById('app-title') as HTMLElement;
@@ -27,7 +28,11 @@ async function activeTabId(): Promise<number | undefined> {
 
 async function main() {
   const settings = await getSettings();
-  document.documentElement.dataset.theme = resolveTheme(settings.theme ?? 'auto');
+  const mode = resolveTheme(settings.theme ?? 'auto');
+  document.documentElement.dataset.theme = mode;
+  document.body.style.backgroundImage = patternBackgroundImage(mode, 12);
+  document.body.style.backgroundSize = PATTERN_BACKGROUND_SIZE;
+  document.body.style.backgroundRepeat = 'repeat';
   const tabId = await activeTabId();
 
   // Ask the content script for this site's hostname + hidden state.
