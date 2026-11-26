@@ -622,7 +622,16 @@ chrome.runtime.onMessage.addListener((message: ExtensionRequest, sender, sendRes
     sendResponse(notAllowed);
     return false;
   }
-  if (EXTENSION_ONLY.has((message as { type?: string }).type ?? '') && sender.tab) {
+  // Extension pages opened in a TAB also have sender.tab set — allow them
+  // by checking the sender URL is our own extension origin, not a web page.
+  const ownOrigin = chrome.runtime.getURL('');
+  const senderUrl = sender.url ?? sender.tab?.url ?? '';
+  const fromExtensionPage = senderUrl.startsWith(ownOrigin);
+  if (
+    EXTENSION_ONLY.has((message as { type?: string }).type ?? '') &&
+    sender.tab &&
+    !fromExtensionPage
+  ) {
     sendResponse(notAllowed);
     return false;
   }
