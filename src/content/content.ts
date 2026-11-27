@@ -9,7 +9,8 @@ import {
 import { buildContextBrief } from './context';
 import type { ContextBriefData } from '../shared/messages';
 import { effectiveNeverRunSites, hostBlocked, normalizeHost } from '../shared/siteMatch';
-import { resolveTheme, watchSystemTheme } from '../shared/theme';
+import { resolveTheme, watchSystemTheme, patternActive } from '../shared/theme';
+import { patternBackgroundImage } from '../shared/pattern';
 import { debugLog, refreshDebugEnabled } from '../shared/debug';
 import { UndoToast } from './toast';
 import { KindlyIcon } from './icon';
@@ -41,9 +42,7 @@ let uiReady = false;
 /** Dead frames (tiny/ad/about:blank iframes) never get UI code at all. */
 const deadFrame =
   window !== window.top &&
-  (window.innerWidth < 100 ||
-    window.innerHeight < 100 ||
-    window.location.href === 'about:blank');
+  (window.innerWidth < 100 || window.innerHeight < 100 || window.location.href === 'about:blank');
 let hiddenSites = new Set<string>();
 let neverRunSites: string[] = [];
 let contextBySite: Record<string, boolean> = {};
@@ -59,6 +58,15 @@ function applyTheme() {
   const mode = resolveTheme(themePref);
   panel.setTheme(mode);
   toast.setTheme(mode);
+  void getSettings().then((st) => {
+    panel.patternCss = patternActive(st.colorTheme, st.patternStrength)
+      ? patternBackgroundImage(mode, st.patternStrength ?? 0)
+      : null;
+    panel.colorThemePref = st.colorTheme;
+    toast.colorThemePref = st.colorTheme;
+    toast.setTheme(mode); // re-apply with palette
+    panel.setTheme(mode); // re-apply with pattern + palette
+  });
 }
 
 function watchThemePref() {
@@ -102,6 +110,11 @@ void refreshHiddenSites().then(() => {
 });
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.settings) {
+    themePref =
+      (changes.settings.newValue as { theme?: 'auto' | 'light' | 'dark' })?.theme ?? themePref;
+    applyTheme();
+  }
+  if (area === 'local' && changes.settings) {
     const s = changes.settings.newValue as
       | {
           hiddenSites?: string[];
@@ -141,10 +154,26 @@ function teardownIfBlocked() {
   for (const requestId of activeRequestIds) {
     void sendRequest<ExtensionResponse>({ type: 'CANCEL', requestId }).catch(() => {});
   }
-  try { panel.destroy(); } catch { /* already gone */ }
-  try { icon.destroy(); } catch { /* already gone */ }
-  try { toast.destroy(); } catch { /* already gone */ }
-  try { ui.dispose(); } catch { /* already gone */ }
+  try {
+    panel.destroy();
+  } catch {
+    /* already gone */
+  }
+  try {
+    icon.destroy();
+  } catch {
+    /* already gone */
+  }
+  try {
+    toast.destroy();
+  } catch {
+    /* already gone */
+  }
+  try {
+    ui.dispose();
+  } catch {
+    /* already gone */
+  }
   uiReady = false;
 }
 
@@ -156,7 +185,9 @@ function isSiteBlocked(): boolean {
     if (window.top && window.top !== window) {
       if (siteMatchesTop()) return true;
     }
-  } catch { /* cross-origin: SW sender check covers it */ }
+  } catch {
+    /* cross-origin: SW sender check covers it */
+  }
   return siteMatches(hiddenSites) || siteMatches(effectiveNeverRunSites(neverRunSites));
 }
 
@@ -181,7 +212,12 @@ let contextReadCount = 0;
 function collectBrief(field: HTMLElement, draftText: string) {
   if (isSiteBlocked()) {
     debugLog(`context reads: ${contextReadCount} (blocked — no read)`);
-    return { brief: { platform: 'web' } as ContextBriefData, messageCount: 0, extractor: 'blocked', maskedCount: 0 };
+    return {
+      brief: { platform: 'web' } as ContextBriefData,
+      messageCount: 0,
+      extractor: 'blocked',
+      maskedCount: 0,
+    };
   }
   contextReadCount++;
   debugLog(`context read #${contextReadCount} @ ${siteHost}`);
@@ -392,7 +428,10 @@ async function requestWrite(req: WriteGenerateRequest) {
 // P3.10: friendly error copy + actions per error code. The server-provided
 // message is shown when present since it carries the real cause.
 function showRequestError(error: ApiError) {
-  const retry = { label: 'Retry', onClick: () => void requestRewrite(selectedTone, lastInstruction || undefined) };
+  const retry = {
+    label: 'Retry',
+    onClick: () => void requestRewrite(selectedTone, lastInstruction || undefined),
+  };
   const openSettings = {
     label: 'Open settings',
     onClick: () => void sendRequest<ExtensionResponse>({ type: 'OPEN_OPTIONS' }),
@@ -422,10 +461,7 @@ function showRequestError(error: ApiError) {
       panel.showError({ code: error.code, message: detail });
       break;
     case 'TIMEOUT':
-      panel.showError(
-        { code: error.code, message: 'Request timed out — try again.' },
-        [retry],
-      );
+      panel.showError({ code: error.code, message: 'Request timed out — try again.' }, [retry]);
       break;
     case 'KEY_LOCKED':
     case 'SITE_BLOCKED':
@@ -444,125 +480,125 @@ function ensureUI() {
   toast = new UndoToast();
 
   panel = new RewritePanel({
-  onTone: (tone, customInstruction) => {
-    if (tone) {
-      selectedTone = tone;
-      customToneInstruction = undefined;
-    } else if (customInstruction !== undefined) {
-      customToneInstruction = customInstruction;
-    }
-  },
-  onUse: (variant: Variant) => {
-    const field = ui?.activeField;
-    if (!field) return;
-    const originalText = readFieldText(field);
-    void (async () => {
-      const result = await insertText(field, variant.text, pendingSelection);
-      if (!result.ok) {
-        panel.showHint(
-          result.copiedToClipboard
-            ? 'Could not insert on this site — text copied. Press Ctrl+V to paste.'
-            : 'Could not insert text on this site.',
-        );
-        return;
+    onTone: (tone, customInstruction) => {
+      if (tone) {
+        selectedTone = tone;
+        customToneInstruction = undefined;
+      } else if (customInstruction !== undefined) {
+        customToneInstruction = customInstruction;
       }
-      pendingSelection = undefined;
-      panel.close();
-      toast.onUndo = () => {
-        void insertText(field, originalText);
-      };
-      toast.show();
-    })();
-  },
-  onGenerate: () => {
-    // Generate doubles as Regenerate: existing variants are passed as
-    // "do not repeat" so a second click yields a fresh set.
-    void requestRewrite(
-      selectedTone,
-      lastInstruction || panel.getInstruction() || undefined,
-      lastVariants.length > 0 ? lastVariants.map((v) => v.text) : undefined,
-    );
-  },
-  onInstruction: (instruction: string) => {
-    lastInstruction = instruction;
-    if (instruction.trim()) {
-      recentInstructions.push(instruction.trim());
-      if (recentInstructions.length > 5) recentInstructions.shift();
-      panel.setRecentInstructions(recentInstructions);
-    }
-    void requestRewrite(selectedTone, instruction || undefined);
-  },
-  // ---------- Write mode (P6.x) ----------
-  onWriteGenerate: (req) => {
-    void requestWrite(req);
-  },
-  onWriteUse: (variant, mode) => {
-    const field = ui?.activeField;
-    if (!field) return;
-    const originalText = readFieldText(field);
-    const insert = mode === 'cursor' ? insertAtCursor : insertText;
-    void (async () => {
-      const result = await insert(field, variant.text);
-      if (!result.ok) {
-        panel.showWriteHint(
-          result.copiedToClipboard
-            ? 'Could not insert on this site — text copied. Press Ctrl+V to paste.'
-            : 'Could not insert text on this site.',
-        );
-        return;
+    },
+    onUse: (variant: Variant) => {
+      const field = ui?.activeField;
+      if (!field) return;
+      const originalText = readFieldText(field);
+      void (async () => {
+        const result = await insertText(field, variant.text, pendingSelection);
+        if (!result.ok) {
+          panel.showHint(
+            result.copiedToClipboard
+              ? 'Could not insert on this site — text copied. Press Ctrl+V to paste.'
+              : 'Could not insert text on this site.',
+          );
+          return;
+        }
+        pendingSelection = undefined;
+        panel.close();
+        toast.onUndo = () => {
+          void insertText(field, originalText);
+        };
+        toast.show();
+      })();
+    },
+    onGenerate: () => {
+      // Generate doubles as Regenerate: existing variants are passed as
+      // "do not repeat" so a second click yields a fresh set.
+      void requestRewrite(
+        selectedTone,
+        lastInstruction || panel.getInstruction() || undefined,
+        lastVariants.length > 0 ? lastVariants.map((v) => v.text) : undefined,
+      );
+    },
+    onInstruction: (instruction: string) => {
+      lastInstruction = instruction;
+      if (instruction.trim()) {
+        recentInstructions.push(instruction.trim());
+        if (recentInstructions.length > 5) recentInstructions.shift();
+        panel.setRecentInstructions(recentInstructions);
       }
-      panel.close();
-      toast.onUndo = () => {
-        void insertText(field, originalText);
-      };
-      toast.show();
-    })();
-  },
-  onWriteInstruction: (instruction) => {
-    const req = panel.buildFollowUpRequest(instruction);
-    if (req) void requestWrite(req);
-  },
-  getWriteContext: (): ContextBriefData | undefined => {
-    if (isSiteBlocked() || !contextEnabled()) return undefined;
-    const field: HTMLElement | null | undefined = ui?.activeField;
-    if (!field) return undefined;
-    const built = collectBrief(field, '');
-    return built.brief.replyTarget || built.brief.contextText ? built.brief : undefined;
-  },
-});
+      void requestRewrite(selectedTone, instruction || undefined);
+    },
+    // ---------- Write mode (P6.x) ----------
+    onWriteGenerate: (req) => {
+      void requestWrite(req);
+    },
+    onWriteUse: (variant, mode) => {
+      const field = ui?.activeField;
+      if (!field) return;
+      const originalText = readFieldText(field);
+      const insert = mode === 'cursor' ? insertAtCursor : insertText;
+      void (async () => {
+        const result = await insert(field, variant.text);
+        if (!result.ok) {
+          panel.showWriteHint(
+            result.copiedToClipboard
+              ? 'Could not insert on this site — text copied. Press Ctrl+V to paste.'
+              : 'Could not insert text on this site.',
+          );
+          return;
+        }
+        panel.close();
+        toast.onUndo = () => {
+          void insertText(field, originalText);
+        };
+        toast.show();
+      })();
+    },
+    onWriteInstruction: (instruction) => {
+      const req = panel.buildFollowUpRequest(instruction);
+      if (req) void requestWrite(req);
+    },
+    getWriteContext: (): ContextBriefData | undefined => {
+      if (isSiteBlocked() || !contextEnabled()) return undefined;
+      const field: HTMLElement | null | undefined = ui?.activeField;
+      if (!field) return undefined;
+      const built = collectBrief(field, '');
+      return built.brief.replyTarget || built.brief.contextText ? built.brief : undefined;
+    },
+  });
   panel.selectTone(selectedTone);
   if (appSettings) {
     panel.setCustomTones(appSettings.customTones ?? []);
     panel.setSavedReplies(appSettings.savedReplies ?? []);
   }
 
-// ---------- Icon + field UI state machine ----------
+  // ---------- Icon + field UI state machine ----------
 
   icon = new KindlyIcon(
-  (field) => {
-    if (field !== ui.activeField) ui.focusField(field);
-    ui.openPanel();
-  },
-  () => {
-    if (!confirm(`Hide Kindly on ${hostname}? You can re-enable it in settings.`)) return;
-    void setSettings({ hiddenSites: [...hiddenSites, siteHost] }).then(() => {
-      hiddenSites.add(siteHost);
-      ui.resync();
-    });
-  },
-);
+    (field) => {
+      if (field !== ui.activeField) ui.focusField(field);
+      ui.openPanel();
+    },
+    () => {
+      if (!confirm(`Hide Kindly on ${hostname}? You can re-enable it in settings.`)) return;
+      void setSettings({ hiddenSites: [...hiddenSites, siteHost] }).then(() => {
+        hiddenSites.add(siteHost);
+        ui.resync();
+      });
+    },
+  );
 
   ui = new FieldUiController(icon, panel, {
-  isSiteHidden: isSiteBlocked,
-  getDeepActiveElement: () => getDeepActiveElement(),
-  onPanelClosed: () => {
-    rewriteEpoch++;
-    // Actually abort in-flight Gemini calls, not just ignore their results.
-    for (const requestId of activeRequestIds) {
-      void sendRequest<ExtensionResponse>({ type: 'CANCEL', requestId }).catch(() => {});
-    }
-  },
-});
+    isSiteHidden: isSiteBlocked,
+    getDeepActiveElement: () => getDeepActiveElement(),
+    onPanelClosed: () => {
+      rewriteEpoch++;
+      // Actually abort in-flight Gemini calls, not just ignore their results.
+      for (const requestId of activeRequestIds) {
+        void sendRequest<ExtensionResponse>({ type: 'CANCEL', requestId }).catch(() => {});
+      }
+    },
+  });
 
   applyTheme();
   installPageListeners();
@@ -587,11 +623,7 @@ if (!deadFrame) {
   // Autofocused supported field on a focused page — no DOM footprint
   // otherwise; background tabs wait for real interaction.
   const active = getDeepActiveElement();
-  if (
-    document.hasFocus() &&
-    active instanceof HTMLElement &&
-    isSupportedField(active)
-  ) {
+  if (document.hasFocus() && active instanceof HTMLElement && isSupportedField(active)) {
     ensureUI();
   }
 }
@@ -603,108 +635,117 @@ function fieldFromEvent(event: Event): HTMLElement | null {
 }
 
 function installPageListeners() {
-document.addEventListener('focusin', (event) => {
-  if (!uiReady || !event.isTrusted) return;
-  // Focus moving inside our own panel (e.g. instruction input) is not a
-  // field change — ignore it entirely.
-  if (panel.handlesEvent(event)) return;
-  const field = fieldFromEvent(event);
-  if (field) {
-    ui.focusField(field);
-  } else {
-    ui.unfocusField();
-  }
-});
-
-document.addEventListener('focusout', () => {
-  if (uiReady) ui.scheduleBlurCheck();
-});
-
-// `input` is composed, so it crosses shadow boundaries.
-document.addEventListener('input', (event) => {
-  if (!uiReady || !event.isTrusted) return;
-  const field = fieldFromEvent(event);
-  if (field) ui.noteInput(field);
-});
-
-// ---------- Keyboard shortcuts (P7.5) ----------
-// Alt+R opens the panel on the focused field, Alt+Shift+R re-runs the
-// last tone, Ctrl+Enter uses the selected variant, Esc closes.
-document.addEventListener('keydown', (e) => {
-  if (!uiReady || !e.isTrusted) return;
-  if (e.key === 'Escape' && panel.isOpen) {
-    e.preventDefault();
-    panel.close();
-    return;
-  }
-  if (panel.isOpen && e.ctrlKey && !e.altKey && !e.metaKey && e.key === 'Enter') {
-    e.preventDefault();
-    panel.useSelected();
-    return;
-  }
-  if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'r' && ui?.activeField && !isSiteBlocked()) {
-    e.preventDefault();
-    if (e.shiftKey) {
-      void requestRewrite(selectedTone, lastInstruction || undefined);
-    } else if (!panel.isOpen) {
-      ui.openPanel();
+  document.addEventListener('focusin', (event) => {
+    if (!uiReady || !event.isTrusted) return;
+    // Focus moving inside our own panel (e.g. instruction input) is not a
+    // field change — ignore it entirely.
+    if (panel.handlesEvent(event)) return;
+    const field = fieldFromEvent(event);
+    if (field) {
+      ui.focusField(field);
+    } else {
+      ui.unfocusField();
     }
+  });
+
+  document.addEventListener('focusout', () => {
+    if (uiReady) ui.scheduleBlurCheck();
+  });
+
+  // `input` is composed, so it crosses shadow boundaries.
+  document.addEventListener('input', (event) => {
+    if (!uiReady || !event.isTrusted) return;
+    const field = fieldFromEvent(event);
+    if (field) ui.noteInput(field);
+  });
+
+  // ---------- Keyboard shortcuts (P7.5) ----------
+  // Alt+R opens the panel on the focused field, Alt+Shift+R re-runs the
+  // last tone, Ctrl+Enter uses the selected variant, Esc closes.
+  document.addEventListener('keydown', (e) => {
+    if (!uiReady || !e.isTrusted) return;
+    if (e.key === 'Escape' && panel.isOpen) {
+      e.preventDefault();
+      panel.close();
+      return;
+    }
+    if (panel.isOpen && e.ctrlKey && !e.altKey && !e.metaKey && e.key === 'Enter') {
+      e.preventDefault();
+      panel.useSelected();
+      return;
+    }
+    if (
+      e.altKey &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      e.key.toLowerCase() === 'r' &&
+      ui?.activeField &&
+      !isSiteBlocked()
+    ) {
+      e.preventDefault();
+      if (e.shiftKey) {
+        void requestRewrite(selectedTone, lastInstruction || undefined);
+      } else if (!panel.isOpen) {
+        ui.openPanel();
+      }
+    }
+  });
+
+  // ---------- Resync on tab return / visibility (icon-loss fix) ----------
+  // focusin does NOT refire when a tab regains focus with the same field
+  // still active — without these listeners the icon stays hidden until the
+  // next keystroke. All paths funnel into ui.resyncFromDom().
+
+  const STALE_REQUEST_MS = 90_000;
+
+  function checkStaleRequests() {
+    const now = Date.now();
+    const rewriteStale = rewriteInFlight && now - rewriteRequestStartedAt > STALE_REQUEST_MS;
+    const writeStale = writeInFlight && now - writeRequestStartedAt > STALE_REQUEST_MS;
+    if (!rewriteStale && !writeStale) return;
+    debugLog('resync: stale in-flight request(s) — cancelling');
+    rewriteEpoch++; // late responses are ignored
+    for (const requestId of activeRequestIds) {
+      void sendRequest<ExtensionResponse>({ type: 'CANCEL', requestId }).catch(() => {});
+    }
+    rewriteInFlight = false;
+    writeInFlight = false;
+    panel.showError({ code: 'NETWORK', message: 'Connection lost — try again.' }, [
+      {
+        label: 'Retry',
+        onClick: () => void requestRewrite(selectedTone, lastInstruction || undefined),
+      },
+    ]);
   }
-});
 
-// ---------- Resync on tab return / visibility (icon-loss fix) ----------
-// focusin does NOT refire when a tab regains focus with the same field
-// still active — without these listeners the icon stays hidden until the
-// next keystroke. All paths funnel into ui.resyncFromDom().
-
-const STALE_REQUEST_MS = 90_000;
-
-function checkStaleRequests() {
-  const now = Date.now();
-  const rewriteStale = rewriteInFlight && now - rewriteRequestStartedAt > STALE_REQUEST_MS;
-  const writeStale = writeInFlight && now - writeRequestStartedAt > STALE_REQUEST_MS;
-  if (!rewriteStale && !writeStale) return;
-  debugLog('resync: stale in-flight request(s) — cancelling');
-  rewriteEpoch++; // late responses are ignored
-  for (const requestId of activeRequestIds) {
-    void sendRequest<ExtensionResponse>({ type: 'CANCEL', requestId }).catch(() => {});
+  function resyncUi(reason: string) {
+    if (!uiReady) return;
+    debugLog(`resync: ${reason} (state=${ui.state} field=${ui.activeField ? 'set' : 'none'})`);
+    ui.resyncFromDom();
+    checkStaleRequests();
   }
-  rewriteInFlight = false;
-  writeInFlight = false;
-  panel.showError(
-    { code: 'NETWORK', message: 'Connection lost — try again.' },
-    [{ label: 'Retry', onClick: () => void requestRewrite(selectedTone, lastInstruction || undefined) }],
-  );
-}
 
-function resyncUi(reason: string) {
-  if (!uiReady) return;
-  debugLog(`resync: ${reason} (state=${ui.state} field=${ui.activeField ? 'set' : 'none'})`);
-  ui.resyncFromDom();
-  checkStaleRequests();
-}
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') resyncUi('visibilitychange→visible');
+  });
+  window.addEventListener('focus', () => resyncUi('window focus'));
+  window.addEventListener('pageshow', () => resyncUi('pageshow'));
 
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') resyncUi('visibilitychange→visible');
-});
-window.addEventListener('focus', () => resyncUi('window focus'));
-window.addEventListener('pageshow', () => resyncUi('pageshow'));
-
-// Light consistency check: 1s interval, only while the page is visible.
-// Corrects any state where the icon should show but doesn't (e.g. a
-// throttled timer fired late). Cost: one textContent read per second.
-window.setInterval(() => {
-  if (!uiReady || document.visibilityState !== 'visible') return;
-  // Only correct states that could be wrongly hidden — 'icon'/'panel' are
-  // already correct, 'hidden-site' only changes via storage events.
-  if (ui.state === 'icon' || ui.state === 'panel' || ui.state === 'hidden-site') return;
-  const field = ui.activeField;
-  if (!field || !field.isConnected) return;
-  const before = ui.state;
-  ui.trigger.refresh(field);
-  ui.resync();
-  if (ui.state !== before) debugLog(`resync: interval corrected ${before}→${ui.state}`);
-}, 1000);
+  // Light consistency check: 1s interval, only while the page is visible.
+  // Corrects any state where the icon should show but doesn't (e.g. a
+  // throttled timer fired late). Cost: one textContent read per second.
+  window.setInterval(() => {
+    if (!uiReady || document.visibilityState !== 'visible') return;
+    // Only correct states that could be wrongly hidden — 'icon'/'panel' are
+    // already correct, 'hidden-site' only changes via storage events.
+    if (ui.state === 'icon' || ui.state === 'panel' || ui.state === 'hidden-site') return;
+    const field = ui.activeField;
+    if (!field || !field.isConnected) return;
+    const before = ui.state;
+    ui.trigger.refresh(field);
+    ui.resync();
+    if (ui.state !== before) debugLog(`resync: interval corrected ${before}→${ui.state}`);
+  }, 1000);
 }
 
 // Toolbar popup query (P7.6): reports this site's hostname + hidden state.

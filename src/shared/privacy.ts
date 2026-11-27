@@ -225,10 +225,7 @@ export function sanitizeBrief(brief: ContextBriefData): SanitizedBrief {
 }
 
 /** Merge two count maps (used when combining extraction + brief stats). */
-export function mergeCounts(
-  a: RedactionCounts,
-  b: RedactionCounts,
-): RedactionCounts {
+export function mergeCounts(a: RedactionCounts, b: RedactionCounts): RedactionCounts {
   const out: RedactionCounts = { ...a };
   for (const [k, v] of Object.entries(b)) {
     const key = k as RedactionCategory;

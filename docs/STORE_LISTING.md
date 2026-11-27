@@ -1,12 +1,15 @@
 # Chrome Web Store — Listing Draft
 
 ## Name
+
 Kindly
 
 ## Short description (max 132 chars)
+
 AI replies that sound right, in your text boxes — powered by Gemini.
 
 ## Category
+
 Productivity
 
 ## Detailed description
@@ -25,6 +28,7 @@ drafts for emails, replies, and messages. Attach approved saved replies
 for wording that must stay exact.
 
 **Built for real work:**
+
 - Tones: professional, warm, short, direct, empathetic, friendly, plus
   your own custom presets and brand voice (greeting, closing, words to
   use/avoid).
@@ -55,10 +59,12 @@ Everything else stays on your device.
 - **No `activeTab`, no `tabs`, no `webRequest`, no remote code.**
 
 ## Single purpose statement
+
 "Rewrite and draft text in web text fields using the user's own Gemini
 API key."
 
 ## Graphics needed
+
 - 128×128 icon (have: `public/icons/icon-128.png`)
 - 440×280 small promo tile, 920×680 large promo tile, 1400×560 marquee
 - 5–6 screenshots: panel on Gmail reply, Write tab, tone chips,

@@ -116,7 +116,10 @@ function gmailAdapter(): SiteContext | null {
     const label = (el.getAttribute('aria-label') ?? '').toLowerCase();
     const m = label.match(/[\w.+-]+@[\w-]+\.[\w.]+/);
     if (m) selfEmails.add(m[0]);
-    const name = label.replace(/^[^(]*\(/, '').replace(/\)$/, '').trim();
+    const name = label
+      .replace(/^[^(]*\(/, '')
+      .replace(/\)$/, '')
+      .trim();
     if (name && !name.includes('@')) selfNames.add(name);
   }
   const isSelf = (sender: string): boolean => {
@@ -141,7 +144,12 @@ function gmailAdapter(): SiteContext | null {
       collapsed++;
       continue;
     }
-    messages.push({ from: sender || 'unknown', date: date || 'unknown', body, isFromUser: isSelf(sender) });
+    messages.push({
+      from: sender || 'unknown',
+      date: date || 'unknown',
+      body,
+      isFromUser: isSelf(sender),
+    });
   }
 
   const header = subject ? `Subject: ${subject}` : '';
@@ -149,9 +157,7 @@ function gmailAdapter(): SiteContext | null {
   const text = [
     header,
     note,
-    ...messages.map(
-      (m, i) => `Message ${i + 1}\nFrom: ${m.from}\nDate: ${m.date}\n${m.body}`,
-    ),
+    ...messages.map((m, i) => `Message ${i + 1}\nFrom: ${m.from}\nDate: ${m.date}\n${m.body}`),
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -176,9 +182,7 @@ export function trySiteAdapter(): SiteContext | null {
  * Returns the index into `messages`, or -1 when every message is the
  * user's own (never reply to yourself).
  */
-export function pickReplyTargetIndex(
-  messages: { isFromUser?: boolean }[],
-): number {
+export function pickReplyTargetIndex(messages: { isFromUser?: boolean }[]): number {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (!messages[i].isFromUser) return i;
   }

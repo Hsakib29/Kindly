@@ -22,9 +22,7 @@ export interface FieldSelection {
   range?: Range;
 }
 
-export type InsertResult =
-  | { ok: true; method: string }
-  | { ok: false; copiedToClipboard: boolean };
+export type InsertResult = { ok: true; method: string } | { ok: false; copiedToClipboard: boolean };
 
 export function readFieldText(el: HTMLElement): string {
   if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
@@ -81,8 +79,7 @@ function tryNativeSetter(el: HTMLElement, text: string, selection?: FieldSelecti
       const original = el.value;
       el.setRangeText(text, selection.start, selection.end, 'end');
       dispatchInput(el);
-      const expected =
-        original.slice(0, selection.start) + text + original.slice(selection.end);
+      const expected = original.slice(0, selection.start) + text + original.slice(selection.end);
       if (el.value === expected) return true;
       // Frameworks may have rewritten value; fall through to full replace.
     }
@@ -223,10 +220,7 @@ async function copyToClipboard(text: string): Promise<boolean> {
  * Insert text at the current caret/selection without replacing the
  * whole field (P6.7). Falls back to the clipboard on total failure.
  */
-export async function insertAtCursor(
-  el: HTMLElement,
-  text: string,
-): Promise<InsertResult> {
+export async function insertAtCursor(el: HTMLElement, text: string): Promise<InsertResult> {
   el.focus();
   let ok = false;
   let method = 'none';

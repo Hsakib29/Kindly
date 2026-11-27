@@ -1,7 +1,8 @@
 // Rewrite panel: Shadow DOM UI anchored to the active field.
 // Structure: tone chips, results body, extra-instruction row, action footer.
 
-import { patternBackgroundImage, PATTERN_BACKGROUND_SIZE } from '../shared/pattern';
+import { PATTERN_BACKGROUND_SIZE } from '../shared/pattern';
+import { applyColorTheme } from '../shared/theme';
 import {
   TONE_IDS,
   type ApiError,
@@ -102,22 +103,37 @@ export class RewritePanel {
   private onDocumentClick: ((e: Event) => void) | null = null;
   private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
   private callbacks: PanelCallbacks = {};
+  /** CSS background-image for the botanical pattern, or null. */
+  patternCss: string | null = null;
+  colorThemePref: 'classic' | 'rhododendron' | undefined = undefined;
 
   /** Apply the resolved theme to the shadow host (P8 theming). */
   setTheme(mode: ThemeMode) {
     this.host.dataset.theme = mode;
     this.host.style.colorScheme = mode;
-    // Subtle botanical pattern behind the panel.
-    this.host.style.backgroundImage = patternBackgroundImage(mode, 10);
-    this.host.style.backgroundSize = PATTERN_BACKGROUND_SIZE;
-    this.host.style.backgroundRepeat = 'repeat';
+    // Pattern lives on the whole .page content area of each tab (behind
+    // chips, ctx chip and cards), never on header/tabs/footer bars/cards.
+    for (const el of this.panel.querySelectorAll<HTMLElement>('.page')) {
+      el.style.backgroundImage = this.patternCss ?? '';
+      el.style.backgroundSize = this.patternCss ? PATTERN_BACKGROUND_SIZE : '';
+      el.style.backgroundRepeat = 'repeat';
+      el.style.backgroundColor = this.patternCss ? 'var(--bg)' : '';
+    }
+    // Clear any pattern styles left on the inner scrolling bodies.
+    for (const el of [this.bodyEl, this.writeBodyEl]) {
+      if (!el) continue;
+      el.style.backgroundImage = '';
+      el.style.backgroundSize = '';
+      el.style.backgroundRepeat = '';
+      el.style.backgroundColor = '';
+    }
+    if (this.colorThemePref) applyColorTheme(this.host, this.colorThemePref, mode);
   }
 
   constructor(callbacks: PanelCallbacks = {}) {
     this.callbacks = callbacks;
     this.host = document.createElement('div');
-    this.host.style.cssText =
-      'position:fixed;top:0;left:0;z-index:2147483646;pointer-events:none;';
+    this.host.style.cssText = 'position:fixed;top:0;left:0;z-index:2147483646;pointer-events:none;';
     const shadow = this.host.attachShadow({ mode: 'closed' });
     shadow.innerHTML = `
       <style>
@@ -146,15 +162,17 @@ export class RewritePanel {
           display: flex;
           justify-content: space-between;
           align-items: center;
-        }
-        .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 10px 8px; }
-        .chip {
-          border: 1px solid var(--control-border);
+          border-bottom: 1px solid var(--divider);
           background: var(--surface);
-          color: var(--text);
+        }
+        .chips { display: flex; flex-wrap: wrap; gap: 5px; padding: 3px 10px 6px; }
+        .chip {
+          border: 1px solid var(--sage, var(--control-border));
+          background: var(--surface);
+          color: var(--sage-ink, var(--text));
           border-radius: 999px;
-          padding: 4px 10px;
-          font-size: 12px;
+          padding: 3px 9px;
+          font-size: 11px;
           cursor: pointer;
         }
         .chip:hover { border-color: var(--accent); }
@@ -176,9 +194,9 @@ export class RewritePanel {
         .card.selected { border: 2px solid var(--accent); background: var(--accent-tint); padding: 7px 9px; }
         .card .label { font-size: 11px; color: var(--text-secondary); margin-bottom: 2px; }
         .card .text { white-space: pre-wrap; word-break: break-word; max-height: 140px; overflow-y: auto; }
-        .instruction { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--divider); }
+        .instruction { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--divider); background: var(--surface); }
         .instruction input, .write-instruction input, .write-prompt, .write-controls select {
-          border: 1px solid var(--control-border);
+          border: 1px solid var(--sage, var(--control-border));
           border-radius: 8px;
           background: var(--surface);
           color: var(--text);
@@ -193,13 +211,14 @@ export class RewritePanel {
         .instruction input, .write-instruction input {
           flex: 1; min-width: 0; padding: 6px 8px;
         }
+        option { background: var(--surface); color: var(--text); }
         .write-prompt { width: 100%; box-sizing: border-box; padding: 7px 9px; resize: vertical; min-height: 44px; }
         .write-controls select { padding: 4px 6px; font-size: 12px; }
         .instruction button, .actions button, .recent button, .write-instruction button,
         .write-actions .generate, .write-actions .copy, .write-actions .cursor, .error-box button {
-          border: 1px solid var(--control-border);
+          border: 1px solid var(--sage, var(--control-border));
           background: var(--surface);
-          color: var(--text);
+          color: var(--sage-ink, var(--text));
           border-radius: 8px;
           padding: 6px 10px;
           font: inherit;
@@ -208,7 +227,13 @@ export class RewritePanel {
         .instruction button:hover, .actions button:hover, .write-instruction button:hover,
         .write-actions .generate:hover, .write-actions .copy:hover, .write-actions .cursor:hover,
         .error-box button:hover, .recent button:hover { border-color: var(--accent); }
-        .actions { display: flex; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--divider); }
+        .generate.cta {
+          background: var(--accent);
+          border-color: var(--accent);
+          color: var(--text-on-accent);
+          font-weight: 600;
+        }
+        .actions { display: flex; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--divider); background: var(--surface); }
         .actions .primary, .write-actions .primary {
           flex: 1;
           background: var(--accent);
@@ -240,8 +265,14 @@ export class RewritePanel {
         }
         @keyframes shimmer { to { background-position: -200% 0; } }
         .result-note { font-size: 11px; color: var(--text-secondary); margin: -4px 0 8px; }
-        .error-box { padding: 10px; font-size: 12px; }
-        .error-box .msg { margin-bottom: 8px; color: var(--danger); }
+        .error-box {
+          padding: 8px 10px; font-size: 12px;
+          background: var(--surface);
+          border: 1px solid var(--danger);
+          border-radius: 10px;
+          color: var(--danger);
+        }
+        .error-box .msg { margin-bottom: 8px; }
         .model-tag { font-size: 10px; color: var(--text-secondary); margin-left: auto; margin-right: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
         .header .close {
           border: none; background: transparent; color: var(--text-secondary);
@@ -249,22 +280,36 @@ export class RewritePanel {
           cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;
         }
         .header .close:hover { background: var(--accent-tint); color: var(--text); }
-        .tabs { display: flex; gap: 4px; padding: 6px 10px 0; }
+        .tabs { display: flex; gap: 4px; padding: 6px 10px 0; background: var(--sage-tint, var(--surface)); }
         .tab-btn {
-          border: none; background: transparent; color: var(--text-secondary);
+          flex: 1; text-align: center;
+          border: 1px solid var(--sage, var(--control-border));
+          background: var(--surface);
+          color: var(--sage-ink, var(--text-secondary));
           font: inherit; font-weight: 600; font-size: 12px; padding: 5px 10px;
-          border-radius: 8px 8px 0 0; cursor: pointer; border-bottom: 2px solid transparent;
+          border-radius: 8px 8px 0 0; cursor: pointer;
         }
         .tab-btn:hover { color: var(--text); }
-        .tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+        .tab-btn.active {
+          background: var(--accent); border-color: var(--accent);
+          color: var(--text-on-accent); font-weight: 600;
+        }
         .ctx-row { display: flex; align-items: center; gap: 8px; padding: 2px 10px 6px; flex-wrap: wrap; }
-        .ctx-chip { font-size: 11px; color: var(--text-secondary); margin-left: auto; }
+        .ctx-row:has(.ctx-chip:empty) { display: none; }
+        .ctx-chip:empty { display: none; }
+        .ctx-chip {
+          font-size: 11px; margin-left: auto;
+          padding: 4px 8px; border-radius: 8px;
+          background: var(--sage-tint, var(--accent-tint));
+          color: var(--sage-ink, var(--text-secondary));
+          border-left: 3px solid var(--sage, var(--control-border));
+        }
         .page { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
         .page[hidden] { display: none; }
         .write-form { padding: 8px 10px 4px; }
         .write-body { padding: 0 10px 10px; }
-        .write-instruction { display: flex; gap: 6px; padding: 6px 10px; border-top: 1px solid var(--divider); }
-        .write-actions { display: flex; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--divider); }
+        .write-instruction { display: flex; gap: 6px; padding: 6px 10px; border-top: 1px solid var(--divider); background: var(--surface); }
+        .write-actions { display: flex; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--divider); background: var(--surface); }
         .write-actions .generate { white-space: nowrap; }
         .ctx-toggle { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-secondary); cursor: pointer; margin-left: auto; }
         .preview-btn { border: none; background: transparent; color: var(--accent); font: inherit; font-size: 12px; padding: 4px 0; cursor: pointer; text-decoration: underline; }
@@ -349,14 +394,10 @@ export class RewritePanel {
     this.panel = shadow.querySelector('.panel') as HTMLDivElement;
     this.chipsEl = shadow.querySelector('.chips') as HTMLElement;
     this.bodyEl = shadow.querySelector('.body') as HTMLElement;
-    this.instructionInput = shadow.querySelector(
-      '.instruction input',
-    ) as HTMLInputElement;
+    this.instructionInput = shadow.querySelector('.instruction input') as HTMLInputElement;
     this.recentEl = shadow.querySelector('.recent') as HTMLElement;
     this.useButton = shadow.querySelector('.primary') as HTMLButtonElement;
-    this.generateButton = shadow.querySelector(
-      '.actions .generate',
-    ) as HTMLButtonElement;
+    this.generateButton = shadow.querySelector('.actions .generate') as HTMLButtonElement;
     this.copyButton = shadow.querySelector('.actions .copy') as HTMLButtonElement;
     this.modelTag = shadow.querySelector('.model-tag') as HTMLElement;
 
@@ -367,9 +408,7 @@ export class RewritePanel {
     this.writeLenEl = writePage.querySelector('.len-select') as HTMLSelectElement;
     this.replySelectEl = writePage.querySelector('.reply-select') as HTMLSelectElement;
     this.writeBodyEl = writePage.querySelector('.write-body') as HTMLElement;
-    this.writeInstrInput = writePage.querySelector(
-      '.write-instruction input',
-    ) as HTMLInputElement;
+    this.writeInstrInput = writePage.querySelector('.write-instruction input') as HTMLInputElement;
     this.writeUseBtn = writePage.querySelector('.write-actions .primary') as HTMLButtonElement;
     this.writeGenBtn = writePage.querySelector('.write-actions .generate') as HTMLButtonElement;
     this.writeCopyBtn = writePage.querySelector('.write-actions .copy') as HTMLButtonElement;
@@ -393,7 +432,9 @@ export class RewritePanel {
 
     // Tab switching.
     for (const btn of Array.from(shadow.querySelectorAll<HTMLButtonElement>('.tab-btn'))) {
-      btn.addEventListener('click', () => this.setTab(btn.dataset.tab === 'write' ? 'write' : 'rewrite'));
+      btn.addEventListener('click', () =>
+        this.setTab(btn.dataset.tab === 'write' ? 'write' : 'rewrite'),
+      );
     }
 
     this.writeGenBtn.addEventListener('click', () => {
@@ -540,9 +581,7 @@ export class RewritePanel {
         const chips = Array.from(this.chipsEl.querySelectorAll<HTMLButtonElement>('.chip'));
         const idx = chips.findIndex((c) => c.classList.contains('selected'));
         const next =
-          e.key === 'ArrowRight'
-            ? Math.min(idx + 1, chips.length - 1)
-            : Math.max(idx - 1, 0);
+          e.key === 'ArrowRight' ? Math.min(idx + 1, chips.length - 1) : Math.max(idx - 1, 0);
         if (idx !== -1 && next !== idx) {
           e.preventDefault();
           chips[next].focus();
@@ -676,12 +715,14 @@ export class RewritePanel {
     this.useButton.disabled = true;
     this.copyButton.disabled = true;
     this.generateButton.textContent = 'Generate';
+    this.generateButton.classList.add('cta');
     this.variants = [];
     this.selectedVariant = -1;
   }
 
   showHint(text: string) {
     this.bodyEl.innerHTML = `<div class="hint">${escapeHtml(text)}</div>`;
+    this.generateButton.classList.add('cta');
   }
 
   showLoading() {
@@ -689,6 +730,7 @@ export class RewritePanel {
       <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>`;
     this.useButton.disabled = true;
     this.copyButton.disabled = true;
+    this.generateButton.classList.add('cta');
   }
 
   showVariants(variants: Variant[], note?: string) {
@@ -697,9 +739,8 @@ export class RewritePanel {
     this.useButton.disabled = this.selectedVariant === -1;
     this.copyButton.disabled = this.selectedVariant === -1;
     this.generateButton.textContent = 'Regenerate';
-    this.bodyEl.innerHTML = note
-      ? `<div class="result-note">${escapeHtml(note)}</div>`
-      : '';
+    this.generateButton.classList.remove('cta');
+    this.bodyEl.innerHTML = note ? `<div class="result-note">${escapeHtml(note)}</div>` : '';
     variants.forEach((v, i) => {
       const card = document.createElement('div');
       card.className = 'card' + (i === 0 ? ' selected' : '');
@@ -712,8 +753,12 @@ export class RewritePanel {
         this.selectedVariant = i;
         this.useButton.disabled = false;
         this.copyButton.disabled = false;
-        for (const c of this.bodyEl.querySelectorAll('.card')) c.classList.remove('selected');
+        for (const c of this.bodyEl.querySelectorAll('.card')) {
+          c.classList.remove('selected');
+          c.setAttribute('aria-pressed', 'false');
+        }
         card.classList.add('selected');
+        card.setAttribute('aria-pressed', 'true');
       };
       card.addEventListener('click', select);
       card.addEventListener('keydown', (e) => {
@@ -740,6 +785,7 @@ export class RewritePanel {
     this.useButton.disabled = true;
     this.copyButton.disabled = true;
     this.generateButton.textContent = 'Generate';
+    this.generateButton.classList.add('cta');
   }
 
   // ---------- Write tab ----------
@@ -774,11 +820,7 @@ export class RewritePanel {
     } else {
       tone = (toneRaw || undefined) as ToneId | undefined;
     }
-    const length = (this.writeLenEl.value || undefined) as
-      | 'short'
-      | 'medium'
-      | 'long'
-      | undefined;
+    const length = (this.writeLenEl.value || undefined) as 'short' | 'medium' | 'long' | undefined;
     const brief = this.callbacks.getWriteContext?.();
     const savedReply = this.savedReplies.find((r) => r.id === this.replySelectEl.value);
     return {
@@ -810,10 +852,12 @@ export class RewritePanel {
     this.writeUseBtn.disabled = true;
     this.writeCopyBtn.disabled = true;
     this.writeCursorBtn.disabled = true;
+    this.writeGenBtn.classList.add('cta');
   }
 
   showWriteHint(text: string) {
     this.writeBodyEl.innerHTML = `<div class="hint">${escapeHtml(text)}</div>`;
+    this.writeGenBtn.classList.add('cta');
   }
 
   showWriteError(message: string) {
@@ -822,6 +866,7 @@ export class RewritePanel {
     this.writeCopyBtn.disabled = true;
     this.writeCursorBtn.disabled = true;
     this.writeGenBtn.textContent = 'Generate';
+    this.writeGenBtn.classList.add('cta');
   }
 
   showWriteVariants(variants: Variant[]) {
@@ -832,6 +877,7 @@ export class RewritePanel {
     this.writeCopyBtn.disabled = !has;
     this.writeCursorBtn.disabled = !has;
     this.writeGenBtn.textContent = 'Regenerate';
+    this.writeGenBtn.classList.remove('cta');
     this.writeBodyEl.innerHTML = '';
     variants.forEach((v, i) => {
       const card = document.createElement('div');
@@ -846,8 +892,12 @@ export class RewritePanel {
         this.writeUseBtn.disabled = false;
         this.writeCopyBtn.disabled = false;
         this.writeCursorBtn.disabled = false;
-        for (const c of this.writeBodyEl.querySelectorAll('.card')) c.classList.remove('selected');
+        for (const c of this.writeBodyEl.querySelectorAll('.card')) {
+          c.classList.remove('selected');
+          c.setAttribute('aria-pressed', 'false');
+        }
         card.classList.add('selected');
+        card.setAttribute('aria-pressed', 'true');
       };
       card.addEventListener('click', select);
       card.addEventListener('keydown', (e) => {
@@ -910,7 +960,8 @@ export class RewritePanel {
 }
 
 function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string,
+  return s.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string,
   );
 }

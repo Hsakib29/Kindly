@@ -1,7 +1,16 @@
 import { PRODUCT_NAME, TAGLINE } from '../shared/brand';
 import { patternBackgroundImage, PATTERN_BACKGROUND_SIZE } from '../shared/pattern';
+import { appPalette, patternActive, applyColorTheme, paletteChips } from '../shared/theme';
 import { sendRequest } from '../shared/client';
-import { clearKey, getSettings, getStoredKey, isEncryptedKey, setKey, setSettings, setStoredKey } from '../shared/storage';
+import {
+  clearKey,
+  getSettings,
+  getStoredKey,
+  isEncryptedKey,
+  setKey,
+  setSettings,
+  setStoredKey,
+} from '../shared/storage';
 import { encryptSecret } from '../shared/crypto';
 import type { ExtensionResponse } from '../shared/messages';
 
@@ -108,6 +117,7 @@ verifyKey.addEventListener('click', async () => {
 });
 
 clearKeyButton.addEventListener('click', async () => {
+  if (!window.confirm('Clear the saved Gemini API key? This cannot be undone.')) return;
   await clearKey();
   keyInput.value = '';
   setStatus('Saved key cleared.', 'ok');
@@ -173,8 +183,7 @@ async function savePreference(value: string) {
     patch: { routerPreference: value as 'auto' | 'speed' | 'quality' },
   });
   if (res.type === 'SETTINGS') {
-    routerStatus.textContent = 'Saved.';
-    routerStatus.className = 'status ok';
+    flashSaved(routerStatus);
   }
 }
 
@@ -186,7 +195,10 @@ dropdownList.addEventListener('click', (e) => {
 });
 
 dropdownButton.addEventListener('keydown', (e) => {
-  if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ')) {
+  if (
+    !open &&
+    (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ')
+  ) {
     e.preventDefault();
     setOpen(true);
     return;
@@ -263,11 +275,14 @@ let customTones: import('../shared/messages').CustomTone[] = [];
 
 function renderTones() {
   toneList.innerHTML = '';
+  const empty = document.getElementById('tone-empty') as HTMLElement;
+  empty.hidden = customTones.length > 0;
   for (const t of customTones) {
     const row = document.createElement('div');
     row.className = 'tone-item';
     row.innerHTML = `<span class="name"></span><span class="instr"></span>`;
-    (row.querySelector('.name') as HTMLElement).textContent = t.name + (t.pinned ? ' (pinned)' : '');
+    (row.querySelector('.name') as HTMLElement).textContent =
+      t.name + (t.pinned ? ' (pinned)' : '');
     (row.querySelector('.instr') as HTMLElement).textContent = t.instruction;
     const pin = document.createElement('button');
     pin.type = 'button';
@@ -296,8 +311,7 @@ async function saveTones() {
   if (res.type === 'SETTINGS') {
     customTones = res.settings.customTones;
     renderTones();
-    toneStatus.textContent = 'Saved.';
-    toneStatus.className = 'status ok';
+    flashSaved(toneStatus);
   }
 }
 
@@ -352,8 +366,7 @@ async function saveBrandVoice() {
     },
   });
   if (res.type === 'SETTINGS') {
-    bvStatus.textContent = 'Saved.';
-    bvStatus.className = 'status ok';
+    flashSaved(bvStatus);
   }
 }
 
@@ -375,9 +388,9 @@ async function initTonesAndVoice() {
   bvUse.value = (bv.wordsToUse ?? []).join(', ');
   bvAvoid.value = (bv.wordsToAvoid ?? []).join(', ');
   const f = bv.formality ?? '';
-  const radio = document.querySelector(`input[name="bv-formality"][value="${f}"]`) as
-    | HTMLInputElement
-    | null;
+  const radio = document.querySelector(
+    `input[name="bv-formality"][value="${f}"]`,
+  ) as HTMLInputElement | null;
   if (radio) radio.checked = true;
 }
 
@@ -395,8 +408,7 @@ async function initPageContextGlobal() {
 }
 pageCtxGlobal.addEventListener('change', async () => {
   await setSettings({ pageContextEnabled: pageCtxGlobal.checked });
-  pageCtxStatus.textContent = 'Saved.';
-  pageCtxStatus.className = 'status ok';
+  flashSaved(pageCtxStatus);
 });
 void initPageContextGlobal();
 
@@ -410,7 +422,7 @@ async function initNeverRun() {
       type: 'SET_SETTINGS',
       patch: { neverRunSites: [...DEFAULT_NEVER_RUN_SITES] },
     });
-  neverRunArea.value = DEFAULT_NEVER_RUN_SITES.join(String.fromCharCode(10));
+    neverRunArea.value = DEFAULT_NEVER_RUN_SITES.join(String.fromCharCode(10));
     return;
   }
   neverRunArea.value = settings.neverRunSites.join('\n');
@@ -440,8 +452,7 @@ neverRunArea.addEventListener('input', () => {
       patch: { neverRunSites: lines },
     });
     if (res.type === 'SETTINGS') {
-      sitesStatus.textContent = 'Saved.';
-      sitesStatus.className = 'status ok';
+      flashSaved(sitesStatus);
     }
   }, 600);
 });
@@ -460,6 +471,8 @@ let savedReplies: import('../shared/messages').SavedReply[] = [];
 
 function renderReplies() {
   replyList.innerHTML = '';
+  const empty = document.getElementById('reply-empty') as HTMLElement;
+  empty.hidden = savedReplies.length > 0;
   for (const r of savedReplies) {
     const row = document.createElement('div');
     row.className = 'tone-item';
@@ -486,8 +499,7 @@ async function saveReplies() {
   if (res.type === 'SETTINGS') {
     savedReplies = res.settings.savedReplies;
     renderReplies();
-    replyStatus.textContent = 'Saved.';
-    replyStatus.className = 'status ok';
+    flashSaved(replyStatus);
   }
 }
 
@@ -591,12 +603,45 @@ const themeRadios = Array.from(
 ) as HTMLInputElement[];
 const themeStatus = document.getElementById('theme-status') as HTMLElement;
 
+/** Show "Saved." briefly, then clear so the next edit gives fresh feedback. */
+function flashSaved(el: HTMLElement) {
+  el.textContent = 'Saved.';
+  el.className = 'status ok';
+  window.setTimeout(() => {
+    if (el.textContent === 'Saved.') {
+      el.textContent = '';
+      el.className = 'status';
+    }
+  }, 2500);
+}
+
+let colorThemePref: 'classic' | 'rhododendron' = 'classic';
+
 function applyThemeAttr(mode: 'light' | 'dark') {
   document.documentElement.dataset.theme = mode;
-  // Botanical background pattern, subtle (strength 12 of 30 max).
-  document.body.style.backgroundImage = patternBackgroundImage(mode, 12);
-  document.body.style.backgroundSize = PATTERN_BACKGROUND_SIZE;
-  document.body.style.backgroundRepeat = 'repeat';
+  applyColorTheme(document.documentElement, colorThemePref, mode);
+  applyMainPattern();
+  paintSwatches(mode);
+}
+
+// Botanical pattern lives ONLY on <main> (behind the solid cards),
+// and only when colorTheme is 'rhododendron' with strength > 0.
+function applyMainPattern() {
+  const main = document.querySelector<HTMLElement>('main');
+  if (!main) return;
+  void getSettings().then((st) => {
+    const on = patternActive(st.colorTheme, st.patternStrength);
+    main.style.backgroundImage = on
+      ? patternBackgroundImage(mode(), st.patternStrength ?? 0)
+      : 'none';
+    main.style.backgroundSize = PATTERN_BACKGROUND_SIZE;
+    main.style.backgroundRepeat = 'repeat';
+    const pal = appPalette(st.colorTheme, mode());
+    main.style.backgroundColor = pal.bg;
+  });
+}
+function mode(): 'light' | 'dark' {
+  return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
 }
 
 async function initTheme() {
@@ -604,7 +649,15 @@ async function initTheme() {
   const pref = settings.theme ?? 'auto';
   const radio = themeRadios.find((r) => r.value === pref);
   if (radio) radio.checked = true;
-  applyThemeAttr(pref === 'dark' ? 'dark' : pref === 'light' ? 'light' : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  applyThemeAttr(
+    pref === 'dark'
+      ? 'dark'
+      : pref === 'light'
+        ? 'light'
+        : matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light',
+  );
   // keep auto in sync with system
   if (pref === 'auto') {
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
@@ -621,10 +674,90 @@ for (const r of themeRadios) {
       patch: { theme: pref },
     });
     if (res.type === 'SETTINGS') {
-      applyThemeAttr(pref === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : pref);
-      themeStatus.textContent = 'Saved.';
-      themeStatus.className = 'status ok';
+      applyThemeAttr(
+        pref === 'auto'
+          ? matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light'
+          : pref,
+      );
+      flashSaved(themeStatus);
     }
   });
 }
+// ---------- Color theme + pattern strength ----------
+const colorRadios = Array.from(
+  document.querySelectorAll('input[name="color-theme"]'),
+) as HTMLInputElement[];
+const strengthInput = document.getElementById('pattern-strength') as HTMLInputElement | null;
+const strengthValue = document.getElementById('pattern-strength-value') as HTMLElement | null;
+
+function paintSwatches(mode: 'light' | 'dark') {
+  for (const ct of ['classic', 'rhododendron'] as const) {
+    const chips = paletteChips(ct, mode);
+    const label = document
+      .querySelector(`input[name="color-theme"][value="${ct}"]`)
+      ?.closest('.swatch-chip');
+    label?.querySelectorAll<HTMLElement>('.strip i[data-chip]').forEach((el, i) => {
+      el.style.background = chips[i];
+    });
+    // Rhododendron card gets a live pattern swatch.
+    const pat = label?.querySelector<HTMLElement>('.strip i.pat');
+    if (pat) {
+      const st = Number(strengthInput?.value ?? 22);
+      pat.style.backgroundImage = patternActive('rhododendron', st)
+        ? patternBackgroundImage(mode, st)
+        : 'none';
+      pat.style.backgroundColor = chips[1];
+    }
+  }
+}
+
+function syncStrengthVisibility() {
+  const rhodo = colorRadios.find((r) => r.value === 'rhododendron')?.checked;
+  const wrap = document.getElementById('pattern-strength-row');
+  if (wrap) wrap.hidden = !rhodo;
+  if (strengthValue && strengthInput) strengthValue.textContent = String(strengthInput.value);
+}
+
+async function initColorTheme() {
+  const st = await getSettings();
+  const r = colorRadios.find((x) => x.value === (st.colorTheme ?? 'classic'));
+  if (r) r.checked = true;
+  colorThemePref = (st.colorTheme ?? 'classic') as 'classic' | 'rhododendron';
+  if (strengthInput) strengthInput.value = String(st.patternStrength ?? 22);
+  syncStrengthVisibility();
+  applyColorTheme(document.documentElement, colorThemePref, mode());
+  paintSwatches(mode());
+}
+for (const r of colorRadios) {
+  r.addEventListener('change', async () => {
+    const ct = r.value as 'classic' | 'rhododendron';
+    await setSettings({ colorTheme: ct });
+    colorThemePref = ct;
+    flashSaved(themeStatus);
+    applyColorTheme(document.documentElement, ct, mode());
+    syncStrengthVisibility();
+    applyMainPattern();
+    paintSwatches(mode());
+  });
+}
+strengthInput?.addEventListener('input', () => {
+  if (strengthValue) strengthValue.textContent = strengthInput.value;
+  paintSwatches(mode());
+});
+strengthInput?.addEventListener('change', async () => {
+  await setSettings({ patternStrength: Number(strengthInput.value) });
+  flashSaved(themeStatus);
+  applyMainPattern();
+});
+void initColorTheme();
+// Live updates when settings change elsewhere.
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes.settings) {
+    void initColorTheme();
+    applyMainPattern();
+  }
+});
+
 void initTheme();

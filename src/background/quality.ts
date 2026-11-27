@@ -31,7 +31,11 @@ const ROLE_MAX_CHARS: Record<string, number> = {
 };
 
 function normalize(s: string): string {
-  return s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+  return s
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**
@@ -51,9 +55,11 @@ function isNearDuplicate(a: string, b: string, containment: number, maxRatio: nu
 }
 
 const STOPWORDS = new Set(
-  ('the a an and or but if then else when at by for with about into through during before after ' +
+  (
+    'the a an and or but if then else when at by for with about into through during before after ' +
     'above below to from up down in out on off over under again further once here there all any both ' +
-    'each few more most other some such no nor not only own same so than too very can will just should now').split(' '),
+    'each few more most other some such no nor not only own same so than too very can will just should now'
+  ).split(' '),
 );
 
 /** Top content terms from the reply target, for anchor checks. */
@@ -90,10 +96,7 @@ function containsAnchor(variantText: string, anchors: string[]): boolean {
   return anchors.some((a) => a && v.includes(a.toLowerCase()));
 }
 
-export function checkVariants(
-  variants: Variant[],
-  opts: QualityCheckOptions,
-): QualityResult {
+export function checkVariants(variants: Variant[], opts: QualityCheckOptions): QualityResult {
   const failures: string[] = [];
   const draftNorm = normalize(opts.draft);
 
@@ -112,7 +115,10 @@ export function checkVariants(
   for (const v of variants) {
     // 'closest' in polish mode is SUPPOSED to stay near the draft.
     if (polish && v.role === 'closest') continue;
-    if (normalize(v.text) === draftNorm || isNearDuplicate(v.text, opts.draft, echoContain, echoRatio)) {
+    if (
+      normalize(v.text) === draftNorm ||
+      isNearDuplicate(v.text, opts.draft, echoContain, echoRatio)
+    ) {
       echoes++;
     }
   }

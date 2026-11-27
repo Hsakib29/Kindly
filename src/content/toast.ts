@@ -1,6 +1,6 @@
 // P3.6: small undo toast shown after "Use" inserts a variant.
 
-import { themeCssVars, type ThemeMode } from '../shared/theme';
+import { applyColorTheme, themeCssVars, type ThemeMode } from '../shared/theme';
 
 const LIGHT_VARS = themeCssVars('light');
 const DARK_VARS = themeCssVars('dark');
@@ -10,11 +10,11 @@ const TOAST_MS = 8000;
 export class UndoToast {
   private host: HTMLDivElement;
   private timer: number | undefined;
+  colorThemePref: 'classic' | 'rhododendron' | undefined = undefined;
 
   constructor() {
     this.host = document.createElement('div');
-    this.host.style.cssText =
-      'position:fixed;bottom:16px;right:16px;z-index:2147483647;';
+    this.host.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:2147483647;';
     const shadow = this.host.attachShadow({ mode: 'closed' });
     shadow.innerHTML = `
       <style>
@@ -34,10 +34,10 @@ export class UndoToast {
           box-shadow: 0 6px 24px var(--shadow);
         }
         button {
-          border: none;
-          background: var(--accent);
-          color: var(--text-on-accent);
-          border-radius: 6px;
+          border: 1px solid var(--sage, var(--control-border));
+          background: var(--surface);
+          color: var(--accent);
+          border-radius: 8px;
           padding: 4px 10px;
           font: inherit;
           cursor: pointer;
@@ -60,6 +60,7 @@ export class UndoToast {
   setTheme(mode: ThemeMode) {
     this.host.dataset.theme = mode;
     this.host.style.colorScheme = mode;
+    if (this.colorThemePref) applyColorTheme(this.host, this.colorThemePref, mode);
   }
 
   onUndo: (() => void) | null = null;

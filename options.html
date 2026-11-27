@@ -5,235 +5,927 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kindly Options</title>
     <style>
-      :root { color-scheme: light dark; }
+      :root {
+        color-scheme: light dark;
+      }
       :root[data-theme='light'] {
-        --bg:#F5F7FF; --surface:#FFFFFF; --text:#202B50; --accent:#5269D8; --border:#DCE3FF;
-        --text-secondary:#4C5683; --placeholder:#5A6690; --text-disabled:#7C86AC;
-        --control-border:#7F89BC; --accent-hover:#4356C4; --accent-active:#384DB0;
-        --accent-tint:#E3E9FF; --text-on-accent:#FFFFFF; --danger:#B3261E; --danger-bg:#FDECEA;
-        --success:#1B7A3D; --warning:#8A5A00;
-        --focus-ring:#5269D8; --shadow:rgba(32,43,80,0.22); --divider:#C6D0F2; --accent-text:#4756C0;
-        --nav-active:#E3E9FF;
+        --bg: #f5f7ff;
+        --surface: #ffffff;
+        --text: #202b50;
+        --accent: #5269d8;
+        --border: #dce3ff;
+        --text-secondary: #4c5683;
+        --placeholder: #5a6690;
+        --text-disabled: #7c86ac;
+        --control-border: #7f89bc;
+        --accent-hover: #4356c4;
+        --accent-active: #384db0;
+        --accent-tint: #e3e9ff;
+        --text-on-accent: #ffffff;
+        --danger: #b3261e;
+        --danger-bg: #fdecea;
+        --success: #1b7a3d;
+        --warning: #8a5a00;
+        --focus-ring: #5269d8;
+        --shadow: rgba(32, 43, 80, 0.22);
+        --divider: #c6d0f2;
+        --accent-text: #4756c0;
+        --nav-active: #e3e9ff;
         color-scheme: light;
       }
       :root[data-theme='dark'] {
-        --bg:#0D1224; --surface:#171F3A; --text:#F4F6FF; --accent:#AFC0FF; --border:#303B61;
-        --text-secondary:#A9B4D8; --placeholder:#8B96BC; --text-disabled:#6B7699;
-        --control-border:#6B78A3; --accent-hover:#C3D0FF; --accent-active:#D6E0FF;
-        --accent-tint:#26314F; --text-on-accent:#0D1224; --danger:#FFB4AB; --danger-bg:#3A1E22;
-        --success:#8FD6A0; --warning:#E8C37A;
-        --focus-ring:#AFC0FF; --shadow:rgba(0,0,0,0.55); --divider:#46538A; --accent-text:#AFC0FF;
-        --nav-active:#26314F;
+        --bg: #0d1224;
+        --surface: #171f3a;
+        --text: #f4f6ff;
+        --accent: #afc0ff;
+        --border: #303b61;
+        --text-secondary: #a9b4d8;
+        --placeholder: #8b96bc;
+        --text-disabled: #6b7699;
+        --control-border: #6b78a3;
+        --accent-hover: #c3d0ff;
+        --accent-active: #d6e0ff;
+        --accent-tint: #26314f;
+        --text-on-accent: #0d1224;
+        --danger: #ffb4ab;
+        --danger-bg: #3a1e22;
+        --success: #8fd6a0;
+        --warning: #e8c37a;
+        --focus-ring: #afc0ff;
+        --shadow: rgba(0, 0, 0, 0.55);
+        --divider: #46538a;
+        --accent-text: #afc0ff;
+        --nav-active: #26314f;
         color-scheme: dark;
       }
-      * { box-sizing: border-box; }
+      * {
+        box-sizing: border-box;
+      }
       body {
-        margin: 0; min-height: 100vh;
-        font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
-        background: var(--bg); color: var(--text);
-        display: grid; grid-template-columns: 232px 1fr;
+        margin: 0;
+        min-height: 100vh;
+        font:
+          14px/1.5 system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        display: grid;
+        grid-template-columns: 232px 1fr;
       }
       aside {
-        border-right: 1px solid var(--divider); padding: 24px 14px; background: var(--surface);
-        position: sticky; top: 0; height: 100vh; overflow-y: auto;
+        border-right: 1px solid var(--divider);
+        padding: 24px 14px;
+        background: var(--surface);
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
       }
-      .brand { display:flex; align-items:center; gap:10px; padding: 0 10px 14px; }
-      .brand .mark { width:28px; height:28px; border-radius:7px; background: var(--accent); display:grid; place-items:center; color: var(--text-on-accent); font-weight:700; overflow:hidden; }
-      .brand .mark img { width:28px; height:28px; display:block; object-fit: contain; border-radius: 7px; }
-      .brand b { font-size: 15px; }
-      .brand small { display:block; color: var(--text-secondary); font-size: 11px; }
-      .group { margin-top: 16px; }
-      .group h3 { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-secondary); margin: 0 10px 6px; }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 10px 14px;
+      }
+      .brand .logo {
+        width: 28px;
+        height: 28px;
+        flex: none;
+        display: block;
+      }
+      .brand b {
+        font-size: 15px;
+      }
+      .brand small {
+        display: block;
+        color: var(--text-secondary);
+        font-size: 11px;
+      }
+      .group {
+        margin-top: 16px;
+      }
+      .group h3 {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        margin: 0 10px 6px;
+      }
       nav button {
-        display: flex; width: 100%; align-items: center; gap: 10px;
-        background: none; border: 0; border-radius: 8px; padding: 8px 10px;
-        font: inherit; color: var(--text); text-align: left; cursor: pointer;
+        display: flex;
+        width: 100%;
+        align-items: center;
+        gap: 10px;
+        background: none;
+        border: 0;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font: inherit;
+        color: var(--text);
+        text-align: left;
+        cursor: pointer;
       }
-      nav button:hover { background: var(--accent-tint); }
-      nav button[aria-current='true'] { background: var(--nav-active); color: var(--accent); font-weight: 600; }
-      nav button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-      nav .ico { width: 18px; text-align: center; }
-
-      main { padding: 28px 36px 60px; max-width: 760px; width: 100%; }
-      .topbar { display:flex; justify-content: space-between; align-items: center; }
-      .crumb { color: var(--text-secondary); font-size: 12px; }
-      h1 { font-size: 22px; margin: 6px 0 4px; }
-      .lead { color: var(--text-secondary); margin: 0 0 22px; }
-      section[hidden] { display: none; }
-      #app-title { font-size: 22px; margin: 0; }
-      #tagline { color: var(--text-secondary); font-size: 13px; margin: 2px 0 0; }
-
-      .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
-      .card h2 { font-size: 15px; margin: 0 0 2px; }
-      .card .desc, .card > p { color: var(--text-secondary); font-size: 13px; margin: 0 0 14px; }
-      .field { margin-bottom: 14px; }
-      .field > label, .field > .flabel { display:block; font-weight: 600; font-size: 13px; margin-bottom: 4px; }
-      .hint { color: var(--text-secondary); font-size: 12px; margin: 4px 0 0; }
-      .warn { font-size: 12px; color: var(--warning); margin: 8px 0 0; }
-
-      input[type=text], input[type=password], textarea {
-        width: 100%; font: inherit; color: var(--text); background: var(--bg);
-        border: 1px solid var(--control-border); border-radius: 8px; padding: 8px 10px;
+      nav button:hover {
+        background: var(--accent-tint);
       }
-      input::placeholder, textarea::placeholder { color: var(--placeholder); }
-      input:focus-visible, textarea:focus-visible, button:focus-visible {
-        outline: 2px solid var(--focus-ring); outline-offset: 1px;
+      nav button[aria-current='true'] {
+        background: var(--nav-active);
+        color: var(--accent);
+        font-weight: 600;
       }
-      .row { display:flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-      .row > input { flex: 1; min-width: 180px; }
+      nav button:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 1px;
+      }
+      nav .ico {
+        width: 16px;
+        height: 16px;
+        flex: none;
+      }
+
+      main {
+        padding: 28px 36px 60px;
+        width: 100%;
+      }
+      main > section,
+      main > .savebar {
+        max-width: 688px;
+      }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .crumb {
+        color: var(--text-secondary);
+        font-size: 12px;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 6px 0 4px;
+      }
+      .lead {
+        color: var(--text-secondary);
+        margin: 0 0 22px;
+      }
+      section[hidden] {
+        display: none;
+      }
+      #app-title {
+        font-size: 22px;
+        margin: 0;
+      }
+      #tagline {
+        color: var(--text-secondary);
+        font-size: 13px;
+        margin: 2px 0 0;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px 20px;
+        margin-bottom: 16px;
+      }
+      .card h2 {
+        font-size: 15px;
+        margin: 0 0 2px;
+      }
+      .card .desc,
+      .card > p {
+        color: var(--text-secondary);
+        font-size: 13px;
+        margin: 0 0 14px;
+      }
+      .field {
+        margin-bottom: 14px;
+      }
+      .field > label,
+      .field > .flabel {
+        display: block;
+        font-weight: 600;
+        font-size: 13px;
+        margin-bottom: 4px;
+      }
+      .hint {
+        color: var(--text-secondary);
+        font-size: 12px;
+        margin: 4px 0 0;
+      }
+      .warn {
+        font-size: 12px;
+        color: var(--warning);
+        margin: 8px 0 0;
+      }
+
+      input[type='text'],
+      input[type='password'],
+      textarea {
+        width: 100%;
+        font: inherit;
+        color: var(--text);
+        background: var(--bg);
+        border: 1px solid var(--control-border);
+        border-radius: 8px;
+        padding: 8px 10px;
+      }
+      input::placeholder,
+      textarea::placeholder {
+        color: var(--placeholder);
+      }
+      input:focus-visible,
+      textarea:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 1px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .row > input {
+        flex: 1;
+        min-width: 180px;
+      }
 
       .btn {
-        font: inherit; font-weight: 600; font-size: 13px; cursor: pointer;
-        background: var(--accent); color: var(--text-on-accent); border: 1px solid var(--accent);
-        border-radius: 8px; padding: 7px 14px; white-space: nowrap;
+        font: inherit;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+        background: var(--accent);
+        color: var(--text-on-accent);
+        border: 1px solid var(--accent);
+        border-radius: 8px;
+        padding: 7px 14px;
+        white-space: nowrap;
       }
-      .btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-      .btn:disabled { opacity: .45; cursor: not-allowed; }
-      .btn.ghost { background: transparent; color: var(--text); border-color: var(--control-border); font-weight: 500; }
-      .btn.danger { background: transparent; color: var(--danger); border-color: var(--danger); font-weight: 500; }
-
-      .status { font-size: 12px; color: var(--text-secondary); margin: 10px 0 0; min-height: 1em; }
-      .status.ok { color: var(--success); }
-      .status.err { color: var(--danger); }
-
-      .switch-row { display:flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 12px 0; border-top: 1px solid var(--divider); }
-      .switch-row:first-of-type { border-top: 0; padding-top: 0; }
-      .switch-row .t { font-weight: 600; font-size: 13px; }
-      .switch-row .d { color: var(--text-secondary); font-size: 12px; margin-top: 2px; }
-      .switch { position: relative; width: 38px; height: 22px; flex: none; margin-top: 2px; }
-      .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
-      .switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--control-border); cursor: pointer; transition: background .15s; }
-      .switch span::after { content: ""; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: #FFFFFF; transition: transform .15s; }
-      .switch input:checked + span { background: var(--accent); }
-      .switch input:checked + span::after { transform: translateX(16px); }
-      .switch input:disabled + span { opacity: .5; cursor: not-allowed; }
-      .switch input:focus-visible + span { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-
-      .segmented { display:inline-flex; border: 1px solid var(--control-border); border-radius: 8px; overflow: hidden; }
-      .segmented label { position: relative; }
-      .segmented input { position:absolute; opacity:0; }
-      .segmented span { display:block; padding: 6px 14px; cursor: pointer; font-size: 13px; background: var(--surface); color: var(--text); }
-      .segmented input:checked + span { background: var(--accent); color: var(--text-on-accent); font-weight: 600; }
-      .segmented input:focus-visible + span { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-
-      .radio-list label { display:flex; gap:10px; align-items:flex-start; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
-      .radio-list label:has(input:checked) { border-color: var(--accent); background: var(--accent-tint); }
-      .radio-list input { margin-top: 3px; accent-color: var(--accent); }
-      .radio-list .d { color: var(--text-secondary); font-size: 12px; }
-
-      .list { list-style: none; padding: 0; margin: 0 0 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-      .list:empty { display:none; }
-      .list li, .tone-item, .reply-item { display:flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 12px; background: var(--surface); }
-      .list li + li, .tone-item + .tone-item, .reply-item + .reply-item { border-top: 1px solid var(--divider); }
-      .tone-item .name, .reply-item .name { font-weight: 600; min-width: 140px; }
-      .tone-item .instr, .reply-item .instr { flex: 1; color: var(--text-secondary); font-size: 12px; }
-      .tone-item button, .reply-item button {
-        border: 1px solid var(--control-border); background: transparent; color: var(--text);
-        border-radius: 6px; padding: 0.2rem 0.6rem; cursor: pointer; font-size: 12px;
+      .btn:hover {
+        background: var(--accent-hover);
+        border-color: var(--accent-hover);
       }
-      .tone-item button:hover, .reply-item button:hover { border-color: var(--accent); color: var(--accent); }
-      .tag { font-size: 11px; color: var(--text-secondary); border: 1px solid var(--control-border); border-radius: 999px; padding: 0 7px; margin-left: 6px; }
-      .link-btn { background: none; border: 0; color: var(--danger); cursor: pointer; font: inherit; font-size: 12px; }
-      .link-btn:disabled { color: var(--text-secondary); opacity: .5; cursor: not-allowed; }
-      .empty { color: var(--text-secondary); font-size: 13px; padding: 8px 0; }
+      .btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .btn.ghost {
+        background: transparent;
+        color: var(--sage-ink, var(--text));
+        border-color: var(--sage, var(--control-border));
+        font-weight: 500;
+      }
+      .btn.danger {
+        background: transparent;
+        color: var(--danger);
+        border-color: var(--danger);
+        font-weight: 500;
+      }
 
-      .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-      @media (max-width: 620px) { .grid2 { grid-template-columns: 1fr; } }
+      .status {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin: 10px 0 0;
+        min-height: 1em;
+      }
+      .status.ok {
+        color: var(--success);
+      }
+      .status.err {
+        color: var(--danger);
+      }
+
+      .switch-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 12px 0;
+        border-top: 1px solid var(--divider);
+      }
+      .switch-row:first-of-type {
+        border-top: 0;
+        padding-top: 0;
+      }
+      .switch-row .t {
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .switch-row .d {
+        color: var(--text-secondary);
+        font-size: 12px;
+        margin-top: 2px;
+      }
+      .switch {
+        position: relative;
+        width: 38px;
+        height: 22px;
+        flex: none;
+        margin-top: 2px;
+      }
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+        position: absolute;
+      }
+      .switch span {
+        position: absolute;
+        inset: 0;
+        border-radius: 999px;
+        background: var(--control-border);
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      .switch span::after {
+        content: '';
+        position: absolute;
+        left: 3px;
+        top: 3px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #ffffff;
+        transition: transform 0.15s;
+      }
+      .switch input:checked + span {
+        background: var(--accent);
+      }
+      .switch input:checked + span::after {
+        transform: translateX(16px);
+      }
+      .switch input:disabled + span {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .switch input:focus-visible + span {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 2px;
+      }
+
+      .segmented {
+        display: inline-flex;
+        border: 1px solid var(--control-border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .segmented label {
+        position: relative;
+      }
+      .segmented input {
+        position: absolute;
+        opacity: 0;
+      }
+      .segmented span {
+        display: block;
+        padding: 6px 14px;
+        cursor: pointer;
+        font-size: 13px;
+        background: var(--surface);
+        color: var(--text);
+      }
+      .segmented input:checked + span {
+        background: var(--accent);
+        color: var(--text-on-accent);
+        font-weight: 600;
+      }
+      .segmented input:focus-visible + span {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: -2px;
+      }
+
+      .radio-list label {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 8px;
+        cursor: pointer;
+      }
+      .radio-list label:has(input:checked) {
+        border-color: var(--accent);
+        background: var(--accent-tint);
+      }
+      .radio-list input {
+        margin-top: 3px;
+        accent-color: var(--accent);
+      }
+      .radio-list .d {
+        color: var(--text-secondary);
+        font-size: 12px;
+      }
+
+      .list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .list:empty {
+        display: none;
+      }
+      .list li,
+      .tone-item,
+      .reply-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px;
+        background: var(--surface);
+      }
+      .list li + li,
+      .tone-item + .tone-item,
+      .reply-item + .reply-item {
+        border-top: 1px solid var(--divider);
+      }
+      .tone-item .name,
+      .reply-item .name {
+        font-weight: 600;
+        min-width: 140px;
+      }
+      .tone-item .instr,
+      .reply-item .instr {
+        flex: 1;
+        color: var(--text-secondary);
+        font-size: 12px;
+      }
+      .tone-item button,
+      .reply-item button {
+        border: 1px solid var(--sage, var(--control-border));
+        background: transparent;
+        color: var(--sage-ink, var(--text));
+        border-radius: 6px;
+        padding: 0.2rem 0.6rem;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .tone-item button:hover,
+      .reply-item button:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .tag {
+        font-size: 11px;
+        color: var(--text-secondary);
+        border: 1px solid var(--control-border);
+        border-radius: 999px;
+        padding: 0 7px;
+        margin-left: 6px;
+      }
+      .link-btn {
+        background: none;
+        border: 0;
+        color: var(--danger);
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+      }
+      .link-btn:disabled {
+        color: var(--text-secondary);
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .empty {
+        color: var(--text-secondary);
+        font-size: 13px;
+        padding: 8px 0;
+      }
+
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      @media (max-width: 620px) {
+        .grid2 {
+          grid-template-columns: 1fr;
+        }
+      }
 
       /* Custom router dropdown (kept from previous markup/JS hooks) */
-      .dropdown { position: relative; display: block; margin: 0 0 0.5rem; max-width: 340px; }
+      .dropdown {
+        position: relative;
+        display: block;
+        margin: 0 0 0.5rem;
+        max-width: 340px;
+      }
       .dropdown-button {
-        display: flex; align-items: center; gap: 0.5rem; width: 100%;
-        padding: 8px 10px; border: 1px solid var(--control-border); border-radius: 8px;
-        background: var(--bg); color: var(--text); font: inherit; cursor: pointer; text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid var(--control-border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+        text-align: left;
       }
-      .dropdown-button:hover { border-color: var(--accent); }
-      .dropdown-button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-      .dropdown-arrow { margin-left: auto; color: var(--text-secondary); }
+      .dropdown-button:hover {
+        border-color: var(--accent);
+      }
+      .dropdown-button:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 1px;
+      }
+      .dropdown-arrow {
+        margin-left: auto;
+        color: var(--text-secondary);
+      }
       .dropdown-list {
-        position: absolute; top: calc(100% + 4px); left: 0; right: 0; margin: 0; padding: 4px;
-        list-style: none; background: var(--surface); color: var(--text);
-        border: 1px solid var(--control-border); border-radius: 8px;
-        box-shadow: 0 6px 20px var(--shadow); z-index: 10;
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        margin: 0;
+        padding: 4px;
+        list-style: none;
+        background: var(--surface);
+        color: var(--text);
+        border: 1px solid var(--control-border);
+        border-radius: 8px;
+        box-shadow: 0 6px 20px var(--shadow);
+        z-index: 10;
       }
-      .dropdown-list[hidden] { display: none; }
-      .dropdown-list li { padding: 0.4rem 0.6rem; border-radius: 6px; cursor: pointer; }
-      .dropdown-list li:hover, .dropdown-list li.active { background: var(--accent-tint); }
-      .dropdown-list li[aria-selected='true'] { font-weight: 600; color: var(--accent); }
-      .dropdown-list .hint { display: block; font-size: 11px; font-weight: 400; color: var(--text-secondary); margin-top: 1px; }
-      .flabel { display:block; font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+      .dropdown-list[hidden] {
+        display: none;
+      }
+      .dropdown-list li {
+        padding: 0.4rem 0.6rem;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .dropdown-list li:hover,
+      .dropdown-list li.active {
+        background: var(--accent-tint);
+      }
+      .dropdown-list li[aria-selected='true'] {
+        font-weight: 600;
+        color: var(--accent);
+      }
+      .dropdown-list .hint {
+        display: block;
+        font-size: 11px;
+        font-weight: 400;
+        color: var(--text-secondary);
+        margin-top: 1px;
+      }
+      .flabel {
+        display: block;
+        font-weight: 600;
+        font-size: 13px;
+        margin-bottom: 4px;
+      }
 
       #never-run {
-        font: 0.9rem/1.5 ui-monospace, monospace; resize: vertical; min-height: 180px;
+        font:
+          0.9rem/1.5 ui-monospace,
+          monospace;
+        resize: vertical;
+        min-height: 180px;
       }
-      .form-row { display:flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
-      .form-row > input[type='text'] { flex: 1; min-width: 160px; }
-      .tone-form { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; margin-top: 12px; }
-      .tone-form input[type='text'] { flex: 1; min-width: 160px; }
-      .tone-form .switch-row-inline { display:flex; align-items:center; gap:8px; border:0; padding:0; }
-      .tone-form .switch-row-inline .t { font-weight:500; font-size:13px; }
+      .form-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .form-row > input[type='text'] {
+        flex: 1;
+        min-width: 160px;
+      }
+      .tone-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        align-items: center;
+        margin-top: 12px;
+      }
+      .tone-form input[type='text'] {
+        flex: 1;
+        min-width: 160px;
+      }
+      .tone-form .switch-row-inline {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 0;
+        padding: 0;
+      }
+      .tone-form .switch-row-inline .t {
+        font-weight: 500;
+        font-size: 13px;
+      }
       fieldset.bv-formality {
-        border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;
-        display: flex; gap: 1rem; align-items: center; margin: 12px 0 0;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 14px;
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin: 12px 0 0;
       }
-      fieldset.bv-formality legend { font-size: 12px; font-weight: 600; color: var(--text-secondary); padding: 0 6px; }
-      fieldset.bv-formality label { display:flex; align-items:center; gap:0.35rem; font-size: 13px; cursor:pointer; }
-      fieldset.bv-formality input { accent-color: var(--accent); }
+      fieldset.bv-formality legend {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        padding: 0 6px;
+      }
+      fieldset.bv-formality label {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      fieldset.bv-formality input {
+        accent-color: var(--accent);
+      }
 
-      .chips { display:flex; gap:10px; flex-wrap:wrap; }
-      .swatch-chip { position:relative; display:flex; flex-direction:column; gap:6px; width:150px; padding:10px; border:1px solid var(--control-border); border-radius:10px; background:var(--surface); cursor:pointer; }
-      .swatch-chip input { position:absolute; opacity:0; width:0; height:0; }
-      .swatch-chip:has(input:checked) { border:2px solid var(--accent); padding:9px; }
-      .swatch-chip:has(input:focus-visible) { outline:2px solid var(--focus-ring); outline-offset:2px; }
-      .swatch-chip .name { font-weight:600; font-size:12px; }
-      .swatch-chip .strip { display:flex; height:18px; border-radius:6px; overflow:hidden; border:1px solid var(--divider); }
-      .swatch-chip .strip i { flex:1; }
-      .swatch-chip .strip i.pat { flex:0 0 14px; }
-      .swatch-note { font-size:11px; color:var(--text-secondary); }
-      .range-row { display:flex; align-items:center; gap:12px; margin-top:12px; }
-      .range-row input[type='range'] { accent-color:var(--accent); width:200px; }
-      .range-row input[type='range']:focus-visible { outline:2px solid var(--focus-ring); outline-offset:3px; }
-      .range-row .val { font-size:12px; color:var(--text-secondary); min-width:24px; }
-      .savebar { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--divider); display:flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); }
+      .chips {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .swatch-chip {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: 150px;
+        padding: 10px;
+        border: 1px solid var(--control-border);
+        border-radius: 10px;
+        background: var(--surface);
+        cursor: pointer;
+      }
+      .swatch-chip input {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .swatch-chip:has(input:checked) {
+        border: 2px solid var(--accent);
+        padding: 9px;
+      }
+      .swatch-chip:has(input:focus-visible) {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 2px;
+      }
+      .swatch-chip .name {
+        font-weight: 600;
+        font-size: 12px;
+      }
+      .swatch-chip .strip {
+        display: flex;
+        height: 18px;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid var(--divider);
+      }
+      .swatch-chip .strip i {
+        flex: 1;
+      }
+      .swatch-chip .strip i.pat {
+        flex: 0 0 14px;
+      }
+      .swatch-note {
+        font-size: 11px;
+        color: var(--text-secondary);
+      }
+      .range-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .range-row input[type='range'] {
+        accent-color: var(--accent);
+        width: 200px;
+      }
+      .range-row input[type='range']:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 3px;
+      }
+      .range-row .val {
+        font-size: 12px;
+        color: var(--text-secondary);
+        min-width: 24px;
+      }
+      .savebar {
+        margin-top: 24px;
+        padding-top: 12px;
+        border-top: 1px solid var(--divider);
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
 
       @media (max-width: 760px) {
-        body { grid-template-columns: 1fr; }
-        aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--divider); }
-        main { padding: 20px 16px 60px; }
+        body {
+          grid-template-columns: 1fr;
+        }
+        aside {
+          position: static;
+          height: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--divider);
+        }
+        main {
+          padding: 20px 16px 60px;
+        }
       }
     </style>
   </head>
   <body>
     <aside>
-      <div class="brand"><div class="mark"><img src="icons/logo.svg" alt="Kindly logo" width="28" height="28" /></div><div><b id="app-title">Kindly</b><small id="tagline"></small></div></div>
+      <div class="brand">
+        <img class="logo" src="icons/logo.svg" alt="Kindly logo" width="28" height="28" />
+        <div><b id="app-title">Kindly</b><small id="tagline"></small></div>
+      </div>
       <nav aria-label="Settings sections">
         <div class="group">
           <h3>Setup</h3>
-          <button type="button" data-section="api-key" aria-current="true"><span class="ico">🔑</span>API key</button>
-          <button type="button" data-section="models"><span class="ico">⚙️</span>Models</button>
+          <button type="button" data-section="api-key" aria-current="true">
+            <svg
+              class="ico"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="5.5" cy="8" r="2.5" />
+              <path d="M8 8h5.5M11.5 8V5.5" /></svg
+            >API key
+          </button>
+          <button type="button" data-section="models">
+            <svg
+              class="ico"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M2 5h12M2 11h12" />
+              <circle cx="6" cy="5" r="1.6" fill="var(--surface)" />
+              <circle cx="10" cy="11" r="1.6" fill="var(--surface)" /></svg
+            >Models
+          </button>
         </div>
         <div class="group">
           <h3>Writing</h3>
-          <button type="button" data-section="tones"><span class="ico">🎚️</span>Tones</button>
-          <button type="button" data-section="brand-voice"><span class="ico">🏷️</span>Brand voice</button>
-          <button type="button" data-section="knowledge"><span class="ico">📌</span>Saved replies</button>
+          <button type="button" data-section="tones">
+            <svg
+              class="ico"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M2 6h12M2 10h12" />
+              <circle cx="6" cy="6" r="1.4" fill="var(--surface)" />
+              <circle cx="10" cy="10" r="1.4" fill="var(--surface)" /></svg
+            >Tones
+          </button>
+          <button type="button" data-section="brand-voice">
+            <svg
+              class="ico"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M2.5 4.5h7l4 3.5-4 3.5h-7z" />
+              <circle cx="5.5" cy="8" r="1" fill="currentColor" stroke="none" /></svg
+            >Brand voice
+          </button>
+          <button type="button" data-section="knowledge">
+            <svg
+              class="ico"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M9.5 2.5 13.5 6.5 6 14H2v-4z" />
+              <path d="M8.5 3.5l4 4" /></svg
+            >Saved replies
+          </button>
         </div>
         <div class="group">
           <h3>Privacy &amp; safety</h3>
-          <button type="button" data-section="privacy"><span class="ico">🛡️</span>Page context</button>
-          <button type="button" data-section="sites"><span class="ico">🚫</span>Never-run sites</button>
-          <button type="button" data-section="privacy"><span class="ico">📄</span>Privacy policy</button>
+          <button type="button" data-section="privacy">
+            <svg
+              class="ico"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M8 2 3 4.5v3.5c0 3 2.2 5.6 5 6.5 2.8-.9 5-3.5 5-6.5V4.5z" /></svg
+            >Page context
+          </button>
+          <button type="button" data-section="sites">
+            <svg
+              class="ico"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="8" cy="8" r="6" />
+              <path d="M4.5 4.5l7 7" /></svg
+            >Never-run sites
+          </button>
+          <button type="button" data-section="privacy-policy">
+            <svg
+              class="ico"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 2.5h5.5L13 6v7.5H4z" />
+              <path d="M9.5 2.5V6H13" />
+              <path d="M6 8.5h4M6 11h4" /></svg
+            >Privacy policy
+          </button>
         </div>
         <div class="group">
           <h3>App</h3>
-          <button type="button" data-section="appearance"><span class="ico">🎨</span>Appearance</button>
-          <button type="button" data-section="developer"><span class="ico">🧪</span>Advanced</button>
+          <button type="button" data-section="appearance">
+            <svg
+              class="ico"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="8" cy="8" r="5.5" />
+              <path d="M8 2.5v11M2.5 8h11" /></svg
+            >Appearance
+          </button>
+          <button type="button" data-section="developer">
+            <svg
+              class="ico"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M6 2h4M7 2v4L3.5 12.5a1 1 0 0 0 .9 1.5h7.2a1 1 0 0 0 .9-1.5L9 6V2" /></svg
+            >Advanced
+          </button>
         </div>
       </nav>
     </aside>
 
     <main>
-      <div class="pattern-area" style="border-radius:12px;padding:4px;">
       <section id="api-key">
         <h1>API key</h1>
         <p class="lead">Your Google Gemini API key. Stored locally in this browser only.</p>
@@ -243,7 +935,13 @@
           <div class="field">
             <label for="api-key-input">Key</label>
             <div class="row">
-              <input id="api-key-input" type="password" placeholder="Paste your Gemini API key" autocomplete="off" spellcheck="false" />
+              <input
+                id="api-key-input"
+                type="password"
+                placeholder="Paste your Gemini API key"
+                autocomplete="off"
+                spellcheck="false"
+              />
               <button id="toggle-key" class="btn ghost" type="button">Show</button>
             </div>
           </div>
@@ -255,11 +953,18 @@
         </div>
         <div class="card" id="key-protect" hidden>
           <h2>Protect with a passphrase</h2>
-          <p class="desc">Encrypts your key on this device. You enter the passphrase once per browser session.</p>
+          <p class="desc">
+            Encrypts your key on this device. You enter the passphrase once per browser session.
+          </p>
           <div class="field">
             <label for="key-pass">Passphrase</label>
             <div class="row">
-              <input id="key-pass" type="password" placeholder="Passphrase — never stored" autocomplete="off" />
+              <input
+                id="key-pass"
+                type="password"
+                placeholder="Passphrase — never stored"
+                autocomplete="off"
+              />
               <button id="key-unlock" class="btn ghost" type="button">Unlock</button>
               <button id="key-lock" class="btn ghost" type="button">Lock</button>
             </div>
@@ -267,7 +972,10 @@
           <div class="row">
             <button id="key-encrypt" class="btn" type="button">Encrypt key</button>
           </div>
-          <p class="warn">Encryption uses AES-256-GCM. The passphrase is asked once per browser session and is never stored.</p>
+          <p class="warn">
+            Encryption uses AES-256-GCM. The passphrase is asked once per browser session and is
+            never stored.
+          </p>
         </div>
       </section>
 
@@ -279,7 +987,13 @@
           <p class="desc">Auto is recommended. You can change this at any time.</p>
           <span class="flabel" id="router-label">Routing</span>
           <div class="dropdown" id="router-dropdown">
-            <button type="button" class="dropdown-button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="router-label">
+            <button
+              type="button"
+              class="dropdown-button"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+              aria-labelledby="router-label"
+            >
               <span class="dropdown-label">Auto (recommended)</span>
               <span class="dropdown-arrow" aria-hidden="true">▾</span>
             </button>
@@ -294,7 +1008,9 @@
               </li>
               <li role="option" aria-selected="false" data-value="quality">
                 <span class="opt">Prefer quality</span>
-                <span class="hint">Tries the strongest models first — uses daily quota faster on free tier</span>
+                <span class="hint"
+                  >Tries the strongest models first — uses daily quota faster on free tier</span
+                >
               </li>
             </ul>
           </div>
@@ -315,7 +1031,11 @@
           </div>
           <div class="field">
             <label for="tone-instruction">Style instruction</label>
-            <input id="tone-instruction" type="text" placeholder="e.g. warm, apologetic, never pushy" />
+            <input
+              id="tone-instruction"
+              type="text"
+              placeholder="e.g. warm, apologetic, never pushy"
+            />
           </div>
           <div class="form-row">
             <label class="switch-row-inline">
@@ -333,11 +1053,26 @@
         <p class="lead">Applied to every rewrite and draft when filled in.</p>
         <div class="card">
           <div class="grid2">
-            <div class="field"><label for="bv-company">Company name</label><input id="bv-company" type="text" placeholder="Acme Support" /></div>
-            <div class="field"><label for="bv-greeting">Greeting</label><input id="bv-greeting" type="text" placeholder="Hi there," /></div>
-            <div class="field"><label for="bv-closing">Closing</label><input id="bv-closing" type="text" placeholder="Best regards," /></div>
-            <div class="field"><label for="bv-use">Words to prefer</label><input id="bv-use" type="text" placeholder="comma, separated" /></div>
-            <div class="field"><label for="bv-avoid">Words to avoid</label><input id="bv-avoid" type="text" placeholder="comma, separated" /></div>
+            <div class="field">
+              <label for="bv-company">Company name</label
+              ><input id="bv-company" type="text" placeholder="Acme Support" />
+            </div>
+            <div class="field">
+              <label for="bv-greeting">Greeting</label
+              ><input id="bv-greeting" type="text" placeholder="Hi there," />
+            </div>
+            <div class="field">
+              <label for="bv-closing">Closing</label
+              ><input id="bv-closing" type="text" placeholder="Best regards," />
+            </div>
+            <div class="field">
+              <label for="bv-use">Words to prefer</label
+              ><input id="bv-use" type="text" placeholder="comma, separated" />
+            </div>
+            <div class="field">
+              <label for="bv-avoid">Words to avoid</label
+              ><input id="bv-avoid" type="text" placeholder="comma, separated" />
+            </div>
           </div>
           <fieldset class="bv-formality">
             <legend>Formality</legend>
@@ -352,16 +1087,27 @@
 
       <section id="knowledge" hidden>
         <h1>Saved replies</h1>
-        <p class="lead">Store approved wording (shipping policy, refund policy…). Attach one in Write mode so drafts reuse the exact facts.</p>
+        <p class="lead">
+          Store approved wording (shipping policy, refund policy…). Attach one in Write mode so
+          drafts reuse the exact facts.
+        </p>
         <div class="card">
           <h2>Your saved replies</h2>
           <div id="reply-list"></div>
           <p class="empty" id="reply-empty" hidden>Nothing saved yet.</p>
           <div class="grid2">
-            <div class="field"><label for="reply-title">Title</label><input id="reply-title" type="text" placeholder="Refund policy" /></div>
-            <div class="field"><label for="reply-text">Wording</label><input id="reply-text" type="text" placeholder="Exact text to reuse" /></div>
+            <div class="field">
+              <label for="reply-title">Title</label
+              ><input id="reply-title" type="text" placeholder="Refund policy" />
+            </div>
+            <div class="field">
+              <label for="reply-text">Wording</label
+              ><input id="reply-text" type="text" placeholder="Exact text to reuse" />
+            </div>
           </div>
-          <div class="form-row"><button id="reply-add" class="btn" type="button">Add reply</button></div>
+          <div class="form-row">
+            <button id="reply-add" class="btn" type="button">Add reply</button>
+          </div>
           <p id="reply-status" class="status" role="status"></p>
         </div>
       </section>
@@ -371,7 +1117,10 @@
         <p class="lead">Kindly never reads or types on these sites.</p>
         <div class="card">
           <h2>Sites</h2>
-          <p class="desc">One hostname per line (subdomains are covered, e.g. <code>chase.com</code> also blocks <code>secure.chase.com</code>). Built-in banking and health sites can't be removed.</p>
+          <p class="desc">
+            One hostname per line (subdomains are covered, e.g. <code>chase.com</code> also blocks
+            <code>secure.chase.com</code>). Built-in banking and health sites can't be removed.
+          </p>
           <textarea id="never-run" rows="8" spellcheck="false"></textarea>
           <div class="form-row">
             <button id="never-run-reset" class="btn ghost" type="button">Reset to defaults</button>
@@ -387,23 +1136,42 @@
           <div class="switch-row">
             <div>
               <div class="t">Read page text for context</div>
-              <div class="d">Off by default. Sends text from the page you are on to Google Gemini when you generate a reply. Turn it off for sites you don't want read.</div>
+              <div class="d">
+                Off by default. Sends text from the page you are on to Google Gemini when you
+                generate a reply. Turn it off for sites you don't want read.
+              </div>
             </div>
-            <label class="switch"><input type="checkbox" id="page-context-global" /><span></span></label>
+            <label class="switch"
+              ><input type="checkbox" id="page-context-global" /><span></span
+            ></label>
           </div>
           <div class="switch-row">
             <div>
               <div class="t">Mask card and token numbers</div>
-              <div class="d">Hides likely card numbers and API tokens before sending text. Always on.</div>
+              <div class="d">
+                Hides likely card numbers and API tokens before sending text. Always on.
+              </div>
             </div>
             <label class="switch"><input type="checkbox" checked disabled /><span></span></label>
           </div>
           <p id="page-context-status" class="status" role="status"></p>
         </div>
+      </section>
+
+      <section id="privacy-policy" hidden>
+        <h1>Privacy policy</h1>
+        <p class="lead">What Kindly sends, and when.</p>
         <div class="card">
           <h2>What Kindly sends, and when</h2>
-          <p class="desc">Kindly has no account, no server of its own, and no analytics. Text is sent to Google Gemini only when you press Generate, using your own API key.</p>
-          <p class="desc">With page context off, only the text you typed is sent. With page context on, text from the page is sent as well, after masking card and token numbers. The full policy is in the project's docs folder.</p>
+          <p class="desc">
+            Kindly has no account, no server of its own, and no analytics. Text is sent to Google
+            Gemini only when you press Generate, using your own API key.
+          </p>
+          <p class="desc">
+            With page context off, only the text you typed is sent. With page context on, text from
+            the page is sent as well, after masking card and token numbers. The full policy is in
+            the project's docs folder.
+          </p>
         </div>
       </section>
 
@@ -412,27 +1180,40 @@
         <p class="lead">Theme for the panel, popup and this page.</p>
         <div class="card">
           <h2>Color theme</h2>
-          <p class="desc">Classic is the standard palette. Rhododendron adds a soft botanical pattern.</p>
+          <p class="desc">
+            Classic is the standard palette. Rhododendron adds a soft botanical pattern.
+          </p>
           <div class="chips" role="radiogroup" aria-label="Color theme" id="color-theme">
-            <label class="swatch-chip"><input type="radio" name="color-theme" value="classic" checked />
+            <label class="swatch-chip"
+              ><input type="radio" name="color-theme" value="classic" checked />
               <span class="name">Classic</span>
-              <span class="strip"><i data-chip="0"></i><i data-chip="1"></i><i data-chip="2"></i></span>
-              <span class="swatch-note">Standard palette</span></label>
-            <label class="swatch-chip"><input type="radio" name="color-theme" value="rhododendron" />
+              <span class="strip"
+                ><i data-chip="0"></i><i data-chip="1"></i><i data-chip="2"></i
+              ></span>
+              <span class="swatch-note">Standard palette</span></label
+            >
+            <label class="swatch-chip"
+              ><input type="radio" name="color-theme" value="rhododendron" />
               <span class="name">Rhododendron</span>
-              <span class="strip"><i data-chip="0"></i><i data-chip="1"></i><i data-chip="2"></i><i class="pat"></i></span>
-              <span class="swatch-note">Botanical pattern</span></label>
+              <span class="strip"
+                ><i data-chip="0"></i><i data-chip="1"></i><i data-chip="2"></i><i class="pat"></i
+              ></span>
+              <span class="swatch-note">Botanical pattern</span></label
+            >
           </div>
           <div class="range-row" id="pattern-strength-row" hidden>
             <label for="pattern-strength" class="d">Pattern strength</label>
-            <input id="pattern-strength" type="range" min="0" max="30" step="1" value="14" />
-            <span class="val" id="pattern-strength-value">14</span>
+            <input id="pattern-strength" type="range" min="0" max="30" step="1" value="22" />
+            <span class="val" id="pattern-strength-value">22</span>
           </div>
         </div>
         <div class="card">
           <h2>Mode</h2>
-          <div class="switch-row" style="border:0;padding-top:0">
-            <div><div class="t">Theme</div><div class="d">Auto follows your computer's setting.</div></div>
+          <div class="switch-row" style="border: 0; padding-top: 0">
+            <div>
+              <div class="t">Theme</div>
+              <div class="d">Auto follows your computer's setting.</div>
+            </div>
             <div class="segmented" role="radiogroup" aria-label="Theme">
               <label><input type="radio" name="app-theme" value="auto" /><span>Auto</span></label>
               <label><input type="radio" name="app-theme" value="light" /><span>Light</span></label>
@@ -447,7 +1228,7 @@
         <h1>Advanced</h1>
         <p class="lead">For troubleshooting. Most people never need these.</p>
         <div class="card">
-          <div class="switch-row" style="border:0;padding-top:0">
+          <div class="switch-row" style="border: 0; padding-top: 0">
             <div>
               <div class="t">Debug logging</div>
               <div class="d">Shows Kindly's activity in the browser console. Off by default.</div>
@@ -458,7 +1239,6 @@
         </div>
       </section>
 
-      </div>
       <div class="savebar"><span>Changes save automatically.</span></div>
     </main>
 

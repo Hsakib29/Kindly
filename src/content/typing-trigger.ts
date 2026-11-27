@@ -35,10 +35,7 @@ function isLargeWritingArea(el: HTMLElement): boolean {
     /* detached node */
   }
   if (el instanceof HTMLTextAreaElement && el.rows > 1) return true;
-  if (
-    el.getAttribute('role') === 'textbox' &&
-    el.getAttribute('aria-multiline') === 'true'
-  ) {
+  if (el.getAttribute('role') === 'textbox' && el.getAttribute('aria-multiline') === 'true') {
     return true;
   }
   return false;
@@ -145,10 +142,7 @@ export class TypingTrigger {
       if ((prev === 'ready' || prev === 'ready-empty') && !this.graceTimers.has(field)) {
         // Re-check at the remaining grace boundary (best effort — the
         // timestamp check above is the real guard if this is throttled).
-        const remaining = Math.max(
-          ICON_VISIBILITY.belowThresholdGraceMs - elapsed,
-          50,
-        );
+        const remaining = Math.max(ICON_VISIBILITY.belowThresholdGraceMs - elapsed, 50);
         this.graceTimers.set(
           field,
           window.setTimeout(() => {

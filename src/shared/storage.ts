@@ -72,13 +72,7 @@ import type { EncryptedKeyBlob } from './crypto';
 export type StoredKey = string | EncryptedKeyBlob;
 
 export function isEncryptedKey(v: unknown): v is EncryptedKeyBlob {
-  return (
-    typeof v === 'object' &&
-    v !== null &&
-    'salt' in v &&
-    'iv' in v &&
-    'ct' in v
-  );
+  return typeof v === 'object' && v !== null && 'salt' in v && 'iv' in v && 'ct' in v;
 }
 
 export async function getStoredKey(): Promise<StoredKey | null> {

@@ -72,7 +72,12 @@ async function runCase(c: EvalCase): Promise<{ pass: boolean; detail: string; mo
       systemInstruction: built.systemInstruction,
       userPrompt: built.userPrompt,
     });
-    const quality = checkVariants(variants, { draft: c.draft, brief: c.brief, mode: built.mode as "expand" | "polish", skipAnchor: c.expected?.skipAnchor });
+    const quality = checkVariants(variants, {
+      draft: c.draft,
+      brief: c.brief,
+      mode: built.mode as 'expand' | 'polish',
+      skipAnchor: c.expected?.skipAnchor,
+    });
     const caseFails = caseChecks(c, variants, built.mode);
     const fails = [...quality.failures, ...caseFails];
     return {
@@ -90,10 +95,19 @@ async function runCase(c: EvalCase): Promise<{ pass: boolean; detail: string; mo
           systemInstruction: built.systemInstruction,
           userPrompt: built.userPrompt,
         });
-        const quality = checkVariants(variants, { draft: c.draft, brief: c.brief, mode: built.mode as "expand" | "polish", skipAnchor: c.expected?.skipAnchor });
+        const quality = checkVariants(variants, {
+          draft: c.draft,
+          brief: c.brief,
+          mode: built.mode as 'expand' | 'polish',
+          skipAnchor: c.expected?.skipAnchor,
+        });
         const caseFails = caseChecks(c, variants, built.mode);
         const fails = [...quality.failures, ...caseFails];
-        return { pass: fails.length === 0, detail: fails.join('; ') || 'ok (after rate-limit retry)', model: MODEL };
+        return {
+          pass: fails.length === 0,
+          detail: fails.join('; ') || 'ok (after rate-limit retry)',
+          model: MODEL,
+        };
       } catch (err2) {
         return { pass: false, detail: `retry failed: ${(err2 as Error).message}`, model: MODEL };
       }
@@ -103,16 +117,16 @@ async function runCase(c: EvalCase): Promise<{ pass: boolean; detail: string; mo
 }
 
 console.log(`Running ${cases.length} eval cases on ${MODEL} (key from key.txt, dev only)`);
-console.log(`${cases.length} base requests + up to 1 rate-limit retry each; ~${cases.length * 2} max calls.\n`);
+console.log(
+  `${cases.length} base requests + up to 1 rate-limit retry each; ~${cases.length * 2} max calls.\n`,
+);
 
 let passed = 0;
 const rows: string[] = [];
 for (const c of cases) {
   const r = await runCase(c);
   if (r.pass) passed++;
-  rows.push(
-    `${r.pass ? 'PASS' : 'FAIL'}  ${c.id.padEnd(22)} ${r.model.padEnd(22)} ${r.detail}`,
-  );
+  rows.push(`${r.pass ? 'PASS' : 'FAIL'}  ${c.id.padEnd(22)} ${r.model.padEnd(22)} ${r.detail}`);
   console.log(rows[rows.length - 1]);
   await sleep(DELAY_MS);
 }

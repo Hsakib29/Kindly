@@ -2,9 +2,7 @@ import type { ExtensionRequest, ExtensionResponse } from './messages';
 
 const RETRYABLE = /message port|receiving end|worker.*(asleep|restart|not running)|no receiving/i;
 
-function sendOnce<T extends ExtensionResponse>(
-  request: ExtensionRequest,
-): Promise<T> {
+function sendOnce<T extends ExtensionResponse>(request: ExtensionRequest): Promise<T> {
   return new Promise((resolvePromise, reject) => {
     chrome.runtime.sendMessage(request, (response: ExtensionResponse | undefined) => {
       const err = chrome.runtime.lastError;
@@ -27,9 +25,7 @@ function sendOnce<T extends ExtensionResponse>(
  * transparently on transient port errors. "Extension context invalidated"
  * is NOT retried (the page must reload).
  */
-export function sendRequest<T extends ExtensionResponse>(
-  request: ExtensionRequest,
-): Promise<T> {
+export function sendRequest<T extends ExtensionResponse>(request: ExtensionRequest): Promise<T> {
   return sendOnce<T>(request).catch((err: unknown) => {
     const msg = err instanceof Error ? err.message : String(err);
     if (RETRYABLE.test(msg) && !/invalidated/i.test(msg)) {

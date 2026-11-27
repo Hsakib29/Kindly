@@ -2,7 +2,13 @@ import { listModels, generateVariants } from './gemini';
 import { generateRouted, isModelCooling, availableModels, pickEscalationModel } from './router';
 import { checkVariants } from './quality';
 import type { ContextBriefData, Variant } from '../shared/messages';
-import { getSettings, setSettings, getStoredKey, setStoredKey, isEncryptedKey } from '../shared/storage';
+import {
+  getSettings,
+  setSettings,
+  getStoredKey,
+  setStoredKey,
+  isEncryptedKey,
+} from '../shared/storage';
 import {
   decryptWithKey,
   deriveSessionKey,
@@ -10,13 +16,15 @@ import {
   exportKeyJwk,
   importKeyJwk,
 } from '../shared/crypto';
-import {
-  ROLE_LABELS,
-  TASK_SYSTEM_PROMPT,
-  buildTaskPrompt,
-} from '../shared/prompts';
+import { ROLE_LABELS, TASK_SYSTEM_PROMPT, buildTaskPrompt } from '../shared/prompts';
 import type { ApiError, ExtensionRequest, ExtensionResponse } from '../shared/messages';
-import { debugEnabled, debugGroup, debugGroupEnd, debugLog, setDebugEnabled } from '../shared/debug';
+import {
+  debugEnabled,
+  debugGroup,
+  debugGroupEnd,
+  debugLog,
+  setDebugEnabled,
+} from '../shared/debug';
 import { sanitizeBrief } from '../shared/privacy';
 import { effectiveNeverRunSites, hostBlocked, normalizeHost } from '../shared/siteMatch';
 
@@ -238,7 +246,10 @@ function toApiError(err: unknown): ApiError {
   return { code: 'NETWORK', message: err instanceof Error ? err.message : String(err) };
 }
 
-async function handle(request: ExtensionRequest, sender?: chrome.runtime.MessageSender): Promise<ExtensionResponse> {
+async function handle(
+  request: ExtensionRequest,
+  sender?: chrome.runtime.MessageSender,
+): Promise<ExtensionResponse> {
   switch (request.type) {
     case 'PING':
       return { type: 'PONG' };
@@ -333,121 +344,128 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
           error: { code: 'NETWORK' as const, message: 'Request cancelled.' },
         }) satisfies ExtensionResponse;
       try {
-      if (await senderBlocked(sender)) {
-        return {
-          type: 'ERROR',
-          requestId: request.requestId,
-          error: { code: 'SITE_BLOCKED', message: 'Kindly is turned off on this site.' },
-        };
-      }
-      const { key, locked } = await resolveApiKey();
-      if (controller.signal.aborted) return cancelled();
-      if (locked) {
-        return {
-          type: 'ERROR',
-          requestId: request.requestId,
-          error: {
-            code: 'KEY_LOCKED',
-            message: 'API key is locked — unlock it in Settings.',
-          },
-        };
-      }
-      if (!key) {
-        return {
-          type: 'ERROR',
-          requestId: request.requestId,
-          error: { code: 'NO_KEY', message: 'No API key configured.' },
-        };
-      }
-      const trimmed = request.text.trim();
-      if (trimmed.length === 0) {
-        return {
-          type: 'ERROR',
-          requestId: request.requestId,
-          error: { code: 'TEXT_TOO_SHORT', message: 'Nothing to rewrite.' },
-        };
-      }
-      if (trimmed.length > 8000) {
-        return {
-          type: 'ERROR',
-          requestId: request.requestId,
-          error: { code: 'TEXT_TOO_LONG', message: 'Text is too long to rewrite.' },
-        };
-      }
-      try {
-        const settings = await getSettings();
-        if (controller.signal.aborted) return cancelled();
-        setDebugEnabled(settings.debug);
-        // Privacy boundary (defense in depth): the content side already
-        // sanitizes, but NO request may reach the prompt builder with raw
-        // webpage context — sanitize here regardless of source.
-        const brief = sanitizeRequestContext(request.brief, request.context);
-        const built = buildTaskPrompt({
-          draft: trimmed,
-          tone: request.tone,
-          instruction: request.instruction,
-          avoid: request.avoid,
-          brief,
-          customToneInstruction: request.customToneInstruction,
-          brandVoice: settings.brandVoice,
-        });
-        const userPrompt = built.userPrompt;
-        const deadlineAt = Date.now() + 45_000;
-        const t0 = performance.now();
-        const { variants, model, fellBack, attempts } = await generateRouted({
-          key,
-          routerPreference: settings.routerPreference,
-          signal: controller.signal,
-          deadlineAt,
-          systemInstruction: TASK_SYSTEM_PROMPT,
-          userPrompt,
-        });
-        const ms = Math.round(performance.now() - t0);
-        if (debugEnabled()) {
-          debugGroup(`REWRITE (${request.tone})`);
-          debugLog('task: rewrite | tone:', request.tone);
-          debugLog('model:', model, '| fellBack:', fellBack, '| attempts:', attempts.join(' → '));
-          debugLog('instruction:', request.instruction ? 'yes' : 'no');
-          debugLog('mode:', built.mode);
-          debugLog('context:', request.brief || request.context ? 'yes' : 'none');
-          if (request.brief) {
-            debugLog('brief:', JSON.stringify({ ...request.brief, replyTarget: undefined, contextText: undefined }));
-          }
-          debugLog('prompt:\n' + userPrompt);
-          debugLog(`response: ${variants.length} variants in ${ms}ms`);
-          debugGroupEnd();
+        if (await senderBlocked(sender)) {
+          return {
+            type: 'ERROR',
+            requestId: request.requestId,
+            error: { code: 'SITE_BLOCKED', message: 'Kindly is turned off on this site.' },
+          };
         }
-        const quality = await applyQualityChecks({
-          key,
-          model,
-          deadlineAt,
-          systemInstruction: TASK_SYSTEM_PROMPT,
-          userPrompt,
-          signal: controller.signal,
-          mode: built.mode,
-          draft: trimmed,
-          brief,
-          variants,
-        });
-        await bumpUsage(); // K-22: count only successful results
-        return {
-          type: 'REWRITE_RESULT',
-          requestId: request.requestId,
-          variants: quality.variants,
-          model: quality.model,
-          mode: built.mode,
-        };
-      } catch (err) {
-        const apiError = toApiError(err);
-        debugLog('REWRITE failed:', apiError.code, apiError.message);
-        return {
-          type: 'ERROR',
-          requestId: request.requestId,
-          error: apiError,
-        };
-      } finally {
-        pendingRequests.delete(request.requestId);
-      }
+        const { key, locked } = await resolveApiKey();
+        if (controller.signal.aborted) return cancelled();
+        if (locked) {
+          return {
+            type: 'ERROR',
+            requestId: request.requestId,
+            error: {
+              code: 'KEY_LOCKED',
+              message: 'API key is locked — unlock it in Settings.',
+            },
+          };
+        }
+        if (!key) {
+          return {
+            type: 'ERROR',
+            requestId: request.requestId,
+            error: { code: 'NO_KEY', message: 'No API key configured.' },
+          };
+        }
+        const trimmed = request.text.trim();
+        if (trimmed.length === 0) {
+          return {
+            type: 'ERROR',
+            requestId: request.requestId,
+            error: { code: 'TEXT_TOO_SHORT', message: 'Nothing to rewrite.' },
+          };
+        }
+        if (trimmed.length > 8000) {
+          return {
+            type: 'ERROR',
+            requestId: request.requestId,
+            error: { code: 'TEXT_TOO_LONG', message: 'Text is too long to rewrite.' },
+          };
+        }
+        try {
+          const settings = await getSettings();
+          if (controller.signal.aborted) return cancelled();
+          setDebugEnabled(settings.debug);
+          // Privacy boundary (defense in depth): the content side already
+          // sanitizes, but NO request may reach the prompt builder with raw
+          // webpage context — sanitize here regardless of source.
+          const brief = sanitizeRequestContext(request.brief, request.context);
+          const built = buildTaskPrompt({
+            draft: trimmed,
+            tone: request.tone,
+            instruction: request.instruction,
+            avoid: request.avoid,
+            brief,
+            customToneInstruction: request.customToneInstruction,
+            brandVoice: settings.brandVoice,
+          });
+          const userPrompt = built.userPrompt;
+          const deadlineAt = Date.now() + 45_000;
+          const t0 = performance.now();
+          const { variants, model, fellBack, attempts } = await generateRouted({
+            key,
+            routerPreference: settings.routerPreference,
+            signal: controller.signal,
+            deadlineAt,
+            systemInstruction: TASK_SYSTEM_PROMPT,
+            userPrompt,
+          });
+          const ms = Math.round(performance.now() - t0);
+          if (debugEnabled()) {
+            debugGroup(`REWRITE (${request.tone})`);
+            debugLog('task: rewrite | tone:', request.tone);
+            debugLog('model:', model, '| fellBack:', fellBack, '| attempts:', attempts.join(' → '));
+            debugLog('instruction:', request.instruction ? 'yes' : 'no');
+            debugLog('mode:', built.mode);
+            debugLog('context:', request.brief || request.context ? 'yes' : 'none');
+            if (request.brief) {
+              debugLog(
+                'brief:',
+                JSON.stringify({
+                  ...request.brief,
+                  replyTarget: undefined,
+                  contextText: undefined,
+                }),
+              );
+            }
+            debugLog('prompt:\n' + userPrompt);
+            debugLog(`response: ${variants.length} variants in ${ms}ms`);
+            debugGroupEnd();
+          }
+          const quality = await applyQualityChecks({
+            key,
+            model,
+            deadlineAt,
+            systemInstruction: TASK_SYSTEM_PROMPT,
+            userPrompt,
+            signal: controller.signal,
+            mode: built.mode,
+            draft: trimmed,
+            brief,
+            variants,
+          });
+          await bumpUsage(); // K-22: count only successful results
+          return {
+            type: 'REWRITE_RESULT',
+            requestId: request.requestId,
+            variants: quality.variants,
+            model: quality.model,
+            mode: built.mode,
+          };
+        } catch (err) {
+          const apiError = toApiError(err);
+          debugLog('REWRITE failed:', apiError.code, apiError.message);
+          return {
+            type: 'ERROR',
+            requestId: request.requestId,
+            error: apiError,
+          };
+        } finally {
+          pendingRequests.delete(request.requestId);
+        }
       } finally {
         pendingRequests.delete(request.requestId);
       }
@@ -463,117 +481,127 @@ async function handle(request: ExtensionRequest, sender?: chrome.runtime.Message
           error: { code: 'NETWORK' as const, message: 'Request cancelled.' },
         }) satisfies ExtensionResponse;
       try {
-      if (await senderBlocked(sender)) {
-        return {
-          type: 'ERROR',
-          requestId: request.requestId,
-          error: { code: 'SITE_BLOCKED', message: 'Kindly is turned off on this site.' },
-        };
-      }
-      const { key, locked } = await resolveApiKey();
-      if (controller.signal.aborted) return cancelled();
-      if (locked) {
-        return {
-          type: 'ERROR',
-          requestId: request.requestId,
-          error: {
-            code: 'KEY_LOCKED',
-            message: 'API key is locked — unlock it in Settings.',
-          },
-        };
-      }
-      if (!key) {
-        return {
-          type: 'ERROR',
-          requestId: request.requestId,
-          error: { code: 'NO_KEY', message: 'No API key configured.' },
-        };
-      }
-      const prompt = request.prompt.trim();
-      if (prompt.length === 0) {
-        return {
-          type: 'ERROR',
-          requestId: request.requestId,
-          error: { code: 'TEXT_TOO_SHORT', message: 'Describe what to write first.' },
-        };
-      }
-      if (prompt.length > 2000) {
-        return {
-          type: 'ERROR',
-          requestId: request.requestId,
-          error: { code: 'TEXT_TOO_LONG', message: 'Prompt is too long (max ~2000 characters).' },
-        };
-      }
-      try {
-        const settings = await getSettings();
-        if (controller.signal.aborted) return cancelled();
-        setDebugEnabled(settings.debug);
-        const brief = sanitizeRequestContext(request.brief, request.context);
-        const built = buildTaskPrompt({
-          draft: prompt,
-          isWrite: true,
-          reviseDraft: request.draft,
-          tone: request.tone,
-          length: request.length,
-          instruction: request.instruction,
-          brief,
-          customToneInstruction: request.customToneInstruction,
-          brandVoice: settings.brandVoice,
-          savedReply: request.savedReply,
-        });
-        const userPrompt = built.userPrompt;
-        const deadlineAt = Date.now() + 45_000;
-        const t0 = performance.now();
-        const { variants, model, fellBack, attempts } = await generateRouted({
-          key,
-          routerPreference: settings.routerPreference,
-          signal: controller.signal,
-          deadlineAt,
-          systemInstruction: TASK_SYSTEM_PROMPT,
-          userPrompt,
-        });
-        const ms = Math.round(performance.now() - t0);
-        if (debugEnabled()) {
-          debugGroup('WRITE');
-          debugLog('task: write | tone:', request.tone ?? 'none', '| length:', request.length ?? 'any');
-          debugLog('model:', model, '| fellBack:', fellBack, '| attempts:', attempts.join(' → '));
-          debugLog('instruction:', request.instruction ? 'yes' : 'no', '| draft:', request.draft ? 'yes' : 'no');
-          debugLog('context:', request.context ? `${request.context.length} chars` : 'none');
-          debugLog('prompt:\n' + userPrompt);
-          debugLog(`response: ${variants.length} variants in ${ms}ms`);
-          debugGroupEnd();
+        if (await senderBlocked(sender)) {
+          return {
+            type: 'ERROR',
+            requestId: request.requestId,
+            error: { code: 'SITE_BLOCKED', message: 'Kindly is turned off on this site.' },
+          };
         }
-        const quality = await applyQualityChecks({
-          key,
-          model,
-          deadlineAt,
-          systemInstruction: TASK_SYSTEM_PROMPT,
-          userPrompt,
-          signal: controller.signal,
-          mode: built.mode,
-          draft: request.draft ?? prompt,
-          brief,
-          variants,
-        });
-        await bumpUsage(); // K-22: count only successful results
-        return {
-          type: 'WRITE_RESULT',
-          requestId: request.requestId,
-          variants: quality.variants,
-          model: quality.model,
-          mode: built.mode,
-        };
-      } catch (err) {
-        const apiError = toApiError(err);
-        debugLog('WRITE failed:', apiError.code, apiError.message);
-        return {
-          type: 'ERROR',
-          requestId: request.requestId,
-          error: apiError,
-        };
-      } finally {
-        pendingRequests.delete(request.requestId);
-      }
+        const { key, locked } = await resolveApiKey();
+        if (controller.signal.aborted) return cancelled();
+        if (locked) {
+          return {
+            type: 'ERROR',
+            requestId: request.requestId,
+            error: {
+              code: 'KEY_LOCKED',
+              message: 'API key is locked — unlock it in Settings.',
+            },
+          };
+        }
+        if (!key) {
+          return {
+            type: 'ERROR',
+            requestId: request.requestId,
+            error: { code: 'NO_KEY', message: 'No API key configured.' },
+          };
+        }
+        const prompt = request.prompt.trim();
+        if (prompt.length === 0) {
+          return {
+            type: 'ERROR',
+            requestId: request.requestId,
+            error: { code: 'TEXT_TOO_SHORT', message: 'Describe what to write first.' },
+          };
+        }
+        if (prompt.length > 2000) {
+          return {
+            type: 'ERROR',
+            requestId: request.requestId,
+            error: { code: 'TEXT_TOO_LONG', message: 'Prompt is too long (max ~2000 characters).' },
+          };
+        }
+        try {
+          const settings = await getSettings();
+          if (controller.signal.aborted) return cancelled();
+          setDebugEnabled(settings.debug);
+          const brief = sanitizeRequestContext(request.brief, request.context);
+          const built = buildTaskPrompt({
+            draft: prompt,
+            isWrite: true,
+            reviseDraft: request.draft,
+            tone: request.tone,
+            length: request.length,
+            instruction: request.instruction,
+            brief,
+            customToneInstruction: request.customToneInstruction,
+            brandVoice: settings.brandVoice,
+            savedReply: request.savedReply,
+          });
+          const userPrompt = built.userPrompt;
+          const deadlineAt = Date.now() + 45_000;
+          const t0 = performance.now();
+          const { variants, model, fellBack, attempts } = await generateRouted({
+            key,
+            routerPreference: settings.routerPreference,
+            signal: controller.signal,
+            deadlineAt,
+            systemInstruction: TASK_SYSTEM_PROMPT,
+            userPrompt,
+          });
+          const ms = Math.round(performance.now() - t0);
+          if (debugEnabled()) {
+            debugGroup('WRITE');
+            debugLog(
+              'task: write | tone:',
+              request.tone ?? 'none',
+              '| length:',
+              request.length ?? 'any',
+            );
+            debugLog('model:', model, '| fellBack:', fellBack, '| attempts:', attempts.join(' → '));
+            debugLog(
+              'instruction:',
+              request.instruction ? 'yes' : 'no',
+              '| draft:',
+              request.draft ? 'yes' : 'no',
+            );
+            debugLog('context:', request.context ? `${request.context.length} chars` : 'none');
+            debugLog('prompt:\n' + userPrompt);
+            debugLog(`response: ${variants.length} variants in ${ms}ms`);
+            debugGroupEnd();
+          }
+          const quality = await applyQualityChecks({
+            key,
+            model,
+            deadlineAt,
+            systemInstruction: TASK_SYSTEM_PROMPT,
+            userPrompt,
+            signal: controller.signal,
+            mode: built.mode,
+            draft: request.draft ?? prompt,
+            brief,
+            variants,
+          });
+          await bumpUsage(); // K-22: count only successful results
+          return {
+            type: 'WRITE_RESULT',
+            requestId: request.requestId,
+            variants: quality.variants,
+            model: quality.model,
+            mode: built.mode,
+          };
+        } catch (err) {
+          const apiError = toApiError(err);
+          debugLog('WRITE failed:', apiError.code, apiError.message);
+          return {
+            type: 'ERROR',
+            requestId: request.requestId,
+            error: apiError,
+          };
+        } finally {
+          pendingRequests.delete(request.requestId);
+        }
       } finally {
         pendingRequests.delete(request.requestId);
       }

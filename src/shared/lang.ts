@@ -10,8 +10,10 @@ export function detectLanguage(text: string): 'en' | 'ja' | 'bn' | 'other' {
   let letters = 0;
   for (const ch of text) {
     const c = ch.codePointAt(0) ?? 0;
-    if (c >= 0x3040 && c <= 0x30ff) ja++; // hiragana + katakana
-    else if (c >= 0x4e00 && c <= 0x9fff) ja++; // CJK ideographs ~ ja/zh bucket
+    if (c >= 0x3040 && c <= 0x30ff)
+      ja++; // hiragana + katakana
+    else if (c >= 0x4e00 && c <= 0x9fff)
+      ja++; // CJK ideographs ~ ja/zh bucket
     else if (c >= 0x0980 && c <= 0x09ff) bn++;
     else if (c >= 0xac00 && c <= 0xd7af) ko++;
     else if (/[a-zA-Z]/.test(ch)) letters++;

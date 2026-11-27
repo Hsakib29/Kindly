@@ -2,13 +2,7 @@
 // Every message and response is typed here so malformed payloads fail at compile time.
 
 export type ToneId =
-  | 'professional'
-  | 'warm'
-  | 'short'
-  | 'direct'
-  | 'empathetic'
-  | 'friendly'
-  | 'grammar';
+  'professional' | 'warm' | 'short' | 'direct' | 'empathetic' | 'friendly' | 'grammar';
 
 export const TONE_IDS: readonly ToneId[] = [
   'professional',
@@ -122,7 +116,13 @@ export type ExtensionRequest =
 export type ExtensionResponse =
   | { type: 'PONG' }
   | { type: 'VERIFY_KEY_RESULT'; ok: boolean; modelCount?: number; error?: ApiError }
-  | { type: 'REWRITE_RESULT'; requestId: string; variants: Variant[]; model?: string; mode?: string }
+  | {
+      type: 'REWRITE_RESULT';
+      requestId: string;
+      variants: Variant[];
+      model?: string;
+      mode?: string;
+    }
   | { type: 'WRITE_RESULT'; requestId: string; variants: Variant[]; model?: string; mode?: string }
   | { type: 'ERROR'; requestId?: string; error: ApiError }
   | { type: 'SETTINGS'; settings: Settings }
@@ -171,6 +171,10 @@ export interface Settings {
   theme: 'auto' | 'light' | 'dark';
   /** Global page-context switch — OFF by default. */
   pageContextEnabled: boolean;
+  /** Color theme: 'classic' palette or botanical 'rhododendron'. */
+  colorTheme: 'classic' | 'rhododendron';
+  /** Botanical pattern strength 0-30 (only when colorTheme is rhododendron). */
+  patternStrength: number;
 }
 
 /** Default never-run hostnames (banking/health) — editable in options. */
@@ -200,4 +204,6 @@ export const SETTINGS_DEFAULTS: Settings = {
   debug: false,
   theme: 'auto',
   pageContextEnabled: false,
+  colorTheme: 'classic',
+  patternStrength: 22,
 };

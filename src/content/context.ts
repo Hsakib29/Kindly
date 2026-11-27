@@ -90,7 +90,9 @@ function collectText(root: Element, deadline: number): CollectResult {
 /** Pick the most content-dense block as the "main" region. */
 function pickMainRoot(doc: Document): Element {
   const candidates = Array.from(
-    doc.querySelectorAll('main, article, [role="main"], #main, .main, .content, .thread, .conversation'),
+    doc.querySelectorAll(
+      'main, article, [role="main"], #main, .main, .content, .thread, .conversation',
+    ),
   );
   let best: Element | null = null;
   let bestScore = 0;
@@ -106,9 +108,7 @@ function pickMainRoot(doc: Document): Element {
 
 /** Largest text-bearing container — fallback when block selectors miss. */
 function pickLargestTextContainer(doc: Document, deadline: number): Element | null {
-  const candidates = Array.from(
-    doc.querySelectorAll('main, article, [role="main"], div, section'),
-  );
+  const candidates = Array.from(doc.querySelectorAll('main, article, [role="main"], div, section'));
   let best: Element | null = null;
   let bestLen = 0;
   const limit = Math.min(candidates.length, 600);
@@ -352,7 +352,12 @@ export function buildContextBrief(field: HTMLElement, draftText = ''): BuiltBrie
   const replyTarget = capKeepEnd(text, REPLY_TARGET_CAP);
   const before = text.slice(0, Math.max(0, text.length - REPLY_TARGET_CAP));
   const earlier = before
-    ? [capKeepEnd(before.slice(-EARLIER_MESSAGE_CAP * EARLIER_MESSAGE_COUNT), EARLIER_MESSAGE_CAP * EARLIER_MESSAGE_COUNT)]
+    ? [
+        capKeepEnd(
+          before.slice(-EARLIER_MESSAGE_CAP * EARLIER_MESSAGE_COUNT),
+          EARLIER_MESSAGE_CAP * EARLIER_MESSAGE_COUNT,
+        ),
+      ]
     : [];
   const { brief, total } = sanitizeBrief({
     platform: platformName(),

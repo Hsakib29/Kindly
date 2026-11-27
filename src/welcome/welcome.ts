@@ -4,15 +4,18 @@ import { PRODUCT_NAME, TAGLINE } from '../shared/brand';
 import { setKey, setSettings, getSettings } from '../shared/storage';
 import { TONE_IDS, type ExtensionResponse, type ToneId } from '../shared/messages';
 import { sendRequest } from '../shared/client';
-import { resolveTheme } from '../shared/theme';
+import { resolveTheme, patternActive, applyColorTheme } from '../shared/theme';
 import { patternBackgroundImage, PATTERN_BACKGROUND_SIZE } from '../shared/pattern';
 
 void getSettings().then((st) => {
   const mode = resolveTheme(st.theme ?? 'auto');
   document.documentElement.dataset.theme = mode;
-  document.body.style.backgroundImage = patternBackgroundImage(mode, 12);
-  document.body.style.backgroundSize = PATTERN_BACKGROUND_SIZE;
-  document.body.style.backgroundRepeat = 'repeat';
+  applyColorTheme(document.documentElement, st.colorTheme, mode);
+  if (patternActive(st.colorTheme, st.patternStrength)) {
+    document.body.style.backgroundImage = patternBackgroundImage(mode, st.patternStrength ?? 0);
+    document.body.style.backgroundSize = PATTERN_BACKGROUND_SIZE;
+    document.body.style.backgroundRepeat = 'repeat';
+  }
 });
 document.getElementById('app-title')!.textContent = PRODUCT_NAME;
 document.getElementById('tagline')!.textContent = TAGLINE;
@@ -32,6 +35,19 @@ const keyInput = document.getElementById('api-key') as HTMLInputElement;
 const keyStatus = document.getElementById('key-status') as HTMLElement;
 const verifyBtn = document.getElementById('verify') as HTMLButtonElement;
 
+// Show/Hide toggle for the API key field.
+const keyToggle = document.getElementById('key-toggle') as HTMLButtonElement;
+keyToggle.addEventListener('click', () => {
+  const show = keyInput.type === 'password';
+  keyInput.type = show ? 'text' : 'password';
+  keyToggle.textContent = show ? 'Hide' : 'Show';
+});
+
+// Step navigation: skip forward, back between steps.
+document.getElementById('skip-1')!.addEventListener('click', () => showStep(2));
+document.getElementById('back-2')!.addEventListener('click', () => showStep(1));
+document.getElementById('back-3')!.addEventListener('click', () => showStep(2));
+
 verifyBtn.addEventListener('click', async () => {
   const key = keyInput.value.trim();
   if (!key) {
@@ -45,7 +61,9 @@ verifyBtn.addEventListener('click', async () => {
   const res = (await sendRequest<ExtensionResponse>({
     type: 'VERIFY_KEY',
     key,
-  })) as Extract<ExtensionResponse, { type: 'VERIFY_KEY_RESULT' }> | Extract<ExtensionResponse, { type: 'ERROR' }>;
+  })) as
+    | Extract<ExtensionResponse, { type: 'VERIFY_KEY_RESULT' }>
+    | Extract<ExtensionResponse, { type: 'ERROR' }>;
   verifyBtn.disabled = false;
   if (res.type === 'VERIFY_KEY_RESULT' && res.ok) {
     await setKey(key);
@@ -84,8 +102,10 @@ for (const t of TONE_IDS) {
 
 document.getElementById('style-next')!.addEventListener('click', async () => {
   const bv = {
-    companyName: (document.getElementById('bv-company') as HTMLInputElement).value.trim() || undefined,
-    greeting: (document.getElementById('bv-greeting') as HTMLInputElement).value.trim() || undefined,
+    companyName:
+      (document.getElementById('bv-company') as HTMLInputElement).value.trim() || undefined,
+    greeting:
+      (document.getElementById('bv-greeting') as HTMLInputElement).value.trim() || undefined,
     closing: (document.getElementById('bv-closing') as HTMLInputElement).value.trim() || undefined,
   };
   const settings = await getSettings();
@@ -112,7 +132,9 @@ demoGo.addEventListener('click', async () => {
     requestId: crypto.randomUUID(),
     text,
     tone: chosenTone,
-  })) as Extract<ExtensionResponse, { type: 'REWRITE_RESULT' }> | Extract<ExtensionResponse, { type: 'ERROR' }>;
+  })) as
+    | Extract<ExtensionResponse, { type: 'REWRITE_RESULT' }>
+    | Extract<ExtensionResponse, { type: 'ERROR' }>;
   demoGo.disabled = false;
   if (res.type === 'REWRITE_RESULT' && res.variants) {
     demoStatus.textContent = '';
@@ -138,4 +160,7 @@ document.getElementById('finish')!.addEventListener('click', async () => {
   await chrome.storage.local.set({ onboarded: true });
   document.getElementById('finish-tip')!.classList.remove('hidden');
   (document.getElementById('finish') as HTMLButtonElement).disabled = true;
+});
+document.getElementById('open-settings')!.addEventListener('click', () => {
+  void chrome.runtime.openOptionsPage();
 });

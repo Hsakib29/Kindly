@@ -61,10 +61,7 @@ export async function availableModels(key: string): Promise<string[] | null> {
  * 'speed' puts fast-tier models first; 'quality' puts quality-tier first.
  * Only models the key can actually use are kept (when the catalog loads).
  */
-async function buildOrder(
-  key: string,
-  preference: RouterPreference,
-): Promise<string[]> {
+async function buildOrder(key: string, preference: RouterPreference): Promise<string[]> {
   const available = await availableModels(key);
   const pool = MODEL_FALLBACK_ORDER.filter((m) => !available || available.includes(m));
   // Append any usable catalog models not in the static list, tier-sorted.

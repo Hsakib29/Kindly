@@ -5,6 +5,7 @@ import type { ExtensionResponse } from '../shared/messages';
 import { PRODUCT_NAME } from '../shared/brand';
 import { resolveTheme } from '../shared/theme';
 import { patternBackgroundImage, PATTERN_BACKGROUND_SIZE } from '../shared/pattern';
+import { patternActive, applyColorTheme } from '../shared/theme';
 import { normalizeHost } from '../shared/siteMatch';
 
 const titleEl = document.getElementById('app-title') as HTMLElement;
@@ -30,9 +31,15 @@ async function main() {
   const settings = await getSettings();
   const mode = resolveTheme(settings.theme ?? 'auto');
   document.documentElement.dataset.theme = mode;
-  document.body.style.backgroundImage = patternBackgroundImage(mode, 12);
-  document.body.style.backgroundSize = PATTERN_BACKGROUND_SIZE;
-  document.body.style.backgroundRepeat = 'repeat';
+  applyColorTheme(document.documentElement, settings.colorTheme, mode);
+  // Pattern appears only on the decorative top band, never behind text rows.
+  const band = document.getElementById('pattern-band');
+  if (band && patternActive(settings.colorTheme, settings.patternStrength)) {
+    band.hidden = false;
+    band.style.backgroundImage = patternBackgroundImage(mode, settings.patternStrength ?? 0);
+    band.style.backgroundSize = PATTERN_BACKGROUND_SIZE;
+    band.style.backgroundRepeat = 'repeat';
+  }
   const tabId = await activeTabId();
 
   // Ask the content script for this site's hostname + hidden state.
@@ -52,6 +59,7 @@ async function main() {
     }
   }
   siteNameEl.textContent = hostname;
+  siteNameEl.hidden = !hostname;
   toggleEl.checked = !hidden;
 
   // Per-site page-context checkbox (K-04): checked unless explicitly off.

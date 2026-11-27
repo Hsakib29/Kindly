@@ -223,8 +223,7 @@ export class FieldUiController {
 
   private sync() {
     if (this.disposed) return;
-    const fieldOk =
-      this.field != null && this.field.isConnected && isSupportedField(this.field);
+    const fieldOk = this.field != null && this.field.isConnected && isSupportedField(this.field);
 
     // Page re-rendered/removed the node — drop it; next focusin re-resolves.
     if (this.field && !this.field.isConnected) {

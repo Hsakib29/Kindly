@@ -118,9 +118,7 @@ export async function listModelInfo(key: string): Promise<ModelInfo[]> {
 export async function listModelIds(key: string): Promise<string[]> {
   const res = await geminiFetch('/models?pageSize=1000', key);
   const data = (await res.json()) as { models?: { name?: string }[] };
-  return (data.models ?? [])
-    .map((m) => m.name?.replace(/^models\//, '') ?? '')
-    .filter(Boolean);
+  return (data.models ?? []).map((m) => m.name?.replace(/^models\//, '') ?? '').filter(Boolean);
 }
 
 export async function listModels(key: string): Promise<number> {
@@ -193,9 +191,7 @@ const REQUEST_TIMEOUT_MS = 25_000;
  * Ask Gemini for rewrite variants as structured JSON, then parse,
  * validate, and deduplicate the result.
  */
-export async function generateVariants(
-  options: GenerateVariantsOptions,
-): Promise<Variant[]> {
+export async function generateVariants(options: GenerateVariantsOptions): Promise<Variant[]> {
   const model = options.model ?? DEFAULT_MODEL;
   const body = {
     ...(options.systemInstruction
@@ -290,7 +286,8 @@ function validateVariants(parsed: unknown, count: number): Variant[] {
     if (seen.has(key)) continue;
     seen.add(key);
     variants.push({
-      label: typeof label === 'string' && label.trim() ? label.trim() : `Option ${variants.length + 1}`,
+      label:
+        typeof label === 'string' && label.trim() ? label.trim() : `Option ${variants.length + 1}`,
       text: text.trim(),
       role: typeof role === 'string' ? role.trim() : undefined,
     });

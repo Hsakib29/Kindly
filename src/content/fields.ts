@@ -55,9 +55,7 @@ export function isSupportedField(el: Element | null): el is HTMLElement {
   if (!(el instanceof HTMLElement)) return false;
 
   const isField =
-    el instanceof HTMLTextAreaElement ||
-    el instanceof HTMLInputElement ||
-    isContentEditable(el);
+    el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement || isContentEditable(el);
   if (!isField) return false;
 
   if (el instanceof HTMLInputElement) {
@@ -67,9 +65,7 @@ export function isSupportedField(el: Element | null): el is HTMLElement {
   }
 
   if (
-    (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
-      ? el.readOnly
-      : false) ||
+    (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ? el.readOnly : false) ||
     el.getAttribute('aria-readonly') === 'true' ||
     el.hasAttribute('readonly')
   ) {

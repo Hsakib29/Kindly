@@ -11,6 +11,13 @@ import { generateRouted, pickEscalationModel, isModelCooling } from '../../src/b
 import { getSettings, setSettings } from '../../src/shared/storage';
 import { SETTINGS_DEFAULTS } from '../../src/shared/messages';
 import { detectLanguage } from '../../src/shared/lang';
+import {
+  PATTERN_TILE_SIZE,
+  patternBackgroundImage,
+  strengthToOpacity,
+  tileSVG,
+} from '../../src/shared/pattern';
+import { paletteChips, patternActive } from '../../src/shared/theme';
 import type { ContextBriefData } from '../../src/shared/messages';
 
 let passed = 0;
@@ -47,13 +54,13 @@ test('chooseMode: <=8 words -> expand', () => {
   assert.equal(chooseMode({ draft: 'one two three four five six seven eight' }), 'expand');
 });
 test('chooseMode: >8 words -> polish', () => {
-  assert.equal(
-    chooseMode({ draft: 'one two three four five six seven eight nine ten' }),
-    'polish',
-  );
+  assert.equal(chooseMode({ draft: 'one two three four five six seven eight nine ten' }), 'polish');
 });
 test('chooseMode: write always expand, revise always polish', () => {
-  assert.equal(chooseMode({ draft: 'a much longer draft here yes indeed', isWrite: true }), 'expand');
+  assert.equal(
+    chooseMode({ draft: 'a much longer draft here yes indeed', isWrite: true }),
+    'expand',
+  );
   assert.equal(chooseMode({ draft: 'short', reviseDraft: 'long draft text' }), 'polish');
 });
 
@@ -118,9 +125,17 @@ test('no brief -> no context sections, still valid', () => {
 
 // ---------- checkVariants ----------
 const goodVariants = [
-  { label: 'a', text: 'Hi Bob, thanks for reaching out about order 123 — it ships tomorrow.', role: 'balanced' },
+  {
+    label: 'a',
+    text: 'Hi Bob, thanks for reaching out about order 123 — it ships tomorrow.',
+    role: 'balanced',
+  },
   { label: 'b', text: 'Hey Bob! Order 123 is on its way, expect it Thursday.', role: 'short' },
-  { label: 'c', text: 'Dear Bob, regarding your shipping question for order 123, here are the details you need.', role: 'detailed' },
+  {
+    label: 'c',
+    text: 'Dear Bob, regarding your shipping question for order 123, here are the details you need.',
+    role: 'detailed',
+  },
 ];
 
 test('checkVariants passes good expand set', () => {
@@ -141,7 +156,11 @@ test('checkVariants flags duplicates', () => {
     [
       { label: 'a', text: dup, role: 'balanced' },
       { label: 'b', text: dup, role: 'short' },
-      { label: 'c', text: 'Totally different reply about something else entirely.', role: 'detailed' },
+      {
+        label: 'c',
+        text: 'Totally different reply about something else entirely.',
+        role: 'detailed',
+      },
     ],
     { draft: 'x', brief, mode: 'expand' },
   );
@@ -150,7 +169,11 @@ test('checkVariants flags duplicates', () => {
 test('checkVariants flags AI-speak', () => {
   const r = checkVariants(
     [
-      { label: 'a', text: 'As an AI, I cannot help with order 123 shipping questions.', role: 'short' },
+      {
+        label: 'a',
+        text: 'As an AI, I cannot help with order 123 shipping questions.',
+        role: 'short',
+      },
       ...goodVariants.slice(1),
     ],
     { draft: 'x', brief, mode: 'expand' },
@@ -195,8 +218,16 @@ test('polish mode tolerates close-to-draft variants', () => {
   const r = checkVariants(
     [
       { label: 'a', text: close, role: 'closest' },
-      { label: 'b', text: 'Elena — the Q3 roadmap is updated and live in the shared drive.', role: 'concise' },
-      { label: 'c', text: 'Hi Elena, thank you for your message. I wanted to share that the Q3 roadmap has been refreshed and can now be found in the product planning folder.', role: 'polished' },
+      {
+        label: 'b',
+        text: 'Elena — the Q3 roadmap is updated and live in the shared drive.',
+        role: 'concise',
+      },
+      {
+        label: 'c',
+        text: 'Hi Elena, thank you for your message. I wanted to share that the Q3 roadmap has been refreshed and can now be found in the product planning folder.',
+        role: 'polished',
+      },
     ],
     { draft, brief: { ...brief, replyTarget: 'Can you share the roadmap?' }, mode: 'polish' },
   );
@@ -228,7 +259,14 @@ import { mapHttpError, isTextGenerationModel, generateVariants } from '../../src
 import { generateRouted, pickEscalationModel, isModelCooling } from '../../src/background/router';
 import { getSettings, setSettings } from '../../src/shared/storage';
 import { SETTINGS_DEFAULTS } from '../../src/shared/messages';
-import { encryptSecret, decryptSecret, deriveSessionKey, decryptWithKey, exportKeyJwk, importKeyJwk } from '../../src/shared/crypto';
+import {
+  encryptSecret,
+  decryptSecret,
+  deriveSessionKey,
+  decryptWithKey,
+  exportKeyJwk,
+  importKeyJwk,
+} from '../../src/shared/crypto';
 
 test('privacy: credit card formats redacted', () => {
   for (const s of [
@@ -251,7 +289,11 @@ test('privacy: emails redacted', () => {
 });
 
 test('privacy: phone numbers redacted (intl + common formats)', () => {
-  for (const s of ['call +1 (415) 555-0132 now', 'call +44 20 7946 0958 now', 'call 415-555-0132 now']) {
+  for (const s of [
+    'call +1 (415) 555-0132 now',
+    'call +44 20 7946 0958 now',
+    'call 415-555-0132 now',
+  ]) {
     const r = sanitizeText(s);
     assert.ok(r.text.includes('[phone number removed]'), s);
     assert.ok(!/\d{3}[-. ]\d{3}[-. ]\d{4}/.test(r.text), s);
@@ -259,7 +301,8 @@ test('privacy: phone numbers redacted (intl + common formats)', () => {
 });
 
 test('privacy: JWT redacted', () => {
-  const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';
+  const jwt =
+    'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';
   const r = sanitizeText(`token is ${jwt} ok`);
   assert.ok(r.text.includes('[token removed]'));
   assert.ok(!r.text.includes('eyJhbGci'));
@@ -305,7 +348,8 @@ test('privacy: IBAN and SSN redacted', () => {
 });
 
 test('privacy: false positives — innocent numbers/words survive', () => {
-  const s = 'order 123456789 shipped on 2024-01-15, tracking 1Z999AA10123456784, total $49.99 for 3 items, ref ABC-12345';
+  const s =
+    'order 123456789 shipped on 2024-01-15, tracking 1Z999AA10123456784, total $49.99 for 3 items, ref ABC-12345';
   const r = sanitizeText(s);
   assert.equal(r.total, 0, `unexpected redactions: ${JSON.stringify(r.counts)}`);
   assert.equal(r.text, s);
@@ -322,7 +366,8 @@ test('privacy: multiple sensitive items all redacted', () => {
 });
 
 test('privacy: clean conversation text unchanged', () => {
-  const s = 'Hi Sarah, thanks for reaching out about order 12345. We will look into the delayed shipment and update you by Friday. Best, Support Team';
+  const s =
+    'Hi Sarah, thanks for reaching out about order 12345. We will look into the delayed shipment and update you by Friday. Best, Support Team';
   const r = sanitizeText(s);
   assert.equal(r.text, s);
   assert.equal(r.total, 0);
@@ -409,10 +454,24 @@ test('privacy K-09: clean text unchanged, count matches', () => {
 });
 
 test('inserter K-10: whitespace-insensitive insert verification', () => {
-  assert.ok(sameTextIgnoringWhitespace('Hi JohnThanks', 'Hi John' + String.fromCharCode(10,10) + 'Thanks'));
-  assert.ok(sameTextIgnoringWhitespace('Hi John Thanks', 'Hi John' + String.fromCharCode(10,10) + 'Thanks'));
-  assert.ok(!sameTextIgnoringWhitespace('Hello world', 'Hi John' + String.fromCharCode(10,10) + 'Thanks'));
-  assert.ok(sameTextIgnoringWhitespace('a' + String.fromCharCode(160) + 'b c', 'ab' + String.fromCharCode(10) + ' c'));
+  assert.ok(
+    sameTextIgnoringWhitespace('Hi JohnThanks', 'Hi John' + String.fromCharCode(10, 10) + 'Thanks'),
+  );
+  assert.ok(
+    sameTextIgnoringWhitespace(
+      'Hi John Thanks',
+      'Hi John' + String.fromCharCode(10, 10) + 'Thanks',
+    ),
+  );
+  assert.ok(
+    !sameTextIgnoringWhitespace('Hello world', 'Hi John' + String.fromCharCode(10, 10) + 'Thanks'),
+  );
+  assert.ok(
+    sameTextIgnoringWhitespace(
+      'a' + String.fromCharCode(160) + 'b c',
+      'ab' + String.fromCharCode(10) + ' c',
+    ),
+  );
 });
 
 test('prompts K-11: escapeUntrusted neutralizes tags and quotes', () => {
@@ -451,7 +510,10 @@ test('quality K-12: anchor check skipped for unspaced languages', () => {
       { role: 'closest', text: '資料を拝見いたします。' },
       { role: 'warmer', text: '承知いたしました。' },
     ],
-    { draft: 'hi', brief: { platform: 'web', replyTarget: jaTarget, replyLanguage: 'ja' } as never },
+    {
+      draft: 'hi',
+      brief: { platform: 'web', replyTarget: jaTarget, replyLanguage: 'ja' } as never,
+    },
   );
   assert.ok(!r1.failures.some((f) => f.includes('reply target')), r1.failures.join(';'));
 
@@ -474,15 +536,27 @@ test('quality K-12: English anchor check unchanged', () => {
       { role: 'closest', text: 'sure' },
       { role: 'warmer', text: 'great' },
     ],
-    { draft: 'hi', brief: { platform: 'web', replyTarget: 'Please review the quarterly budget report carefully' } as never },
+    {
+      draft: 'hi',
+      brief: {
+        platform: 'web',
+        replyTarget: 'Please review the quarterly budget report carefully',
+      } as never,
+    },
   );
-  assert.ok(r.failures.some((f) => f.includes('reply target')), r.failures.join(';'));
+  assert.ok(
+    r.failures.some((f) => f.includes('reply target')),
+    r.failures.join(';'),
+  );
 });
 
 test('prompts K-13: grammar tone forces polish for short drafts', () => {
   assert.equal(chooseMode({ draft: 'i dont think thats right', tone: 'grammar' }), 'polish');
   assert.equal(chooseMode({ draft: 'i dont think thats right', tone: 'warm' }), 'expand');
-  assert.equal(chooseMode({ draft: 'i dont think thats right', tone: 'grammar', isWrite: true }), 'expand');
+  assert.equal(
+    chooseMode({ draft: 'i dont think thats right', tone: 'grammar', isWrite: true }),
+    'expand',
+  );
   assert.equal(chooseMode({ draft: 'short', tone: 'grammar', mode: 'expand' }), 'expand');
 });
 
@@ -518,8 +592,12 @@ test('gemini K-15: HTTP status mapping', () => {
 test('router K-16: only text-generation models routable', () => {
   assert.ok(isTextGenerationModel({ id: 'gemini-3.5-flash-lite', methods: ['generateContent'] }));
   assert.ok(!isTextGenerationModel({ id: 'text-embedding-004', methods: ['embedContent'] }));
-  assert.ok(!isTextGenerationModel({ id: 'gemini-2.5-flash-preview-tts', methods: ['generateContent'] }));
-  assert.ok(isTextGenerationModel({ id: 'gemini-3.5-flash', methods: ['generateContent', 'countTokens'] }));
+  assert.ok(
+    !isTextGenerationModel({ id: 'gemini-2.5-flash-preview-tts', methods: ['generateContent'] }),
+  );
+  assert.ok(
+    isTextGenerationModel({ id: 'gemini-3.5-flash', methods: ['generateContent', 'countTokens'] }),
+  );
   assert.ok(!isTextGenerationModel({ id: 'imagen-4', methods: ['predict'] }));
 });
 
@@ -545,7 +623,9 @@ test('gemini K-21: stalled body read hits TIMEOUT via deadline', async () => {
         userPrompt: 'x',
         deadlineAt: Date.now() + 60, // test-only short cap
       });
-    } catch (e) { code = (e as { code?: string }).code ?? ''; }
+    } catch (e) {
+      code = (e as { code?: string }).code ?? '';
+    }
     assert.equal(code, 'TIMEOUT');
   } finally {
     globalThis.fetch = orig;
@@ -565,14 +645,18 @@ test('router K-21: past deadline rejects fast, empty catalog errors', async () =
     let code = '';
     try {
       await generateRouted({ key: 'k', userPrompt: 'x', deadlineAt: Date.now() - 1 });
-    } catch (e) { code = (e as { code?: string }).code ?? ''; }
+    } catch (e) {
+      code = (e as { code?: string }).code ?? '';
+    }
     assert.equal(code, 'TIMEOUT');
     // Empty catalog -> NETWORK, no hang.
     let code2 = '';
     try {
       // catalogCache may hold prior state; empty models -> empty order
       await generateRouted({ key: 'other-key-xyz', userPrompt: 'x' });
-    } catch (e) { code2 = (e as { code?: string }).code ?? ''; }
+    } catch (e) {
+      code2 = (e as { code?: string }).code ?? '';
+    }
     assert.equal(code2, 'NETWORK');
   } finally {
     globalThis.fetch = orig;
@@ -615,24 +699,53 @@ test('context K-25: hostMatches is exact-domain only', () => {
 test('router K-26: escalation skips unavailable/cooling models', () => {
   // First escalation model not in catalog -> second is picked.
   const catalog = ['gemini-3.7-flash', 'gemini-3.6-flash'];
-  assert.equal(pickEscalationModel(catalog, () => false), 'gemini-3.7-flash');
+  assert.equal(
+    pickEscalationModel(catalog, () => false),
+    'gemini-3.7-flash',
+  );
   // Cooling first -> next usable.
   assert.equal(
     pickEscalationModel(['gemini-3.8-flash', 'gemini-3.7-flash'], (m) => m === 'gemini-3.8-flash'),
     'gemini-3.7-flash',
   );
   // Catalog null -> static order.
-  assert.equal(pickEscalationModel(null, () => false), 'gemini-3.8-flash');
+  assert.equal(
+    pickEscalationModel(null, () => false),
+    'gemini-3.8-flash',
+  );
   // None usable.
-  assert.equal(pickEscalationModel([], () => false), undefined);
+  assert.equal(
+    pickEscalationModel([], () => false),
+    undefined,
+  );
 });
 
 // ---------- router K-30 ----------
-const FALLBACK = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash'];
+const FALLBACK = [
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-3.8-flash',
+  'gemini-3.7-flash',
+  'gemini-3.6-flash',
+];
 const okBody = JSON.stringify({
-  candidates: [{ content: { parts: [{ text: JSON.stringify({ variants: [
-    { role: 'short', text: 'ok one' }, { role: 'balanced', text: 'ok two' }, { role: 'warmer', text: 'ok three' },
-  ] }) }] } }],
+  candidates: [
+    {
+      content: {
+        parts: [
+          {
+            text: JSON.stringify({
+              variants: [
+                { role: 'short', text: 'ok one' },
+                { role: 'balanced', text: 'ok two' },
+                { role: 'warmer', text: 'ok three' },
+              ],
+            }),
+          },
+        ],
+      },
+    },
+  ],
 });
 function mockGemini(handlers: Record<string, () => Promise<Partial<Response> | Response>>) {
   const orig = globalThis.fetch;
@@ -648,20 +761,28 @@ function mockGemini(handlers: Record<string, () => Promise<Partial<Response> | R
       return {
         ok: true,
         json: async () => ({
-          models: FALLBACK.map((id) => ({ name: `models/${id}`, supportedGenerationMethods: ['generateContent'] })),
+          models: FALLBACK.map((id) => ({
+            name: `models/${id}`,
+            supportedGenerationMethods: ['generateContent'],
+          })),
         }),
       } as Response;
     }
     return { ok: true, json: async () => ({}) } as Response;
   }) as typeof fetch;
-  return () => { globalThis.fetch = orig; };
+  return () => {
+    globalThis.fetch = orig;
+  };
 }
 
 test('router K-30: NETWORK retried once on same model', async () => {
   const m1 = FALLBACK[0];
   let calls = 0;
   const restore = mockGemini({
-    [m1]: async () => { calls++; throw new Error('socket hangup'); },
+    [m1]: async () => {
+      calls++;
+      throw new Error('socket hangup');
+    },
   });
   try {
     const r = await generateRouted({ key: 'k-net-1', userPrompt: 'x' });
@@ -669,20 +790,27 @@ test('router K-30: NETWORK retried once on same model', async () => {
     // attempts lists each model once; calls===2 above proves the retry.
     assert.deepEqual(r.attempts, [m1, FALLBACK[1]]);
     assert.equal(r.model, FALLBACK[1]);
-  } finally { restore(); }
+  } finally {
+    restore();
+  }
 });
 
 test('router K-30: BAD_OUTPUT does not retry, moves to next model', async () => {
   const m1 = FALLBACK[0];
   let calls = 0;
   const restore = mockGemini({
-    [m1]: async () => { calls++; return { ok: true, json: async () => ({}) } as Response; },
+    [m1]: async () => {
+      calls++;
+      return { ok: true, json: async () => ({}) } as Response;
+    },
   });
   try {
     const r = await generateRouted({ key: 'k-bo-1', userPrompt: 'x' });
     assert.equal(calls, 1, 'BAD_OUTPUT must not retry');
     assert.deepEqual(r.attempts, [m1, FALLBACK[1]]);
-  } finally { restore(); }
+  } finally {
+    restore();
+  }
 });
 
 test('router K-30: speed preference tries fast-tier first', async () => {
@@ -690,7 +818,9 @@ test('router K-30: speed preference tries fast-tier first', async () => {
   try {
     const r = await generateRouted({ key: 'k-spd-1', userPrompt: 'x', routerPreference: 'speed' });
     assert.equal(r.attempts[0], 'gemini-3.5-flash-lite');
-  } finally { restore(); }
+  } finally {
+    restore();
+  }
 });
 
 test('router K-30: RATE_LIMIT cools model, next call skips it', async () => {
@@ -699,7 +829,11 @@ test('router K-30: RATE_LIMIT cools model, next call skips it', async () => {
   const restore = mockGemini({
     [m1]: async () => {
       rlCalls++;
-      return { ok: false, status: 429, json: async () => ({ error: { message: 'quota', code: 429 } }) } as Response;
+      return {
+        ok: false,
+        status: 429,
+        json: async () => ({ error: { message: 'quota', code: 429 } }),
+      } as Response;
     },
   });
   try {
@@ -709,7 +843,9 @@ test('router K-30: RATE_LIMIT cools model, next call skips it', async () => {
     const r2 = await generateRouted({ key: 'k-rl-1', userPrompt: 'x' });
     assert.equal(r2.attempts[0], FALLBACK[1], 'cooled model skipped on next call');
     assert.equal(rlCalls, 1, 'cooled model not retried');
-  } finally { restore(); }
+  } finally {
+    restore();
+  }
 });
 
 // ---------- storage K-30 ----------
@@ -723,9 +859,13 @@ function fakeChrome() {
       else cb({ ...store });
     },
     set: (items: Record<string, unknown>, cb?: () => void) => {
-      Object.assign(store, items); cb?.();
+      Object.assign(store, items);
+      cb?.();
     },
-    remove: (key: string, cb?: () => void) => { delete store[key]; cb?.(); },
+    remove: (key: string, cb?: () => void) => {
+      delete store[key];
+      cb?.();
+    },
   };
   (globalThis as { chrome?: unknown }).chrome = {
     storage: { local },
@@ -780,7 +920,11 @@ test('crypto K-17: v2 blob round-trips, v1 blob still decrypts', async () => {
 test('crypto K-17: wrong passphrase throws; session key decrypts', async () => {
   const blob = await encryptSecret('x', 'right-passphrase');
   let threw = false;
-  try { await decryptSecret(blob, 'wrong-passphrase'); } catch { threw = true; }
+  try {
+    await decryptSecret(blob, 'wrong-passphrase');
+  } catch {
+    threw = true;
+  }
   assert.ok(threw);
   const sk = await deriveSessionKey(blob, 'right-passphrase');
   assert.equal(await decryptWithKey(blob, sk), 'x');
@@ -793,6 +937,60 @@ test('crypto: session key survives JWK export/import and decrypts', async () => 
   // Simulate chrome.storage.session JSON round trip.
   const restored = await importKeyJwk(JSON.parse(JSON.stringify(jwk)));
   assert.equal(await decryptWithKey(blob, restored), 'test-api-key-123');
+});
+
+// ---------- pattern.ts ----------
+
+test('pattern: strengthToOpacity clamps to 0..0.3', () => {
+  assert.equal(strengthToOpacity(0), 0);
+  assert.equal(strengthToOpacity(15), 0.15);
+  assert.equal(strengthToOpacity(30), 0.3);
+  assert.equal(strengthToOpacity(-5), 0);
+  assert.equal(strengthToOpacity(99), 0.3);
+});
+
+test('pattern: patternBackgroundImage is none at 0 strength', () => {
+  assert.equal(patternBackgroundImage('light', 0), 'none');
+  assert.equal(patternBackgroundImage('dark', -3), 'none');
+});
+
+test('pattern: tileSVG wraps every fragment at 9 offsets', () => {
+  const svg = tileSVG('light', 22);
+  assert.ok(svg.startsWith('<svg'));
+  assert.ok(svg.includes(`viewBox="0 0 ${PATTERN_TILE_SIZE} ${PATTERN_TILE_SIZE}"`));
+  // Every tiled() fragment emits exactly one wrapper per offset, so the
+  // count at each of the 9 positions must be identical and non-zero.
+  const count = (needle: string) => svg.split(needle).length - 1;
+  const center = count('translate(0 0)');
+  assert.ok(center > 0, 'expected tiled fragments');
+  assert.equal(count('translate(-320 -320)'), center);
+  assert.equal(count('translate(320 320)'), center);
+  assert.equal(count('translate(-320 320)'), center);
+});
+
+test('pattern: patternBackgroundImage embeds the tiled SVG', () => {
+  const css = patternBackgroundImage('dark', 22);
+  assert.ok(css.startsWith('url("data:image/svg+xml,'));
+  const svg = decodeURIComponent(css.slice('url("data:image/svg+xml,'.length, -2));
+  assert.ok(svg.includes('<svg'));
+  assert.ok(svg.includes('translate(-320 -320)'));
+});
+
+// ---------- theme.ts ----------
+
+test('theme: paletteChips rhododendron uses accentTint middle chip', () => {
+  assert.deepEqual(paletteChips('rhododendron', 'light'), ['#F4F5F0', '#E4EAF8', '#4F72C4']);
+  assert.deepEqual(paletteChips('rhododendron', 'dark'), ['#111826', '#26324D', '#9DB8F0']);
+  assert.deepEqual(paletteChips('classic', 'light'), ['#F5F7FF', '#FFFFFF', '#5269D8']);
+  assert.deepEqual(paletteChips(undefined, 'dark'), ['#0D1224', '#171F3A', '#AFC0FF']);
+});
+
+test('theme: patternActive requires rhododendron and strength > 0', () => {
+  assert.equal(patternActive('rhododendron', 22), true);
+  assert.equal(patternActive('rhododendron', 0), false);
+  assert.equal(patternActive('rhododendron', undefined), false);
+  assert.equal(patternActive('classic', 22), false);
+  assert.equal(patternActive(undefined, 22), false);
 });
 
 await Promise.all(pending);

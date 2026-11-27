@@ -44,13 +44,9 @@ async function deriveKey(
   salt: Uint8Array,
   iterations: number,
 ): Promise<CryptoKey> {
-  const base = await crypto.subtle.importKey(
-    'raw',
-    enc.encode(passphrase),
-    'PBKDF2',
-    false,
-    ['deriveKey'],
-  );
+  const base = await crypto.subtle.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, [
+    'deriveKey',
+  ]);
   return crypto.subtle.deriveKey(
     { name: 'PBKDF2', salt: salt as BufferSource, iterations, hash: 'SHA-256' },
     base,
@@ -84,10 +80,7 @@ export async function encryptSecret(
 }
 
 /** Throws if the passphrase is wrong (GCM auth failure). */
-export async function decryptSecret(
-  blob: EncryptedKeyBlob,
-  passphrase: string,
-): Promise<string> {
+export async function decryptSecret(blob: EncryptedKeyBlob, passphrase: string): Promise<string> {
   const key = await deriveKey(passphrase, fromB64(blob.salt), iterationsFor(blob));
   const pt = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: fromB64(blob.iv) as BufferSource },
@@ -116,19 +109,10 @@ export async function exportKeyJwk(key: CryptoKey): Promise<JsonWebKey> {
 
 /** Re-import a JWK exported by exportKeyJwk (AES-GCM, non-extractable). */
 export async function importKeyJwk(jwk: JsonWebKey): Promise<CryptoKey> {
-  return crypto.subtle.importKey(
-    'jwk',
-    jwk,
-    { name: 'AES-GCM' },
-    false,
-    ['encrypt', 'decrypt'],
-  );
+  return crypto.subtle.importKey('jwk', jwk, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
 }
 
-export async function decryptWithKey(
-  blob: EncryptedKeyBlob,
-  key: CryptoKey,
-): Promise<string> {
+export async function decryptWithKey(blob: EncryptedKeyBlob, key: CryptoKey): Promise<string> {
   const pt = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: fromB64(blob.iv) as BufferSource },
     key,
